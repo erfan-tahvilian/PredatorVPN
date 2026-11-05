@@ -23,7 +23,7 @@ class Auth {
     return (await this.http.json(url, {method:'POST', body:JSON.stringify(data), authorization:session ? hawk('POST', url, session, JSON.stringify(data)) : undefined})).data;
   }
   async login(email, password) {
-    if (!email || !password) throw Error('Enter your Firefox account email and password.');
+    if (!email || !password) throw Error('Enter your service account email and password.');
     this.pending = null;
     let result;
     try { result = await this.request('/account/login', {email, authPW:authPW(email,password), verificationMethod:'email-2fa'}); }
@@ -44,13 +44,13 @@ class Auth {
   }
   async complete() {
     const token = await this.request('/oauth/token', {client_id:CLIENT, grant_type:'fxa-credentials', scope:SCOPE, access_type:'offline'}, this.pending.session);
-    if (!token.access_token) throw Error('Firefox Accounts did not return an access token.');
+    if (!token.access_token) throw Error('The external account service did not return an access token.');
     this.store.setAuth({...token, email:this.pending.email, expiresAt:Date.now()+(token.expires_in || 86400)*1000});
     this.pending = null; return {needsCode:false};
   }
   async token(force = false) {
     const auth = this.store.auth;
-    if (!auth) throw Error('Sign in to your Firefox account first.');
+    if (!auth) throw Error('Sign in to your service account first.');
     if (!force && Date.now()+60000 < auth.expiresAt) return auth.access_token;
     if(this.refreshing)return this.refreshing;
     const pending=this.refresh(auth);this.refreshing=pending;

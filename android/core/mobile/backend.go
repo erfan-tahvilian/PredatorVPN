@@ -515,7 +515,7 @@ func (b *Backend) connect() error {
 		return errors.New("No apps selected. Choose at least one app in Settings > Split tunneling before connecting.")
 	}
 	if b.auth == nil {
-		return errors.New("Sign in to your Firefox account first")
+		return errors.New("Sign in to your service account first")
 	}
 	b.mu.Lock()
 	servers := append([]object{}, b.servers...)

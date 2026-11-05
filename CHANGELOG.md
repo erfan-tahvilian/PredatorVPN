@@ -34,7 +34,7 @@
 
 ### Maintenance update - 2026-10-29
 
-- Improved Firefox account service verification and sign-in reliability.
+- Improved service account service verification and sign-in reliability.
 - Preserved email and authenticator verification during sign-in.
 
 Initial release for Windows, macOS and Android.
@@ -44,7 +44,7 @@ Initial release for Windows, macOS and Android.
 - Android ARM64, ARM, x86_64, x86 and universal APKs.
 - Android Quick Settings connection controls and persistent notification.
 - System VPN, split tunneling and proxy-only mode.
-- Firefox account authentication and encrypted session storage.
+- service account authentication and encrypted session storage.
 - Automatic and manual server selection.
 - Configurable DNS and upstream proxy support.
 - Connection diagnostics and system tray controls.

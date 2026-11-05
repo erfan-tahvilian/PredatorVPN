@@ -7,7 +7,7 @@ The README uses a connection-path motif drawn from Fox VPN's orange fox-and-shie
 | Asset | Purpose |
 | --- | --- |
 | `badge-{version,windows,macos,android}.svg` | Local version and platform badges, without third-party image requests. |
-| `hero-{dark,light}.webp` | Wide brand introduction with the original transparent logo, Firefox infrastructure attribution and four target platform icons. |
+| `hero-{dark,light}.webp` | Legacy wide brand introduction retained for the upcoming redesign. Currently not linked from the README. |
 | `social-preview.{svg,png}` | Repository social preview artwork, 1280 × 640 pixels. |
 | `download-badges/*.svg` | Platform and architecture download badges shared by the README and release notes. |
 | `hero-{dark,light}-mobile.webp` | Narrow-screen composition with larger relative type. |

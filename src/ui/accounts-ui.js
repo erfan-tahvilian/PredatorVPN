@@ -8,7 +8,7 @@ function renderAccountManager(s){
   if(s.totalTraffic){$('total-transferred').textContent=bytes(s.totalTraffic.totalUp+s.totalTraffic.totalDown);$('total-traffic-detail').textContent=`↓ ${bytes(s.totalTraffic.totalDown)} · ↑ ${bytes(s.totalTraffic.totalUp)}`;$('total-traffic-card').title='Traffic on this device since '+new Date(s.totalTraffic.since).toLocaleDateString('en-US');if(s.connection!=='connected'){$('download-speed').textContent='Last session';$('upload-speed').textContent='Last session';}}
   if(!enabled)return;
   $('signin-panel').hidden=!addingAccount&&s.accounts.length>0;$('signedin-panel').hidden=true;
-  document.querySelector('#account .page-heading h1').textContent='Your Firefox accounts.';
+  document.querySelector('#account .page-heading h1').textContent='Your service accounts.';
   document.querySelector('#account .page-heading>p').textContent='One place for your accounts, connection preference and automatic switching.';
   $('add-account').disabled=s.busy;$('cancel-add-account').disabled=s.busy;$('account-auto-switch').checked=s.accountPreferences?.autoSwitch!==false;$('account-auto-switch').disabled=s.busy;
   const summaries=s.accounts.filter(a=>a.status!=='sign-in-required').map(a=>allowanceSummary(a.quota)),known=summaries.filter(a=>a.kind==='limited'),unlimited=summaries.some(a=>a.kind==='unlimited');
@@ -19,7 +19,7 @@ function renderAccountManager(s){
   for(const account of s.accounts){
     const card=document.createElement('article');card.className='saved-account'+(account.active?' is-active':'');card.setAttribute('role','listitem');
     const avatar=document.createElement('span');avatar.className='account-avatar';avatar.textContent=Array.from(account.email)[0]?.toUpperCase()||'?';
-    const copy=document.createElement('div');copy.className='saved-account-copy';const email=document.createElement('strong');email.textContent=account.email||'Firefox account';const detail=document.createElement('p');const q=allowanceSummary(account.quota);
+    const copy=document.createElement('div');copy.className='saved-account-copy';const email=document.createElement('strong');email.textContent=account.email||'service account';const detail=document.createElement('p');const q=allowanceSummary(account.quota);
     detail.textContent=account.status==='sign-in-required'?'Sign in again to use this account':account.status==='exhausted'?'No data remaining':q.kind==='limited'?`${bytes(q.remaining)} remaining`:q.kind==='unlimited'?'Unlimited allowance':'Allowance not yet available';copy.append(email,detail);
     if(account.active){const badge=document.createElement('span');badge.className='account-active-badge';badge.textContent='ACTIVE';copy.append(badge);}
     const actions=document.createElement('div');actions.className='saved-account-actions';const choose=document.createElement('button');choose.className=account.active?'secondary':'primary';choose.type='button';choose.textContent=account.status==='sign-in-required'?'Sign in again':account.active?'Active account':s.connection==='connected'?'Switch and reconnect':'Use account';choose.disabled=s.busy||account.active&&account.status!=='sign-in-required';choose.addEventListener('click',action(async()=>{if(account.status==='sign-in-required')openAccountSignIn(account.email);else await call('selectAccount',account.id);}));

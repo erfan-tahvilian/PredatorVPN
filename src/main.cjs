@@ -190,7 +190,7 @@ async function connect({resumeTraffic=false,prepared=null,automaticRecovery=fals
   const check=()=>{if(epoch!==generation)throw Error('Connection cancelled');};
   connection='connecting';lastError=null;exit=null;emit();
   try {
-    if(!store.auth)throw Error('Sign in to your Firefox account first.');
+    if(!store.auth)throw Error('Sign in to your service account first.');
     if(!store.settings.proxyOnly&&store.settings.splitMode==='include'&&!store.settings.excludedApps.length)throw Error('Select at least one app in Split tunneling before connecting.');
     if(!mac&&!linux&&!store.settings.proxyOnly&&!await admin())throw Error('Run Fox VPN as administrator for system VPN, or enable proxy-only mode in Settings.');
     if(!servers.length)await refreshServers();
@@ -294,7 +294,7 @@ else {
     handle('exit',async()=>{if(connection!=='connected')throw Error('Connect before verifying your connection.');const active=tunnel,epoch=generation;const result=await active.exit(store.settings.serverId==='REC'?null:active.candidate.code);if(tunnel!==active||epoch!==generation)throw Error('Connection changed while checking.');exit=result;emit();void refreshAddresses(active,epoch);return result;});
     handle('clearLogs',()=>{logs=[];emit();});
     handle('exportLogs',async()=>{const result=await dialog.showSaveDialog(window,{defaultPath:'FoxVPN-diagnostics.txt',filters:[{name:'Text files',extensions:['txt']}]});if(!result.canceled)fs.writeFileSync(result.filePath,logs.map(l=>`${l.time} [${l.level}] ${l.message}`).join('\n'));});
-    handle('openLink',id=>{const urls={source:'https://github.com/erfan-tahvilian/FoxVPN',license:'https://github.com/erfan-tahvilian/FoxVPN/blob/main/LICENSE',account:'https://accounts.firefox.com/',accountSettings:'https://accounts.firefox.com/settings'};if(!urls[id])throw Error('Unknown link');return shell.openExternal(urls[id]);});
+    handle('openLink',id=>{const urls={source:'https://github.com/erfan-tahvilian/FoxVPN',license:'https://github.com/erfan-tahvilian/FoxVPN/blob/main/LICENSE'};if(!urls[id])throw Error('Unknown link');return shell.openExternal(urls[id]);});
     nativeTheme.on('updated',emit);setInterval(()=>{if(multiAccount&&traffic){observeTraffic();try{traffic.checkpoint();trafficSaveWarning=false;}catch{if(!trafficSaveWarning){logs.push({time:new Date().toISOString(),level:'warn',message:'Traffic statistics could not be saved.'});trafficSaveWarning=true;}}}emit();},1000).unref();
     if(store.loadError)log('warn',store.loadError);
     refreshServers().catch(()=>log('warn','Locations could not be refreshed. Saved locations remain available; try Refresh again later.'));

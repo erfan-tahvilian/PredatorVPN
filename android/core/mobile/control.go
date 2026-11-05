@@ -146,7 +146,7 @@ func (b *Backend) authRequest(ctx context.Context, path string, data object, ses
 }
 func (b *Backend) login(ctx context.Context, email, password string) (object, error) {
 	if email == "" || password == "" {
-		return nil, errors.New("Enter your Firefox account email and password")
+		return nil, errors.New("Enter your service account email and password")
 	}
 	b.pending = nil
 	data := object{"email": email, "authPW": passwordHash(email, password), "verificationMethod": "email-2fa"}
@@ -196,7 +196,7 @@ func (b *Backend) complete(ctx context.Context) (object, error) {
 		return nil, err
 	}
 	if str(token, "access_token") == "" {
-		return nil, errors.New("Firefox Accounts returned no access token")
+		return nil, errors.New("The external account service returned no access token")
 	}
 	token["email"] = str(b.pending, "email")
 	expiry := num(token, "expires_in")
@@ -225,7 +225,7 @@ func (b *Backend) token(ctx context.Context, force bool) (string, error) {
 	}
 	b.mu.Unlock()
 	if len(auth) == 0 {
-		return "", errors.New("Sign in to your Firefox account first")
+		return "", errors.New("Sign in to your service account first")
 	}
 	if !force && float64(millis()+60000) < num(auth, "expiresAt") {
 		return str(auth, "access_token"), nil

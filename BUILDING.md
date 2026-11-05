@@ -78,7 +78,7 @@ Packages are AppImage, DEB and RPM. A Secret Service keyring is required; the ap
 
 The Electron main process owns authentication, encrypted storage, network streams and engine lifecycle. The sandboxed renderer has no Node.js access. A restricted preload interface exposes validated actions.
 
-Electron `safeStorage` protects session credentials and proxy passwords using Windows DPAPI, macOS Keychain or a Linux Secret Service keyring. The Firefox password is never persisted.
+Electron `safeStorage` protects session credentials and proxy passwords using Windows DPAPI, macOS Keychain or a Linux Secret Service keyring. The account password is never persisted.
 
 The local SOCKS5 bridge carries authenticated CONNECT streams over HTTP/2, or HTTP/3 on Windows, macOS and Linux. The HTTP/3 helper receives credentials through its private stdin pipe and accepts only authenticated loopback connections. DNS uses the configured tunneled resolver; general application UDP is rejected. HTTP/3 is the outer edge transport and does not add general UDP relay support. Local/private traffic, excluded applications and control-plane requests use the direct network. Binding the local proxy to all interfaces exposes an unauthenticated proxy; the default binding is loopback only.
 

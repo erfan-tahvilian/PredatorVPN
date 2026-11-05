@@ -1,6 +1,6 @@
 # Fox VPN v1.0.3
 
-An independent VPN client for Windows, macOS, Linux and Android, built on Mozilla Firefox VPN infrastructure and Fastly edge servers.
+An independent VPN client for Windows, macOS, Linux and Android, built on third-party VPN infrastructure and remote VPN edge servers.
 
 ## New in 1.0.3
 
@@ -14,7 +14,7 @@ This release preserves HTTPS-verified server selection, split tunneling, existin
 
 - **Account sign-in:** Improved service verification while preserving email and authenticator-code authentication.
 
-- **Multiple Firefox accounts:** Choose the active account or switch automatically after confirmed data-allowance exhaustion. Accounts retain separate allowances.
+- **Multiple service accounts:** Choose the active account or switch automatically after confirmed data-allowance exhaustion. Accounts retain separate allowances.
 - **Persistent traffic statistics:** View monthly allowance, last-session transfers and cumulative traffic on this device.
 - **Flexible app routing:** Choose which apps use the VPN with selected-app and exclusion modes, a searchable app picker and synchronized manual identifiers.
 - **Connection controls:** Check real HTTPS delay, browse saved locations and view IPv4 and IPv6 addresses when available.
@@ -66,7 +66,7 @@ The separate sing-box source archive is included with the release assets. See `S
 
 ## Connection support
 
-Sign in with a Firefox account, complete email or authenticator verification when requested, select a location and connect. Account eligibility, regional availability and data allowances depend on the service.
+Sign in with a service account, complete email or authenticator verification when requested, select a location and connect. Account eligibility, regional availability and data allowances depend on the service.
 
 TCP and DNS are supported. General application UDP, including browser QUIC and games, and a persistent kill switch are not supported. HTTP/3 is the transport to the VPN edge and requires working outbound UDP; it does not enable general UDP forwarding. Desktop apps remain in the tray when their window is closed; Android connections remain active in the background.
 

@@ -1,11 +1,6 @@
 <p align="center"><strong>English</strong> &nbsp; | &nbsp; <a href="README.fa.md">فارسی</a></p>
 
-<picture>
-  <source media="(prefers-color-scheme: dark) and (max-width: 600px)" srcset="docs/readme/hero-dark-mobile.webp">
-  <source media="(max-width: 600px)" srcset="docs/readme/hero-light-mobile.webp">
-  <source media="(prefers-color-scheme: dark)" srcset="docs/readme/hero-dark.webp">
-  <img src="docs/readme/hero-light.webp" width="1440" alt="Fox VPN. Your connection Your control An independent client built on Firefox VPN infrastructure for desktop and phone. Windows, macOS, Linux and Android.">
-</picture>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/logo-light.png"><img src="assets/logo.png" width="152" alt="Fox VPN logo"></picture></p>
 
 <p align="center">
   <img src="docs/readme/badge-version.svg" alt="Version 1.0.3" height="22">
@@ -24,7 +19,7 @@
 
 **A familiar workspace for a more private connection.** Fox VPN brings system VPN, app-based routing and connection controls to your desktop and phone, with an English interface and light, dark and system appearance.
 
-Sign in with a Firefox account to get started. Service eligibility, availability and data allowances apply. Fox VPN is an independent client and is not affiliated with Mozilla.
+Sign in with a service account to get started. Service eligibility, availability and data allowances apply. Fox VPN is an independent client and is not affiliated with the external service provider.
 
 <a name="download"></a>
 
@@ -86,46 +81,9 @@ Compare your download's SHA-256 hash with [SHA256SUMS.txt](https://github.com/er
 
 A focused overview of your connection, chosen location, monthly data allowance and session activity.
 
-**Your accounts, one workspace.** Save multiple Firefox accounts, choose the active account and switch automatically when a confirmed allowance is exhausted. One account carries the connection at a time. Last-session traffic and cumulative device totals remain available after you disconnect or restart. Available on Windows, macOS, Linux and Android.
+**Your accounts, one workspace.** Save multiple service accounts, choose the active account and switch automatically when a confirmed allowance is exhausted. One account carries the connection at a time. Last-session traffic and cumulative device totals remain available after you disconnect or restart. Available on Windows, macOS, Linux and Android.
 
-<a href="docs/screenshots/overview-dark.png">
-  <picture>
-    <source media="(prefers-color-scheme: dark) and (max-width: 600px)" srcset="docs/readme/workspace-dark-mobile.webp">
-    <source media="(max-width: 600px)" srcset="docs/readme/workspace-light-mobile.webp">
-    <source media="(prefers-color-scheme: dark)" srcset="docs/readme/workspace-dark.webp">
-    <img src="docs/readme/workspace-light.webp" width="1440" loading="lazy" alt="Fox VPN overview showing the connection button, selected location, connection details and session statistics. On narrow screens, a crop highlights the connection panel.">
-  </picture>
-</a>
-
-<details>
-<summary><strong>Explore the full interface · dark, light & locations</strong></summary>
-
-**Dark appearance**
-
-![Fox VPN overview in dark appearance, with the sidebar, connection panel and session statistics.](docs/screenshots/overview-dark.png)
-
-**Light appearance**
-
-![The same Fox VPN overview in light appearance.](docs/screenshots/overview-light.png)
-
-**Saved accounts**
-
-<picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/accounts-dark.png"><img src="docs/screenshots/accounts-light.png" alt="Saved Firefox accounts with manual selection, available allowances and automatic switching."></picture>
-
-<details>
-<summary>Theme-matched dialogs</summary>
-
-<picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/dialog-dark.png"><img src="docs/screenshots/dialog-light.png" alt="Account dialog using the active Fox VPN palette."></picture>
-
-</details>
-
-**Locations**
-
-![Fox VPN location browser with country flags, search, latency readings and sorting controls.](docs/screenshots/locations.png)
-
-</details>
-
-<sub>Images show the current desktop interface with sample accounts, addresses, usage and latency readings. The compact workspace image is a crop of the desktop preview.</sub>
+A clear connection dashboard, multi-account management, allowances and network details in light and dark appearance.
 
 <a name="traffic-on-your-terms"></a>
 
@@ -150,7 +108,7 @@ Update checks start when the app opens and refresh when it returns to the foregr
 | :--- | :--- |
 | **🌍 Location choice** - use a recommended endpoint or choose a country manually. | **💾 Saved preferences** - settings, downloaded locations and your preferred location order persist between sessions. |
 | **⚡ Latency checks** - measure an HTTPS response through the authenticated VPN tunnel for one location or all locations; sort by real delay or name. | **⚙️ Connection options** - use system VPN or a local SOCKS5 proxy, with HTTP / SOCKS5 upstream support. |
-| **📊 At-a-glance activity** - view connection statistics and export diagnostic logs. | **🔐 Local credential protection** - encrypted session storage, configurable DNS and Firefox account email verification and authenticator codes. |
+| **📊 At-a-glance activity** - view connection statistics and export diagnostic logs. | **🔐 Local credential protection** - encrypted session storage, configurable DNS and service account email verification and authenticator codes. |
 
 **Android:** Connect or disconnect from Quick Settings, with an active-state tile and persistent notification controls. **Desktop:** Keep Fox VPN available in the system tray when its window is closed.
 
@@ -192,9 +150,9 @@ Choose **DEB** for Debian/Ubuntu or **RPM** for Fedora and compatible distributi
 
 ### 2. Sign in, choose a location and connect
 
-If you do not have a Firefox account, [create one](https://accounts.firefox.com/signup) before continuing.
+A valid existing account with the external connection service is required. This project does not offer account registration.
 
-1. Open **My account** and sign in with your Firefox account.
+1. Open **My account** and sign in with your service account.
 2. Enter the email verification or authenticator code if requested.
 3. Choose a location and press the connect button.
 
@@ -215,7 +173,7 @@ Keep the default loopback binding unless you intend to share the proxy on a trus
 
 ## 🌐 Network support
 
-Fox VPN is an independent client built on Mozilla's Firefox VPN infrastructure, with connections carried by Fastly edge servers. Account eligibility, regional availability and data allowances are determined by the service.
+Fox VPN is an independent client built on third-party VPN infrastructure, with connections carried by remote VPN edge servers. Account eligibility, regional availability and data allowances are determined by the service.
 
 | Supported | Boundaries to know |
 | :--- | :--- |
@@ -246,7 +204,7 @@ Remove account details, tokens, IP addresses and other sensitive information bef
 - **sing-box** - GPL-3.0-or-later with its upstream naming condition. The exact corresponding source is included as [sing-box-1.12.0-source.tar.gz](https://github.com/erfan-tahvilian/FoxVPN/releases/download/v1.0.3/sing-box-1.12.0-source.tar.gz). See the [notice](licenses/sing-box-NOTICE.txt) and [source build instructions](https://sing-box.sagernet.org/installation/build-from-source/).
 - **Wintun** - redistributed under the license included with Windows packages. See [Wintun](https://www.wintun.net/).
 - **Electron, Chromium, Node.js and npm dependencies** - notices are included in desktop distributions. Native Android dependency notices are included in APK assets.
-- **HTTP/3 transport** - quic-go, qpack and adapted Firefox VPN client components retain their MIT/BSD notices. See the [transport notice](licenses/http3-NOTICE.txt).
+- **HTTP/3 transport** - quic-go, qpack and adapted open-source reference components retain their MIT/BSD notices. See the [transport notice](licenses/http3-NOTICE.txt).
 - **flag-icons** - MIT; see the [license notice](licenses/flag-icons-MIT.txt).
 
 </details>

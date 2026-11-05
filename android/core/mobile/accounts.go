@@ -336,7 +336,7 @@ func (b *Backend) selectAccount(ctx context.Context, id string) error {
 		b.exit = exit
 	}
 	b.mu.Unlock()
-	b.log("info", "Connected with the selected Firefox account")
+	b.log("info", "Connected with the selected service account")
 	return nil
 }
 func (b *Backend) rejectedAccount(t *proxyTunnel, status int, h http.Header, eventID string) {

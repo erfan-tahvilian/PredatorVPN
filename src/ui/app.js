@@ -107,7 +107,7 @@ function render(s) {
   $('signin-panel').hidden=s.signedIn;$('signedin-panel').hidden=!s.signedIn;$('signedin-email').textContent=s.email;
   $('login-form').hidden=needsCode;$('code-form').hidden=!needsCode;
   $('login-button').disabled=s.busy;renderAccountManager(s);
-  $('home-info').textContent=s.lastError||(s.signedIn?(s.quota?.remaining?`${bytes(s.quota.remaining)} remaining in your current service allowance.`:'Your Firefox account is ready. Choose a location and connect.'):'Sign in with your Firefox account to get started.');
+  $('home-info').textContent=s.lastError||(s.signedIn?(s.quota?.remaining?`${bytes(s.quota.remaining)} remaining in your current service allowance.`:'Your service account is ready. Choose a location and connect.'):'Sign in with your service account to get started.');
   $('settings-notice').textContent=s.connection==='disconnected'?'Credentials are encrypted on this device.':'Disconnect before saving network preferences.';
   $('ping-servers').disabled=s.pinging||(s.pingingIds||[]).length>0;
   $('ping-servers').textContent=s.pinging?'Checking latency…':'Ping all locations';
@@ -201,13 +201,12 @@ $('theme-toggle').addEventListener('click',action(async()=>{const theme=document
 $('ping-servers').addEventListener('click',action(async()=>{await call('ping');toast('Location latency check complete.');}));
 $('source').addEventListener('click',action(()=>call('openLink','source')));
 $('view-license').addEventListener('click',action(()=>call('openLink','license')));
-$('create-account').addEventListener('click',action(()=>call('openLink','account')));
 $('refresh-servers').addEventListener('click',action(async()=>{$('refresh-servers').disabled=true;try{await call('servers');toast('Locations updated.');}finally{$('refresh-servers').disabled=false;}}));
 $('server-search').addEventListener('input',renderServers);
 $('server-sort').addEventListener('change',renderServers);
 $('recommended').addEventListener('click',action(async()=>{await call('select','REC');navigate('home');}));
 $('verify-exit').addEventListener('click',action(async()=>{const result=await call('exit');toast(`Exit verified · ${result.ip} · ${result.country}`);}));
-$('login-form').addEventListener('submit',action(async e=>{e.preventDefault();const email=$('email').value.trim(),password=$('password').value;$('password').value='';const result=await call('login',{email,password});needsCode=result.needsCode;if(!needsCode&&hasAccountManager())addingAccount=false;render(await call('state'));if(needsCode){const totp=result.verificationMethod==='totp-2fa';$('code').placeholder=totp?'Code from your authenticator app':'Code from your email';$('code').value='';$('code').focus();toast(totp?'Enter the code from your authenticator app.':'Enter the verification code sent to your Firefox account email.');}else{toast('Signed in successfully.');navigate(hasAccountManager()?'account':'home');}}));
+$('login-form').addEventListener('submit',action(async e=>{e.preventDefault();const email=$('email').value.trim(),password=$('password').value;$('password').value='';const result=await call('login',{email,password});needsCode=result.needsCode;if(!needsCode&&hasAccountManager())addingAccount=false;render(await call('state'));if(needsCode){const totp=result.verificationMethod==='totp-2fa';$('code').placeholder=totp?'Code from your authenticator app':'Code from your email';$('code').value='';$('code').focus();toast(totp?'Enter the code from your authenticator app.':'Enter the verification code sent to your service account email.');}else{toast('Signed in successfully.');navigate(hasAccountManager()?'account':'home');}}));
 $('code-form').addEventListener('submit',action(async e=>{e.preventDefault();await call('verify',$('code').value.trim());$('code').value='';needsCode=false;addingAccount=false;render(await call('state'));toast('Your account is ready.');navigate(hasAccountManager()?'account':'home');}));
 $('restart-login').addEventListener('click',()=>{needsCode=false;render(currentState);});
 $('logout').addEventListener('click',action(async()=>{await call('logout');needsCode=false;$('account-stats').textContent='Refresh to view your account details and data allowance.';toast('Signed out.');}));
@@ -234,7 +233,6 @@ if(!window.desktopUI)$('settings-form').addEventListener('submit',action(async e
 $('log-filter').addEventListener('change',renderLogs);
 $('clear-logs').addEventListener('click',action(()=>call('clearLogs')));
 $('export-logs').addEventListener('click',action(()=>call('exportLogs')));
-$('manage-account').addEventListener('click',action(()=>call('openLink','accountSettings')));
 setupAccountManager();
 window.fox.onState(render);
 call('state').then(render).catch(e=>toast(e.message));
