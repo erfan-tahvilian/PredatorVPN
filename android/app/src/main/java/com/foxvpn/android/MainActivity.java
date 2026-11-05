@@ -177,7 +177,7 @@ public final class MainActivity extends Activity {
                             JSONObject update=new JSONObject(app().backend.call("updateURL",new JSONArray().put(installedArchitecture()).toString()));
                             if(!update.optBoolean("ok"))throw new IllegalStateException(update.optString("error","No newer update is available."));
                             Uri download=Uri.parse(update.getString("data"));
-                            if(!"https".equals(download.getScheme())||!"github.com".equals(download.getHost())||!download.getPath().startsWith("/erfan-tahvilian/FoxVPN/releases/download/v")||!download.getPath().endsWith(".apk"))throw new IllegalStateException("Invalid update link.");
+                            if(!"https".equals(download.getScheme())||!"github.com".equals(download.getHost())||!download.getPath().startsWith("/erfan-tahvilian/PredatorVPN/releases/download/v")||!download.getPath().endsWith(".apk"))throw new IllegalStateException("Invalid update link.");
                             app().main.post(()->startActivity(new Intent(Intent.ACTION_VIEW,download)));respond(id,envelope(true,null));break;
                         case "settings":
                             String mode=args.getJSONObject(0).optString("splitMode","exclude");
@@ -192,11 +192,11 @@ public final class MainActivity extends Activity {
                         case "cancel":case "disconnect":app().stopVpn();respond(id,envelope(true,null));break;
                         case "logout":app().stopVpn();respond(id,app().backend.call(channel,arguments));break;
                         case "openLink":
-                            String target=switch(args.optString(0)){case "source" -> "https://github.com/erfan-tahvilian/FoxVPN";case "license" -> "https://github.com/erfan-tahvilian/FoxVPN/blob/main/LICENSE";default -> throw new IllegalArgumentException("Unsupported link");};
+                            String target=switch(args.optString(0)){case "source" -> "https://github.com/erfan-tahvilian/PredatorVPN";case "license" -> "https://github.com/erfan-tahvilian/PredatorVPN/blob/main/LICENSE";default -> throw new IllegalArgumentException("Unsupported link");};
                             app().main.post(() -> startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(target))));respond(id,envelope(true,null));break;
                         case "exportLogs":
                             exportText=app().backend.logExport();
-                            app().main.post(() -> startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("text/plain").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE,"FoxVPN-diagnostics.txt"),EXPORT));
+                            app().main.post(() -> startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).setType("text/plain").addCategory(Intent.CATEGORY_OPENABLE).putExtra(Intent.EXTRA_TITLE,"PredatorVPN-diagnostics.txt"),EXPORT));
                             respond(id,envelope(true,null));break;
                         case "chooseApps": app().main.post(MainActivity.this::chooseApps);respond(id,envelope(true,null));break;
                         default:respond(id,app().backend.call(channel,arguments));break;

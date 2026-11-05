@@ -81,7 +81,7 @@ public class AndroidIntegrationTest {
         assertEquals("\"none\"",js("getComputedStyle(document.querySelector('h1')).userSelect"));
         assertEquals("\"rgba(0, 0, 0, 0)\"",js("getComputedStyle(document.getElementById('connect')).webkitTapHighlightColor"));
         assertEquals("\"text\"",js("getComputedStyle(document.querySelector('input[type=email]')).userSelect"));
-        assertEquals("true",js("(()=>{const h=document.querySelector('header').getBoundingClientRect(),t=document.getElementById('theme-toggle').getBoundingClientRect(),a=document.querySelector('.account-chip .avatar').getBoundingClientRect();return Math.abs(t.left+t.width/2-h.left-h.width/2)<1 && Math.abs(t.top+t.height/2-h.top-h.height/2)<1 && Math.abs(a.width-a.height)<1})()"));
+        assertEquals("true",js("(()=>{const h=document.querySelector('header').getBoundingClientRect(),t=document.getElementById('theme-toggle').getBoundingClientRect(),a=document.querySelector('.account-chip .avatar').getBoundingClientRect(),brand=document.querySelector('.mobile-app-brand').getBoundingClientRect();return brand.width>80 && brand.left>=h.left-1 && t.width>=40 && t.height>=40 && t.right<=h.right+1 && Math.abs(a.width-a.height)<1})()"));
         assertEquals("true",js("(()=>{const before=currentState;render({...before,signedIn:true,email:'nora@example.com'});const correct=document.querySelector('.account-chip .avatar').textContent==='N';render(before);return correct})()"));
         for(String page:new String[]{"home","locations","account","settings","logs"}){
             js("navigate('"+page+"')");assertEquals("true",js("document.querySelector('.page.active').id==='"+page+"'"));
