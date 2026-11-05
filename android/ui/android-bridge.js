@@ -41,7 +41,7 @@
     const form=document.getElementById('settings-form');
     const connected=state.connection!=='disconnected';
     if(!splitInitialized){splitMode.value=state.settings.splitMode==='include'?'include':'exclude';splitInitialized=true;}
-    for(const control of form.querySelectorAll('input,select,textarea,#choose-apps'))control.disabled=connected&&control.id!=='theme';
+    for(const control of form.querySelectorAll('input,select,textarea,#choose-apps'))control.disabled=connected&&!['theme','accentColor'].includes(control.id);
     if(typeof syncSelects==='function')syncSelects();
     const notice=document.getElementById('settings-notice');
     notice.textContent=connected?'Disconnect to edit network settings.':'';
@@ -65,7 +65,7 @@
       const notice=document.getElementById('settings-notice');notice.textContent='Saving…';
       saving=saving.then(async()=>{
         try{
-          await call(event.target.id==='theme'?'theme':'settings',event.target.id==='theme'?settings.theme:settings);
+          await call(['theme','accentColor'].includes(event.target.id)?event.target.id:'settings',['theme','accentColor'].includes(event.target.id)?settings[event.target.id]:settings);
           if(sequence===saveSequence){
             if(document.getElementById('upstreamPassword').value===settings.upstream.password)document.getElementById('upstreamPassword').value='';
             document.getElementById('clearUpstreamPassword').checked=false;
@@ -78,7 +78,7 @@
     choose.addEventListener('pointerdown',()=>{if(packageTimer){clearTimeout(packageTimer);field.dispatchEvent(new Event('change',{bubbles:true}));}},true);
     window.flushSettings=()=>{if(packageTimer){clearTimeout(packageTimer);packageTimer=null;field.dispatchEvent(new Event('change',{bubbles:true}));}return saving;};
     const about=document.createElement('div');about.className='settings-card';about.dataset.appAbout='';
-    const heading=document.createElement('h3');heading.textContent='About Fox VPN';
+    const heading=document.createElement('h3');heading.textContent='About Predator VPN';
     const version=document.createElement('p');version.dataset.appVersion='';version.dataset.versionPrefix='Version ';version.textContent=currentState?.version?'Version '+currentState.version:'';
     const source=document.getElementById('source');source.className='secondary';
     about.append(heading,version,source);document.getElementById('settings-form').insertBefore(about,document.querySelector('.settings-footer'));

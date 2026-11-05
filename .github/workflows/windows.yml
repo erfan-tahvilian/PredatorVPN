@@ -69,7 +69,7 @@ jobs:
         run: node scripts/verify-distribution.cjs
       - uses: actions/upload-artifact@v4
         with:
-          name: FoxVPN-Windows-${{ matrix.label }}
+          name: PredatorVPN-Windows-${{ matrix.label }}
           path: |
             dist/*.exe
             dist/*.zip

@@ -22,7 +22,7 @@ jobs:
           test -x "$tools/apksigner"
           gh api "repos/$GITHUB_REPOSITORY/releases/tags/$FOX_TAG" > /tmp/release.json
           for arch in x86_64 universal; do
-            name="FoxVPN-$FOX_VERSION-Android-$arch.apk"
+            name="PredatorVPN-$FOX_VERSION-Android-$arch.apk"
             digest="$(jq -r --arg name "$name" '.assets[] | select(.name == $name) | .digest' /tmp/release.json)"
             [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
             gh release download "$FOX_TAG" --pattern "$name" --dir release-apks

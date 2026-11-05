@@ -40,3 +40,32 @@ header{position:relative}
 /* About actions each occupy a separate touch-friendly row. */
 [data-app-about] #check-updates{display:block;margin-top:14px}
 [data-app-about] #source{display:flex;margin-top:14px}
+
+/* Distinct Android layout with a native-feeling app bar and spacious touch targets. */
+:root{--mobile-radius:20px}
+body{background:var(--bg)}
+.mobile-app-brand{display:flex!important;align-items:center;gap:9px;min-width:0;font-size:15px;font-weight:760;letter-spacing:-.25px}
+.mobile-app-brand img{width:36px;height:36px;object-fit:contain}
+.mobile-app-brand strong span{color:var(--orange)}
+.breadcrumbs{display:none!important}
+header{min-height:68px;box-shadow:0 1px 0 var(--line);background:var(--sidebar);padding:0 16px}
+.header-actions{max-width:55%!important;gap:7px}
+#theme-toggle{position:static;transform:none;width:40px;height:40px;min-width:40px}
+.account-chip #account-name{max-width:90px}
+.sidebar{padding:5px 9px max(7px,env(safe-area-inset-bottom));height:calc(74px + env(safe-area-inset-bottom));box-shadow:0 -8px 22px #0000000a}
+.nav-item{min-height:55px;border-radius:13px}
+.workspace{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+main{padding:20px 16px 25px}
+.page-heading .eyebrow{letter-spacing:1.4px}
+.page-heading h1{font-size:26px;line-height:1.18}
+.connection-card,.network-card,.privacy-card,.metric,.settings-card,.allowance-card,.form-card,.saved-account{border-radius:var(--mobile-radius);box-shadow:0 6px 18px #00000008}
+.connection-card{padding:20px 18px 12px}
+.orbital{height:212px}
+.power-button{width:88px;height:88px;box-shadow:0 0 0 8px var(--orange-soft)}
+.allowance-card{margin:14px 0}
+.metrics{margin-top:13px}
+.setting-row{min-height:58px}
+.accent-options{grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
+.accent-choice{padding:9px 3px;min-height:70px}
+.accent-choice small{font-size:9px}
+#toast{bottom:calc(88px + env(safe-area-inset-bottom))}

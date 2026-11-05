@@ -5,7 +5,7 @@ const version=require('../../package.json').version,tag='v'+version;
 function binaries(v){const result=[];for(const [platform,arches,formats]of[['win32',['x64','ia32','arm64'],['exe','zip']],['darwin',['x64','arm64'],['dmg','zip']],['linux',['x64','arm64'],['AppImage','deb','rpm']],['android',['arm64-v8a','armeabi-v7a','x86_64','x86','universal'],['apk']]])for(const arch of arches)for(const format of formats)result.push(assetName(v,{platform,arch,format}));return result;}
 function validateRelease(release,v){
   assert.equal(release.tag_name,'v'+v);assert.equal(release.prerelease,false);
-  // Fox VPN source is provided by GitHub's version-tag archives. Keep the
+  // Predator VPN source is provided by GitHub's version-tag archives. Keep the
   // separately bundled GPL dependency source and all installation variants.
   const required=[...binaries(v),'sing-box-1.12.0-source.tar.gz','SHA256SUMS-Android.txt'];
   const allowed=new Set([...required,'SHA256SUMS.txt']);
@@ -22,7 +22,7 @@ function archivedNotes(body){
     if(downloads&&/^## /.test(line))downloads=false;
     if(!downloads)lines.push(line);
   }
-  const notice='Installers for older versions are no longer distributed. Download the [latest release](https://github.com/erfan-tahvilian/FoxVPN/releases/latest).';
+  const notice='Installers for older versions are no longer distributed. Download the [latest release](https://github.com/erfan-tahvilian/PredatorVPN/releases/latest).';
   const notes=lines.join('\n').trim();return notes+(notes.includes(notice)?'\n':'\n\n'+notice+'\n');
 }
 function archiveRelease(repo,release,temporary,invoke=gh){
@@ -41,14 +41,14 @@ async function pollRelease(read,wait=()=>new Promise(resolve=>setTimeout(resolve
   return null;
 }
 async function main(){
-  const mode=process.argv[2],repo=process.env.GITHUB_REPOSITORY||'erfan-tahvilian/FoxVPN';assert.equal(repo,'erfan-tahvilian/FoxVPN');
+  const mode=process.argv[2],repo=process.env.GITHUB_REPOSITORY||'erfan-tahvilian/PredatorVPN';assert.equal(repo,'erfan-tahvilian/PredatorVPN');
   if(mode==='metadata'){console.log(`FOX_VERSION=${version}\nFOX_TAG=${tag}`);return;}
   if(mode==='ensure-draft'){
     try{const latest=api(`repos/${repo}/releases/latest`);assert(newer(version,latest.tag_name.replace(/^v/,'')),'Use a version newer than the published stable release');}catch(error){if(!String(error.stderr).includes('HTTP 404'))throw error;}
     let release=findRelease(repo);
     if(!release){
       let creationError;
-      try{gh('release','create',tag,'--repo',repo,'--draft','--target',process.env.GITHUB_SHA||gh('api',`repos/${repo}/commits/main`,'--jq','.sha'),'--title',`Fox VPN ${tag}`,'--notes-file','RELEASE_NOTES.md');}catch(error){creationError=error;}
+      try{gh('release','create',tag,'--repo',repo,'--draft','--target',process.env.GITHUB_SHA||gh('api',`repos/${repo}/commits/main`,'--jq','.sha'),'--title',`Predator VPN ${tag}`,'--notes-file','RELEASE_NOTES.md');}catch(error){creationError=error;}
       // A newly created draft can briefly be absent from the release list.
       // Poll without issuing another create or touching any published release.
       release=await pollRelease(()=>findRelease(repo));
@@ -69,7 +69,7 @@ async function main(){
   for(const line of android){const match=/^([a-f0-9]{64})\s+(.+\.apk)$/.exec(line);assert(match);assert(release.assets.some(a=>a.name===match[2]&&a.digest==='sha256:'+match[1]),'Android checksum differs');}
   if(release.draft){
     const checksum=path.join(temporary,'SHA256SUMS.txt');fs.writeFileSync(checksum,manifest);gh('release','upload',tag,checksum,'--repo',repo,'--clobber');
-    const body=path.join(temporary,'publish.json');fs.writeFileSync(body,JSON.stringify({draft:false,prerelease:false,make_latest:'true',name:`Fox VPN ${tag} - Windows, macOS, Linux & Android`,body:fs.readFileSync('RELEASE_NOTES.md','utf8')}));
+    const body=path.join(temporary,'publish.json');fs.writeFileSync(body,JSON.stringify({draft:false,prerelease:false,make_latest:'true',name:`Predator VPN ${tag} - Windows, macOS, Linux & Android`,body:fs.readFileSync('RELEASE_NOTES.md','utf8')}));
     gh('api','--method','PATCH',`repos/${repo}/releases/${release.id}`,'--input',body);
   }
   let latest;

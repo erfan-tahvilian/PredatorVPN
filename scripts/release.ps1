@@ -12,7 +12,7 @@ foreach ($foxLine in $foxCredentials) {
 }
 if (!$foxCredentialValues['password']) { throw 'GitHub authentication is unavailable.' }
 $foxHeaders = @{Authorization = 'Bearer ' + $foxCredentialValues['password']; Accept = 'application/vnd.github+json'; 'X-GitHub-Api-Version' = '2022-11-28'}
-$foxApi = 'https://api.github.com/repos/erfan-tahvilian/FoxVPN'
+$foxApi = 'https://api.github.com/repos/erfan-tahvilian/PredatorVPN'
 function Invoke-FoxApi([string]$Path, [string]$Method = 'GET', $Body = $null) {
   $foxParameters = @{Uri = $foxApi + $Path; Headers = $foxHeaders; Method = $Method}
   if ($null -ne $Body) { $foxParameters.ContentType = 'application/json'; $foxParameters.Body = $Body | ConvertTo-Json -Depth 10 }

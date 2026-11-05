@@ -80,7 +80,7 @@ public final class FoxApp extends Application implements Host {
             backend = Mobile.newBackend(this, vault.read()); backend.setDark(isDark());
             state = new JSONObject(backend.snapshot());
             catalog.execute(() -> backend.call("servers", "[]"));
-        } catch (Exception e) { initializationError = "Secure storage could not be initialized. Restart Fox VPN or reinstall if the problem persists."; }
+        } catch (Exception e) { initializationError = "Secure storage could not be initialized. Restart Predator VPN or reinstall if the problem persists."; }
     }
     boolean isDark() { return (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES; }
     @Override public void onConfigurationChanged(Configuration config) {

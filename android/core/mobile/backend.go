@@ -62,7 +62,7 @@ func copyObject(m object) object {
 }
 func millis() int64 { return time.Now().UnixMilli() }
 func defaults() object {
-	return object{"transport": "auto", "theme": "system", "proxyOnly": false, "bind": "127.0.0.1", "socksPort": 1080, "doh": "automatic", "customDns": "", "edge": "", "exitCheck": true, "excludedApps": []any{}, "upstream": object{"enabled": false, "type": "socks5", "host": "", "port": 1080, "username": "", "password": ""}, "serverId": "REC"}
+	return object{"transport": "auto", "theme": "system", "accentColor": "orange", "proxyOnly": false, "bind": "127.0.0.1", "socksPort": 1080, "doh": "automatic", "customDns": "", "edge": "", "exitCheck": true, "excludedApps": []any{}, "upstream": object{"enabled": false, "type": "socks5", "host": "", "port": 1080, "username": "", "password": ""}, "serverId": "REC"}
 }
 
 type Backend struct {
@@ -101,9 +101,10 @@ func NewBackend(host Host, vault string) *Backend {
 	b := &Backend{host: host, settings: defaults(), servers: []object{}, logs: []object{}, latencies: object{}, pingingIDs: []string{}, connection: "disconnected", platform: "android", systemDark: true}
 	var saved object
 	if json.Unmarshal([]byte(vault), &saved) == nil {
-		if s := obj(saved, "settings"); len(s) > 0 && validate(s) == nil {
-			b.settings = s
-		}
+		if s := obj(saved, "settings"); len(s) > 0 {
+            if str(s, "accentColor") == "" { s["accentColor"] = "orange" }
+            if validate(s) == nil { b.settings = s }
+        }
 		b.servers = cachedServers(list(saved, "servers"))
 		b.auth = obj(saved, "auth")
 		if len(b.auth) == 0 {
@@ -207,7 +208,12 @@ func validate(s object) error {
 	default:
 		return errors.New("Choose a valid theme")
 	}
-	if str(s, "bind") != "127.0.0.1" && str(s, "bind") != "0.0.0.0" {
+	switch str(s,"accentColor") {
+  case "orange","gold","blue","teal","emerald","red","purple","pink","indigo","cyan":
+  default:
+    return errors.New("Choose a valid accent color")
+  }
+  if str(s, "bind") != "127.0.0.1" && str(s, "bind") != "0.0.0.0" {
 		return errors.New("Invalid bind address")
 	}
 	for _, p := range []float64{num(s, "socksPort"), num(obj(s, "upstream"), "port")} {
@@ -426,6 +432,17 @@ func (b *Backend) Call(channel, argsJSON string) string {
 		b.settings["theme"] = theme
 		b.mu.Unlock()
 		err = b.save()
+	case "accentColor":
+        color := text(0)
+        switch color { case "orange","gold","blue","teal","emerald","red","purple","pink","indigo","cyan":
+          default: err=errors.New("Invalid accent color") }
+        if err == nil {
+          b.mu.Lock()
+          previous := b.settings["accentColor"]
+          b.settings["accentColor"] = color
+          b.mu.Unlock()
+          if err = b.save();err != nil {b.mu.Lock();b.settings["accentColor"]=previous;b.mu.Unlock()}
+        }
 	case "select":
 		b.mu.Lock()
 		if b.connection != "disconnected" {
@@ -609,7 +626,7 @@ func (b *Backend) Ready() {
 	b.lastUp = 0
 	b.lastDown = 0
 	b.mu.Unlock()
-	b.log("info", "Connected · Fox VPN is active")
+	b.log("info", "Connected · Predator VPN is active")
 	go b.checkpointTraffic(t)
 	go b.renew(t)
 	go t.monitor()

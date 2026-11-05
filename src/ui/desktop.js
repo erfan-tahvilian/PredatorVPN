@@ -20,10 +20,10 @@
   }
   function save(target){
     refreshSummary();if(!form.reportValidity())return;
-    const settings={...readSettings(),splitMode:mode.value},number=++sequence,themeOnly=target.id==='theme';
+    const settings={...readSettings(),splitMode:mode.value},number=++sequence,cosmetic=['theme','accentColor'].includes(target.id);
     saving=saving.then(async()=>{
       try{
-        await call(themeOnly?'theme':'settings',themeOnly?settings.theme:settings);
+        await call(cosmetic?target.id:'settings',cosmetic?settings[target.id]:settings);
         if(number===sequence){if(get('upstreamPassword').value===settings.upstream.password)get('upstreamPassword').value='';get('clearUpstreamPassword').checked=false;}
       }catch(error){toast(error.message);}
     });
@@ -37,7 +37,7 @@
   window.desktopUI={state(state){
     if(!initialized){mode.value=state.settings.splitMode||'exclude';sort.value=state.settings.locationSort||'ping-asc';initialized=true;renderServers();}
     const connected=state.connection!=='disconnected';
-    for(const control of form.querySelectorAll('input,select,textarea,#choose-apps'))control.disabled=connected&&control.id!=='theme';
+    for(const control of form.querySelectorAll('input,select,textarea,#choose-apps'))control.disabled=connected&&!['theme','accentColor'].includes(control.id);
     get('settings-notice').textContent=connected?'Disconnect to edit network settings.':'';
     refreshSummary();syncSelects();
   }};

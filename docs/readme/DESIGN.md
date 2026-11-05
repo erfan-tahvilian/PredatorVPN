@@ -1,6 +1,6 @@
 # README artwork
 
-The README uses a connection-path motif drawn from Fox VPN's orange fox-and-shield identity. Artwork lives here so documentation assets are not included in application packages.
+The README uses a connection-path motif drawn from Predator VPN's orange fox-and-shield identity. Artwork lives here so documentation assets are not included in application packages.
 
 ## Files
 

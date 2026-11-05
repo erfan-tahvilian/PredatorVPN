@@ -1,21 +1,18 @@
-# Fox VPN workspace preferences
+# Predator VPN workspace instructions
 
-- The active GitHub repository is `erfan-tahvilian/FoxVPN` (also referred to as FoxVpn). Push all ongoing work there. The renamed private repository `erfan-tahvilian/FoxVPN2` is only the migration source.
-
-- Apply requested changes to all supported platforms. After publishing updates, install the latest Windows x64 release on the user’s Windows 11 x64 computer at `D:\Program Files\FoxVPN` and verify it. Never install macOS packages on this Windows computer.
-- Keep the application UI in English, with orange dark and light themes and country flags beside locations.
-- Write public documentation, release notes and application copy in professional product language. Focus on supported capabilities, installation and information needed by users; omit conversational design history, cosmetic implementation details and internal button/link changes. Keep engineering details in developer documentation.
-- Android release APKs use a persistent local signing identity in the ignored `.tools` directory. Preserve that identity for updates. Private signing keys and passwords must not be uploaded without explicit user authorization; build unsigned APKs in CI and sign them locally with `scripts/sign-android.ps1`.
-- Copy the verified, signed Android ARM64 release APK to `E:\Other\FoxVPN` for the user's phone testing. Do not install Android packages on the Windows host.
-- For phone development and testing, download only the ARM64 (`arm64-v8a`) APK matching the user's Redmi Note 9 Pro. Use `scripts/sign-android.ps1 -RunId <id> -Architectures arm64-v8a`. Reuse verified local files and cached dependencies; avoid downloading APKs for other architectures or repeating downloads unless explicitly needed for a requested release.
-- Use Fox VPN branding and project ownership notices. Remove previous project license references according to the owner’s stated agreement; preserve independent dependency licenses.
-- Use the repository owner's configured Git identity. Do not add AI assistant authorship or coauthor trailers to commits.
-- For Android interactions the user can test on their phone, provide concise test steps and wait for their confirmation instead of operating the phone through each check. Continue build, static and automated CI checks.
-
-- The owner explicitly requested version `1.0.2` on 2026-10-31 for the packaging audit and themed dialogs, superseding the earlier `1.0.1` freeze. Keep application, installer, Android version code, source metadata and release assets consistent. Stage all architectures in a draft release, verify the complete release, then publish it as latest before removing older release downloads. Preserve every historical release entry and its notes. Preserve access to exact corresponding source and dependency source when retiring downloads. Keep source history and tags. Never remove the current downloadable release before its replacement is ready.
-
-- Deliver sizing, asset-audit and verification reports in chat; keep any working copies under ignored `.tools`, not in public documentation or release notes. Retain source/license and build instructions.
-- The owner explicitly requests the current follow-up fixes at version `1.0.2`. Keep the original version tag and provide exact corresponding source through a new immutable maintenance source tag when replacing same-version packages.
-
-- On 2026-11-05 the owner explicitly requested the newer version 1.0.3 to address recurrent Windows disconnections. This supersedes the prior 1.0.2 version freeze. Preserve old tags and source. Use the full verified release staging process, and do not remove older downloadable assets before the replacement is complete and public.
-- On 2026-11-05 the owner requested a brand-neutral public presentation pending a future name, logo and repository rename. Remove third-party provider promotion and registration links from README files, UI wording, release notes and repository metadata, but preserve required third-party legal attributions, service API endpoints, auth protocol identifiers and developer provenance. Keep the current Fox VPN app/repository name and logo until explicitly selected; do not publish replacement binaries solely for this copy change.
+- Canonical repository: `erfan-tahvilian/PredatorVPN`; default branch `main`. The former GitHub address must continue redirecting to the renamed repository.
+- Product-facing name and brand: **Predator VPN**. All new public UI, About, docs, issue templates, new binaries and release titles use this name.
+- Keep the application's user interface in English. Dark themes display the user-supplied light-color logo; light themes display the dark-color logo. Desktop sidebar branding stays compact.
+- Android requires a phone-first layout and a monochrome Quick Settings icon distinct from the application icon; do not add Quick Tile previews to Settings.
+- Default accent color is Orange, with Gold, Blue, Teal, Emerald, Red, Purple, Pink, Indigo and Cyan. All ten choices persist and apply without disconnecting the VPN.
+- Preserve legacy internal Android package name, signing certificate, Java/native namespace, Android keystore aliases, Windows appId, encrypted storage path and installed-app migration markers. These are compatibility identifiers, not public branding. Renaming them would break existing installations or user data.
+- Keep existing account data encrypted, private, and unreadable in diagnostics. Never add tokens, credentials, browsing destinations or personal traffic to logs.
+- Preserve required third-party credits and complete original license files, including upstream MIT and GPL notices. Do not delete provenance to conceal a dependency.
+- Do not claim that older automatic-update clients can migrate across the repository rename without independent verification: their shipped binaries use strict GitHub API paths, redirect rejection and legacy asset filenames. Maintain support for older clients where technically possible and document unavoidable manual upgrades accurately.
+- For Windows connectivity: transient proxy pass and account-service errors must trigger bounded retry and useful diagnostics, not teardown absent verified quota exhaustion. Confirm permanent failures and prevent silent unlimited retries; real long-duration hardware tests remain necessary.
+- Preserve source history, published tags, and existing release notes. Never remove previous downloads until a complete, audited replacement release is publicly available.
+- Current next planned version: 1.0.4, across supported Windows/macOS/Linux/Android architectures. Publish only after source, checksum, signing, updater, platform builds, and Android installation identity validations pass.
+- Build Windows x64 locally and install from the local output without downloading a second copy. Require genuine administrator approval where needed; do not claim installation or approval before confirmation.
+- Android package signing must reuse the prior local identity stored in ignored `.tools` files. Never upload unencrypted signing credentials. Use CI for platform builds and local signing tools as previously established.
+- Keep technical reports and sensitive build artifacts under ignored `.tools`; public docs should contain user-relevant information, real screenshots from the application and accurate links.
+- Use the repository owner's configured Git identity, with no assistant coauthor trailers.

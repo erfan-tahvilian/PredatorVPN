@@ -58,21 +58,21 @@ jobs:
           git diff --exit-code "$fox_linux_sha" HEAD -- src assets licenses LICENSE COPYRIGHT release-notes.json package.json package-lock.json scripts ':(exclude)scripts/*android*' .github/workflows/linux.yml
       - uses: actions/download-artifact@v4
         with:
-          pattern: FoxVPN-Windows-*
+          pattern: PredatorVPN-Windows-*
           merge-multiple: true
           path: verified-build
           run-id: ${{ inputs.run_id }}
           github-token: ${{ github.token }}
       - uses: actions/download-artifact@v4
         with:
-          pattern: FoxVPN-macOS-*
+          pattern: PredatorVPN-macOS-*
           merge-multiple: true
           path: verified-build
           run-id: ${{ inputs.mac_run_id }}
           github-token: ${{ github.token }}
       - uses: actions/download-artifact@v4
         with:
-          pattern: FoxVPN-Linux-*
+          pattern: PredatorVPN-Linux-*
           merge-multiple: true
           path: verified-build
           run-id: ${{ inputs.linux_run_id }}
@@ -85,7 +85,7 @@ jobs:
         run: python .github/scripts/verify-source.py
       - name: Inspect historical maintenance source before its duplicate is retired
         if: env.FOX_VERSION == '1.0.2'
-        run: python .github/scripts/verify-source.py --commit 3dcbb26 --url https://github.com/erfan-tahvilian/FoxVPN/releases/download/v1.0.1/FoxVPN-1.0.1-source.tar.gz --sha256 8d234df535f38a4db9379cbd0a6006738f7b294351637be09ea544d56a7b6f85 --report historical-v101-source-verification.json
+        run: python .github/scripts/verify-source.py --commit 3dcbb26 --url https://github.com/erfan-tahvilian/PredatorVPN/releases/download/v1.0.1/PredatorVPN-1.0.1-source.tar.gz --sha256 8d234df535f38a4db9379cbd0a6006738f7b294351637be09ea544d56a7b6f85 --report historical-v101-source-verification.json
       - uses: actions/upload-artifact@v4
         with:
           name: Source-archive-verification
@@ -97,20 +97,20 @@ jobs:
           # Retain the separate sing-box GPL source archive below.
           for arch in x64 x86 arm64; do
             for ext in exe zip; do
-              test -s "verified-build/dist/FoxVPN-$FOX_VERSION-Windows-$arch.$ext"
-              cp "verified-build/dist/FoxVPN-$FOX_VERSION-Windows-$arch.$ext" release-assets/
+              test -s "verified-build/dist/PredatorVPN-$FOX_VERSION-Windows-$arch.$ext"
+              cp "verified-build/dist/PredatorVPN-$FOX_VERSION-Windows-$arch.$ext" release-assets/
             done
           done
           for arch in x64 arm64; do
             for ext in dmg zip; do
-              test -s "verified-build/dist/FoxVPN-$FOX_VERSION-macOS-$arch.$ext"
-              cp "verified-build/dist/FoxVPN-$FOX_VERSION-macOS-$arch.$ext" release-assets/
+              test -s "verified-build/dist/PredatorVPN-$FOX_VERSION-macOS-$arch.$ext"
+              cp "verified-build/dist/PredatorVPN-$FOX_VERSION-macOS-$arch.$ext" release-assets/
             done
           done
           for arch in x64 arm64; do
             for ext in AppImage deb rpm; do
-              test -s "verified-build/dist/FoxVPN-$FOX_VERSION-Linux-$arch.$ext"
-              cp "verified-build/dist/FoxVPN-$FOX_VERSION-Linux-$arch.$ext" release-assets/
+              test -s "verified-build/dist/PredatorVPN-$FOX_VERSION-Linux-$arch.$ext"
+              cp "verified-build/dist/PredatorVPN-$FOX_VERSION-Linux-$arch.$ext" release-assets/
             done
           done
           curl --fail --location --retry 3 'https://codeload.github.com/SagerNet/sing-box/tar.gz/refs/tags/v1.12.0' -o release-assets/sing-box-1.12.0-source.tar.gz

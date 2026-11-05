@@ -58,7 +58,7 @@ public class AndroidIntegrationTest {
         Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();
         activity.finishActivity();context.getSharedPreferences("interface",Context.MODE_PRIVATE).edit().remove("releaseNotesSeen").commit();activity.launchActivity(null);ready(true);
         long deadline=System.currentTimeMillis()+6000;while(!"true".equals(js("Boolean(document.getElementById('release-highlights')?.open)"))&&System.currentTimeMillis()<deadline)Thread.sleep(100);
-        assertEquals("true",js("document.getElementById('highlights-title').textContent.includes('Fox VPN "+BuildConfig.VERSION_NAME+"') && [...document.querySelectorAll('#release-highlights article')].some(item=>item.querySelector('h3').textContent.trim() && item.querySelector('p').textContent.trim())"));
+        assertEquals("true",js("document.getElementById('highlights-title').textContent.includes('Predator VPN "+BuildConfig.VERSION_NAME+"') && [...document.querySelectorAll('#release-highlights article')].some(item=>item.querySelector('h3').textContent.trim() && item.querySelector('p').textContent.trim())"));
         js("document.querySelector('#release-highlights button').click()");
         deadline=System.currentTimeMillis()+5000;while(!BuildConfig.VERSION_NAME.equals(context.getSharedPreferences("interface",Context.MODE_PRIVATE).getString("releaseNotesSeen",""))&&System.currentTimeMillis()<deadline)Thread.sleep(100);
         assertEquals(BuildConfig.VERSION_NAME,context.getSharedPreferences("interface",Context.MODE_PRIVATE).getString("releaseNotesSeen",""));
@@ -77,7 +77,7 @@ public class AndroidIntegrationTest {
         assertEquals("↓ 1.0 KB  ↑ 2.0 KB",ConnectionStats.summary(1024,2048));
     }
     @Test public void interfaceAndStateIsolation()throws Exception{
-        ready();assertEquals("\"Fox VPN\"",js("document.title"));assertEquals("true",js("document.documentElement.scrollWidth<=window.innerWidth"));
+        ready();assertEquals("\"Predator VPN\"",js("document.title"));assertEquals("true",js("document.documentElement.scrollWidth<=window.innerWidth"));
         assertEquals("\"none\"",js("getComputedStyle(document.querySelector('h1')).userSelect"));
         assertEquals("\"rgba(0, 0, 0, 0)\"",js("getComputedStyle(document.getElementById('connect')).webkitTapHighlightColor"));
         assertEquals("\"text\"",js("getComputedStyle(document.querySelector('input[type=email]')).userSelect"));

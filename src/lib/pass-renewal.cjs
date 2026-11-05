@@ -46,10 +46,13 @@ class PassRenewer {
       this.schedule(nextPassDelay(this.expiresAt,this.now()));
     } catch(error){
       if(!this.active||this.epoch!==epoch)return;
-      if(knownEmpty(error.quota)||[401,403].includes(error.status)){
+      if(knownEmpty(error.quota)){
         await this.reject(error);
         return;
       }
+      // Auth-service 401/403 can occur while rotating tokens or after an
+      // expired pass. A single response is not evidence of exhausted quota.
+      // Keep the VPN adapter alive and retry with bounded backoff.
       this.failures++;
       const expired=this.now()>=this.expiresAt;
       if(this.failures===1||expired&&this.failures%5===0){

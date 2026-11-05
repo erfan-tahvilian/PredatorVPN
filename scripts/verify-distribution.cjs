@@ -25,25 +25,25 @@ async function main(){
   const temporary=fs.mkdtempSync(path.join(os.tmpdir(),'fox-distribution-'));
   const verify=(folder,file,required=expected)=>{const actual=contents(folder);for(const [name,value]of Object.entries(required))assert.deepEqual(actual[name],value,`Distribution changed or omitted ${name}`);results.push({file:path.basename(file),bytes:fs.statSync(file).size,verifiedEntries:Object.keys(required).length});};
   if(process.platform==='win32'){
-    const seven=await require('app-builder-lib/out/toolsets/7zip').getPath7za(),installer=path.join(distribution,`FoxVPN-${version}-Windows-${target.label}.exe`),payload=path.join(temporary,'payload');
+    const seven=await require('app-builder-lib/out/toolsets/7zip').getPath7za(),installer=path.join(distribution,`PredatorVPN-${version}-Windows-${target.label}.exe`),payload=path.join(temporary,'payload');
     // The builder's standalone 7za reads the embedded application archive
     // directly; it does not decode the outer NSIS plugin/uninstaller streams.
     execFileSync(seven,['x','-t7z',installer,`-o${payload}`,'-y'],{stdio:'pipe'});verify(payload,installer);
-    const zip=path.join(distribution,`FoxVPN-${version}-Windows-${target.label}.zip`),portable=path.join(temporary,'portable');
+    const zip=path.join(distribution,`PredatorVPN-${version}-Windows-${target.label}.zip`),portable=path.join(temporary,'portable');
     const snapshot=JSON.parse(fs.readFileSync(`.tools/windows-payload-${target.arch}.json`,'utf8'));assert.equal(path.resolve(snapshot.root),t.outputRoot());
     const portableExpected=Object.fromEntries(snapshot.names.map(name=>{assert(expected[name],`Original application entry disappeared: ${name}`);return [name,expected[name]];}));
     execFileSync(seven,['x','-tzip',zip,`-o${portable}`,'-y'],{stdio:'pipe'});verify(portable,zip,portableExpected);
   }else if(process.platform==='darwin'){
-    const dmg=path.join(distribution,`FoxVPN-${version}-macOS-${target.arch}.dmg`),mount=path.join(temporary,'mount');fs.mkdirSync(mount);
+    const dmg=path.join(distribution,`PredatorVPN-${version}-macOS-${target.arch}.dmg`),mount=path.join(temporary,'mount');fs.mkdirSync(mount);
     execFileSync('/usr/bin/hdiutil',['attach',dmg,'-nobrowse','-readonly','-mountpoint',mount],{stdio:'pipe'});
-    try{verify(path.join(mount,'Fox VPN.app'),dmg);}finally{execFileSync('/usr/bin/hdiutil',['detach',mount],{stdio:'pipe'});}
-    const zip=path.join(distribution,`FoxVPN-${version}-macOS-${target.arch}.zip`),unzip=path.join(temporary,'zip');
-    execFileSync('/usr/bin/ditto',['-x','-k',zip,unzip],{stdio:'pipe'});verify(path.join(unzip,'Fox VPN.app'),zip);
+    try{verify(path.join(mount,'Predator VPN.app'),dmg);}finally{execFileSync('/usr/bin/hdiutil',['detach',mount],{stdio:'pipe'});}
+    const zip=path.join(distribution,`PredatorVPN-${version}-macOS-${target.arch}.zip`),unzip=path.join(temporary,'zip');
+    execFileSync('/usr/bin/ditto',['-x','-k',zip,unzip],{stdio:'pipe'});verify(path.join(unzip,'Predator VPN.app'),zip);
   }else{
-    const image=path.join(distribution,`FoxVPN-${version}-Linux-${target.arch}.AppImage`);
+    const image=path.join(distribution,`PredatorVPN-${version}-Linux-${target.arch}.AppImage`);
     execFileSync(image,['--appimage-extract'],{cwd:temporary,stdio:'pipe',maxBuffer:16*1024*1024});verify(path.join(temporary,'squashfs-root'),image);
     for(const format of ['deb','rpm']){
-      const file=path.join(distribution,`FoxVPN-${version}-Linux-${target.arch}.${format}`),unpacked=path.join(temporary,format);fs.mkdirSync(unpacked);
+      const file=path.join(distribution,`PredatorVPN-${version}-Linux-${target.arch}.${format}`),unpacked=path.join(temporary,format);fs.mkdirSync(unpacked);
       if(format==='deb')execFileSync('dpkg-deb',['--extract',file,unpacked],{stdio:'pipe'});
       else{
         const cpio=path.join(temporary,'payload.cpio'),output=fs.openSync(cpio,'w');

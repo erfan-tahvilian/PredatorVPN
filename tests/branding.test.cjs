@@ -12,7 +12,8 @@ test('public documentation and interface avoid upstream brand promotion',()=>{
   }
   for(const name of ['README.md','README.fa.md']){
     const content=read(name);
-    assert.doesNotMatch(content,/docs\/readme\/hero-|docs\/readme\/workspace-|docs\/screenshots\//,name);
+    assert.doesNotMatch(content,/docs\/readme\/hero-|docs\/readme\/workspace-/,name);
+    assert.match(content,/docs\/screenshots\/desktop-overview-/,name);
     assert.match(content,/assets\/logo\.png/,name);
   }
 });

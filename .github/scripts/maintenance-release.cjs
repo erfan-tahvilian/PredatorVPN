@@ -2,7 +2,7 @@
 // Explicit same-version maintenance publication. Normal releases remain immutable.
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),assert=require('node:assert/strict'),{execFileSync}=require('node:child_process');
 const {binaries,validateRelease}=require('./release-tools.cjs');
-const version=require('../../package.json').version,tag='v'+version,repo='erfan-tahvilian/FoxVPN',folder='release-assets';
+const version=require('../../package.json').version,tag='v'+version,repo='erfan-tahvilian/PredatorVPN',folder='release-assets';
 const gh=(...args)=>execFileSync('gh',args,{encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
 const digest=file=>crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 async function main(){

@@ -10,7 +10,7 @@
 
 - Theme-matched dialogs, app pickers and desktop tray surfaces.
 - Stronger compatible ZIP and APK compression with full payload verification.
-- Native GitHub source archives replace the redundant custom FoxVPN archive; sing-box source and both checksum manifests remain available.
+- Native GitHub source archives replace the redundant custom source archive; sing-box source and both checksum manifests remain available.
 
 ## v1.0.1 - 2026-10-31
 

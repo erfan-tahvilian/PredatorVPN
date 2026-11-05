@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 const fs=require('node:fs'),path=require('node:path');
-const API='https://api.github.com/repos/erfan-tahvilian/FoxVPN/releases/latest';
-const BASE='https://github.com/erfan-tahvilian/FoxVPN/releases/download/';
+const API='https://api.github.com/repos/erfan-tahvilian/PredatorVPN/releases/latest';
+const BASE='https://github.com/erfan-tahvilian/PredatorVPN/releases/download/';
 const TTL=60*1000;
 function parts(version){if(!/^(0|[1-9]\d{0,5})\.(0|[1-9]\d{0,5})\.(0|[1-9]\d{0,5})$/.test(version))throw Error('Invalid release version');return version.split('.').map(Number);}
 function newer(candidate,current){const a=parts(candidate),b=parts(current);for(let i=0;i<3;i++)if(a[i]!==b[i])return a[i]>b[i];return false;}
@@ -10,7 +10,7 @@ function assetName(version,{platform,arch,format}){
   const names={win32:{x64:'x64',ia32:'x86',arm64:'arm64'},darwin:{x64:'x64',arm64:'arm64'},linux:{x64:'x64',arm64:'arm64'},android:{'arm64-v8a':'arm64-v8a','armeabi-v7a':'armeabi-v7a',x86_64:'x86_64',x86:'x86',universal:'universal'}};
   const cpu=names[platform]?.[arch],formats={win32:['exe','zip'],darwin:['dmg','zip'],linux:['AppImage','deb','rpm'],android:['apk']};
   if(!cpu||!formats[platform]?.includes(format))throw Error('No update package matches this installation.');
-  return `FoxVPN-${version}-${{win32:'Windows',darwin:'macOS',linux:'Linux',android:'Android'}[platform]}-${cpu}.${format}`;
+  return `PredatorVPN-${version}-${{win32:'Windows',darwin:'macOS',linux:'Linux',android:'Android'}[platform]}-${cpu}.${format}`;
 }
 function selectRelease(release,current,target){
   const version=String(release.tag_name||'').replace(/^v/,'');parts(version);parts(current);
@@ -29,7 +29,7 @@ class Updates {
     try{cache=JSON.parse(fs.readFileSync(this.cacheFile,'utf8'));if(cache.key!==this.key)cache=null;else selectRelease(cache.release,this.version,this.target);}catch{cache=null;}
     if(!force&&cache&&Date.now()-cache.at>=0&&Date.now()-cache.at<TTL)return selectRelease(cache.release,this.version,this.target);
     const etag=cache&&typeof cache.etag==='string'&&/^[\x20-\x7e]{1,256}$/.test(cache.etag)?cache.etag:null;
-    const response=await this.fetch(API,{redirect:'error',signal:AbortSignal.timeout(12000),headers:{Accept:'application/vnd.github+json','User-Agent':'FoxVPN/'+this.version,'X-GitHub-Api-Version':'2022-11-28',...(etag?{'If-None-Match':etag}:{})}});
+    const response=await this.fetch(API,{redirect:'error',signal:AbortSignal.timeout(12000),headers:{Accept:'application/vnd.github+json','User-Agent':'PredatorVPN/'+this.version,'X-GitHub-Api-Version':'2022-11-28',...(etag?{'If-None-Match':etag}:{})}});
     let release;
     if(response.status===304&&cache)release=cache.release;
     else{if(!response.ok)throw Error('Could not check for updates. Try again later.');const raw=await response.text();if(raw.length>1024*1024)throw Error('Invalid update response.');release=JSON.parse(raw);}

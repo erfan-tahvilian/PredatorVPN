@@ -20,7 +20,7 @@ if (!$foxCredentialValues['password']) { throw 'GitHub authentication is unavail
 $foxPreviousToken = $env:GH_TOKEN
 try {
     $env:GH_TOKEN = $foxCredentialValues['password']
-    $foxRunJson = & $foxGh api ('repos/erfan-tahvilian/FoxVPN/actions/runs/' + $RunId)
+    $foxRunJson = & $foxGh api ('repos/erfan-tahvilian/PredatorVPN/actions/runs/' + $RunId)
     if ($LASTEXITCODE -ne 0) { throw 'Could not verify Android build metadata.' }
     $foxRun = $foxRunJson | ConvertFrom-Json
 } finally { $env:GH_TOKEN = $foxPreviousToken }
@@ -47,12 +47,12 @@ try {
     $env:GH_TOKEN = $foxCredentialValues['password']
     $foxMissing=@($Architectures | Where-Object { @(Get-ChildItem -LiteralPath $foxBuild -Recurse -File -Filter ('app-' + $_ + '-release-unsigned.apk')).Count -ne 1 })
     if($foxMissing.Count -gt 0){
-        & $foxGh run download $RunId --repo erfan-tahvilian/FoxVPN --name $foxArtifactName --dir (Join-Path $foxDownload 'build')
+        & $foxGh run download $RunId --repo erfan-tahvilian/PredatorVPN --name $foxArtifactName --dir (Join-Path $foxDownload 'build')
         if ($LASTEXITCODE -ne 0) { throw 'Could not download the verified Android build.' }
         Copy-Item -Path (Join-Path $foxDownload 'build/*') -Destination $foxBuild -Recurse -Force
     }
     if(!(Test-Path -LiteralPath $foxCachedSigner) -or (Get-FileHash -LiteralPath $foxCachedSigner -Algorithm SHA256).Hash.ToLowerInvariant() -ne $foxSignerHash){
-        & $foxGh run download $RunId --repo erfan-tahvilian/FoxVPN --name Android-signing-tools --dir (Join-Path $foxDownload 'tools')
+        & $foxGh run download $RunId --repo erfan-tahvilian/PredatorVPN --name Android-signing-tools --dir (Join-Path $foxDownload 'tools')
         if ($LASTEXITCODE -ne 0) { throw 'Could not download signing tools.' }
         Copy-Item -Path (Join-Path $foxDownload 'tools/*') -Destination $foxSigningTools -Recurse -Force
     }
@@ -68,7 +68,7 @@ try {
     foreach ($foxAbi in $Architectures) {
         $foxInputs = @(Get-ChildItem -LiteralPath $foxBuild -Recurse -File -Filter ('app-' + $foxAbi + '-release-unsigned.apk'))
         if ($foxInputs.Count -ne 1) { throw ('Expected one verified Android package for ' + $foxAbi) }
-        $foxApk = Join-Path $foxOutput ('FoxVPN-' + $foxVersion + '-Android-' + $foxAbi + '.apk')
+        $foxApk = Join-Path $foxOutput ('PredatorVPN-' + $foxVersion + '-Android-' + $foxAbi + '.apk')
         & $foxJava -jar $foxSigner sign --ks $foxKeystore --ks-key-alias foxvpn --ks-pass env:FOX_ANDROID_SIGNING_PASS --key-pass env:FOX_ANDROID_SIGNING_PASS --min-sdk-version 26 --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --v4-signing-enabled false --out $foxApk $foxInputs[0].FullName
         if ($LASTEXITCODE -ne 0) { throw ('Signing failed for ' + $foxAbi) }
         $foxVerification = & $foxJava -jar $foxSigner verify --verbose --print-certs $foxApk

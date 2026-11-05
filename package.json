@@ -1,7 +1,7 @@
 {
-  "name": "fox-vpn",
-  "productName": "Fox VPN",
-  "version": "1.0.3",
+  "name": "predator-vpn",
+  "productName": "Predator VPN",
+  "version": "1.0.4",
   "description": "Independent cross-platform VPN client with private DNS and split tunneling",
   "author": "Erfan Tahvilian",
   "license": "GPL-3.0-or-later",
@@ -29,8 +29,8 @@
   "build": {
     "compression": "maximum",
     "appId": "com.foxvpn.desktop",
-    "productName": "Fox VPN",
-    "artifactName": "FoxVPN-${version}-${arch}.${ext}",
+    "productName": "Predator VPN",
+    "artifactName": "PredatorVPN-${version}-${arch}.${ext}",
     "directories": {
       "output": "dist"
     },
@@ -72,7 +72,7 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "shortcutName": "Fox VPN",
+      "shortcutName": "Predator VPN",
       "differentialPackage": false,
       "include": "scripts/installer.nsh"
     }

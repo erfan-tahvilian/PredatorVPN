@@ -86,16 +86,19 @@ class Tunnel {
     if(!this.active){s.destroy();throw Error('Connection cancelled');}
     return s;
   }
-  async open(host,port) {
+  async open(host,port,retryAuth=true) {
     const s=await this.session();
     const stream=s.request({':method':'CONNECT',':authority':net.isIP(host)===6 ? `[${host}]:${port}` : `${host}:${port}`,'proxy-authorization':'Bearer '+this.token},{endStream:false});
     stream.on('error',()=>{});
-    await new Promise((resolve,reject)=>{
+    try{await new Promise((resolve,reject)=>{
       const timer=setTimeout(()=>{stream.close();reject(Error('CONNECT timed out'));},15000);
       const fail=e=>{clearTimeout(timer);reject(e);};
       stream.once('error',fail);stream.once('close',()=>fail(Error('CONNECT closed')));
-      stream.once('response',headers=>{clearTimeout(timer);if(headers[':status']>=200 && headers[':status']<300)resolve();else{stream.close();if([401,403,429].includes(headers[':status'])){const error=Object.assign(Error('The proxy pass was rejected or the account quota was exhausted.'),{status:Number(headers[':status']),quota:{limit:headers['x-quota-limit'],remaining:headers['x-quota-remaining'],reset:headers['x-quota-reset']}});this.onFatal(error);}reject(Error(`CONNECT rejected (${headers[':status']})`));}});
-    });
+      stream.once('response',headers=>{clearTimeout(timer);if(headers[':status']>=200 && headers[':status']<300)resolve();else{stream.close();if([401,403,429].includes(headers[':status'])){const error=Object.assign(Error('The proxy pass was rejected or the account quota was exhausted.'),{status:Number(headers[':status']),quota:{limit:headers['x-quota-limit'],remaining:headers['x-quota-remaining'],reset:headers['x-quota-reset']}});reject(error);return;}reject(Error(`CONNECT rejected (${headers[':status']})`));}});
+    });}catch(error){
+      if([401,403,429].includes(error.status)&&retryAuth&&this.active&&await this.onFatal(error))return this.open(host,port,false);
+      throw error;
+    }
     // Count ingress without putting the stream into flowing mode before its consumer attaches.
     const originalPush=stream.push;
     stream.push=(chunk,...args)=>{if(chunk)this.down+=Buffer.byteLength(chunk);return originalPush.call(stream,chunk,...args);};

@@ -9,7 +9,7 @@ test('a newly created release is polled with bounded retries until GitHub expose
   reads=0;waits=0;assert.equal(await pollRelease(()=>{reads++;return null;},async()=>{waits++;}),null);assert.equal(reads,10);assert.equal(waits,9);
 });
 test('size report covers every architecture and separates compression from a retired source duplicate',()=>{
-  const before={tag_name:'v1.0.1',assets:binaries('1.0.1').map(name=>({name,size:1000})).concat({name:'FoxVPN-1.0.1-source.tar.gz',size:500})};
+  const before={tag_name:'v1.0.1',assets:binaries('1.0.1').map(name=>({name,size:1000})).concat({name:'PredatorVPN-1.0.1-source.tar.gz',size:500})};
   const after={tag_name:'v1.0.2',assets:binaries('1.0.2').map(name=>({name,size:900}))};
   const result=compare(before,after);assert.equal(result.rows.length,21);assert.equal(result.totals.savedBytes,2100);assert.equal(result.releaseTotals.savedBytes,2600);assert.equal(result.auxiliary[0].status,'retired');
   assert.throws(()=>compare(before,{...after,assets:after.assets.slice(1)}),/Missing comparable asset/);
@@ -26,18 +26,18 @@ test('release publication requires every supported binary and rejects temporary 
   assert.throws(()=>validateRelease({...release,assets:release.assets.slice(1)},'1.0.1'));
   assert.throws(()=>validateRelease({...release,assets:[...release.assets,{name:'android-signing-envelope.json'}]},'1.0.1'));
   assert.throws(()=>validateRelease({...release,tag_name:'v1.0.0'},'1.0.1'));
-  assert.throws(()=>validateRelease({...release,assets:[...release.assets,{name:'FoxVPN-1.0.1-source.tar.gz'}]},'1.0.1'));
+  assert.throws(()=>validateRelease({...release,assets:[...release.assets,{name:'PredatorVPN-1.0.1-source.tar.gz'}]},'1.0.1'));
 });
 test('release cleanup selects only older versioned releases and preserves newer releases',()=>{
   assert.deepEqual(olderTags([{tag_name:'v1.0.0'},{tag_name:'v1.0.1'},{tag_name:'v1.0.2'},{tag_name:'v2.0.0'},{tag_name:'development'}],'1.0.1'),['v1.0.0']);
 });
 test('older release notes survive asset retirement without stale download links',()=>{
   const temporary=fs.mkdtempSync(path.join(os.tmpdir(),'fox-archive-')),calls=[];
-  const body='# Fox VPN v1.0.0\n\n- Account sign-in improvements.\n\n## Downloads\n\n[Old APK](https://example.test/old.apk)\n\n## Installation\n\nAndroid 8 or later.\n';
-  archiveRelease('erfan-tahvilian/FoxVPN',{id:17,draft:false,body,assets:[{id:31},{id:32}]},temporary,(...args)=>calls.push(args));
+  const body='# Predator VPN v1.0.0\n\n- Account sign-in improvements.\n\n## Downloads\n\n[Old APK](https://example.test/old.apk)\n\n## Installation\n\nAndroid 8 or later.\n';
+  archiveRelease('erfan-tahvilian/PredatorVPN',{id:17,draft:false,body,assets:[{id:31},{id:32}]},temporary,(...args)=>calls.push(args));
   const archived=JSON.parse(fs.readFileSync(calls[0].at(-1),'utf8')).body;
   assert(archived.includes('Account sign-in improvements.'));assert(archived.includes('Android 8 or later.'));assert(!archived.includes('old.apk'));assert(archived.includes('/releases/latest'));
   assert.equal(archivedNotes(archived),archived);
-  assert.deepEqual(calls.slice(1),[['api','--method','DELETE','repos/erfan-tahvilian/FoxVPN/releases/assets/31'],['api','--method','DELETE','repos/erfan-tahvilian/FoxVPN/releases/assets/32']]);
+  assert.deepEqual(calls.slice(1),[['api','--method','DELETE','repos/erfan-tahvilian/PredatorVPN/releases/assets/31'],['api','--method','DELETE','repos/erfan-tahvilian/PredatorVPN/releases/assets/32']]);
   assert.deepEqual(olderTags([{tag_name:'v1.0.0',draft:true}],'1.0.1'),[]);
 });

@@ -59,7 +59,7 @@ jobs:
         run: |
           mkdir renamed
           for arch in arm64-v8a armeabi-v7a x86_64 x86 universal; do
-            cp "target/app-$arch-release-unsigned.apk" "renamed/FoxVPN-$FOX_VERSION-Android-$arch.apk"
+            cp "target/app-$arch-release-unsigned.apk" "renamed/PredatorVPN-$FOX_VERSION-Android-$arch.apk"
           done
           python .github/scripts/apk_delta.py create base renamed unsigned-delta.zip "$FOX_BASE_RUN" "$FOX_BASE_SHA"
       - uses: actions/upload-artifact@v4

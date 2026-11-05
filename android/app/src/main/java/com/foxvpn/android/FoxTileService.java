@@ -16,7 +16,7 @@ public final class FoxTileService extends TileService {
         Tile tile = getQsTile(); if (tile == null) return;
         String connection = app().connection();
         tile.setIcon(Icon.createWithResource(this, R.drawable.ic_fox_tile));
-        tile.setLabel("Fox VPN");
+        tile.setLabel("Predator VPN");
         tile.setState("connected".equals(connection) ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
         if (Build.VERSION.SDK_INT >= 29) tile.setSubtitle("connected".equals(connection) ? "Connected"
             : "connecting".equals(connection) ? "Connecting…" : "Disconnected");

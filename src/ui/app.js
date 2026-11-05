@@ -16,9 +16,18 @@ document.querySelectorAll('[data-page]').forEach(el=>el.classList.toggle('active
 function showSplitSettings(){navigate('settings');const section=$('split-tunneling');section?.scrollIntoView({behavior:'auto',block:'start'});$('choose-apps')?.focus({preventScroll:true});}
 function bytes(n) {n=Number(n)||0;const units=['B','KB','MB','GB','TB'];let i=0;while(n>=1024&&i<units.length-1){n/=1024;i++;}return `${n.toFixed(i&&n<10?1:0)} ${units[i]}`;}
 function time(n) {const s=Math.max(0,Math.floor(n/1000));return [Math.floor(s/3600),Math.floor(s/60)%60,s%60].map(v=>String(v).padStart(2,'0')).join(':');}
+const ACCENTS={
+orange:['#ff8b3d','#d95812'],gold:['#ffc43d','#9b6800'],blue:['#5aa6ff','#126fc9'],teal:['#42d0c2','#087c73'],emerald:['#4bd68b','#16824f'],red:['#fa7575','#c53a38'],purple:['#bb87ff','#823cc9'],pink:['#ff79b5','#bf267c'],indigo:['#9c9bff','#514ac5'],cyan:['#4ad9ee','#007f9e']
+};
+function setAccent(color,light){const name=Object.hasOwn(ACCENTS,color)?color:'orange',value=ACCENTS[name][light?1:0];
+document.body.style.setProperty('--orange',value);document.body.style.setProperty('--accent',value);document.body.style.setProperty('--orange-soft',value+'1c');
+document.body.dataset.accent=name;for(const button of document.querySelectorAll('[data-accent]'))button.setAttribute('aria-pressed',String(button.dataset.accent===name));}
+for(const button of document.querySelectorAll('[data-accent]'))button.addEventListener('click',()=>{
+const selector=$('accentColor');selector.value=button.dataset.accent;setAccent(selector.value,document.body.classList.contains('light'));selector.dispatchEvent(new Event('change',{bubbles:true}));});
 function applyTheme(s) {
   const light=s.settings.theme==='light'||s.settings.theme==='system'&&!s.systemDark;
   document.body.classList.toggle('light',light);
+  setAccent(s.settings.accentColor||'orange',light);
   $('theme-toggle').replaceChildren(icon(light?'moon':'sun'));
   $('theme-toggle').title=light?'Switch to dark theme':'Switch to light theme';
   $('theme-toggle').setAttribute('aria-label',$('theme-toggle').title);
@@ -38,6 +47,7 @@ function automaticServer(server) {return /recom+end|anycast/i.test(server.countr
 function fillSettings(s) {
   if($('transport'))$('transport').value=s.transport||'auto';
   for(const key of ['theme','bind','socksPort','doh','customDns','edge'])$(key).value=s[key];
+  $('accentColor').value=s.accentColor||'orange';
   for(const key of ['proxyOnly'])$(key).checked=s[key];
   $('excludedApps').value=s.excludedApps.join('\n');
   $('upstreamEnabled').checked=s.upstream.enabled;
@@ -103,7 +113,7 @@ function render(s) {
   $('session-time').textContent=time(s.sessionDuration??(s.startedAt?now-s.startedAt:0));
   $('location-count').textContent=new Set(s.servers.filter(c=>!automaticServer(c)).map(c=>c.code)).size || '-';
   $('account-name').textContent=s.signedIn?s.email.split('@')[0]:'Sign in';
-  document.querySelector('#account-shortcut .avatar').textContent=s.signedIn?(Array.from((s.email||'').trim())[0]?.toUpperCase()||'?'):'F';
+  document.querySelector('#account-shortcut .avatar').textContent=s.signedIn?(Array.from((s.email||'').trim())[0]?.toUpperCase()||'?'):'P';
   $('signin-panel').hidden=s.signedIn;$('signedin-panel').hidden=!s.signedIn;$('signedin-email').textContent=s.email;
   $('login-form').hidden=needsCode;$('code-form').hidden=!needsCode;
   $('login-button').disabled=s.busy;renderAccountManager(s);
@@ -219,7 +229,7 @@ function accountInfo(data) {
 $('refresh-account').addEventListener('click',action(async()=>accountInfo(await call('account'))));
 function readSettings(){
   const settings={...currentState.settings};if(['win32','darwin','linux','android'].includes(currentState.platform))settings.transport=$('transport').value;
-  for(const key of ['theme','bind','doh','customDns','edge'])settings[key]=$(key).value.trim();
+  for(const key of ['theme','accentColor','bind','doh','customDns','edge'])settings[key]=$(key).value.trim();
   settings.socksPort=Number($('socksPort').value);for(const key of ['proxyOnly'])settings[key]=$(key).checked;
   settings.excludedApps=[...new Set($('excludedApps').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean))];
   settings.upstream={enabled:$('upstreamEnabled').checked,type:$('upstreamType').value,host:$('upstreamHost').value.trim(),port:Number($('upstreamPort').value),username:$('upstreamUsername').value,password:$('upstreamPassword').value};

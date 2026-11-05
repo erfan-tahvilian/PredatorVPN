@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 (() => {
   const dialog=document.createElement('dialog');dialog.className='update-dialog';dialog.id='update-dialog';dialog.setAttribute('aria-labelledby','update-title');
-  const badge=document.createElement('div');badge.className='eyebrow';badge.textContent='FOX VPN UPDATE';
+  const badge=document.createElement('div');badge.className='eyebrow';badge.textContent='PREDATOR VPN UPDATE';
   const title=document.createElement('h2');title.id='update-title';title.textContent='A new version is ready';
   const message=document.createElement('p');message.className='muted';
   const version=document.createElement('p');version.className='update-version';
@@ -31,7 +31,7 @@
   }
   const setup=()=>{
     let about=document.querySelector('[data-app-about]');
-    if(!about){about=document.createElement('div');about.className='settings-card';const heading=document.createElement('h3');heading.textContent='About Fox VPN';const installed=document.createElement('p');installed.dataset.appVersion='';installed.dataset.versionPrefix='Version ';about.append(heading,installed);document.querySelector('.settings-footer').before(about);}
+    if(!about){about=document.createElement('div');about.className='settings-card';const heading=document.createElement('h3');heading.textContent='About Predator VPN';const installed=document.createElement('p');installed.dataset.appVersion='';installed.dataset.versionPrefix='Version ';about.append(heading,installed);document.querySelector('.settings-footer').before(about);}
     const button=document.createElement('button');button.id='check-updates';button.type='button';button.className='secondary';button.textContent='Check for updates';button.addEventListener('click',()=>check(true));
     const source=about.querySelector('#source');if(source)source.before(button);else about.append(button);
     // Start conditional network revalidation immediately, even with a disk cache.
@@ -49,7 +49,7 @@
     try{
       const notes=await call('releaseNotes');if(notes.seen||!notes.items?.length)return;
       const welcome=document.createElement('dialog');welcome.id='release-highlights';welcome.className='update-dialog';welcome.setAttribute('aria-labelledby','highlights-title');
-      const title=document.createElement('h2');title.id='highlights-title';title.textContent=`What’s new in Fox VPN ${notes.version}`;
+      const title=document.createElement('h2');title.id='highlights-title';title.textContent=`What’s new in Predator VPN ${notes.version}`;
       welcome.append(title);
       for(const item of notes.items){const article=document.createElement('article'),heading=document.createElement('h3'),description=document.createElement('p');heading.textContent=item.title;description.textContent=item.description;description.className='muted';article.append(heading,description);welcome.append(article);}
       const done=document.createElement('button');done.className='primary';done.textContent='Continue';done.addEventListener('click',()=>welcome.close());welcome.append(done);

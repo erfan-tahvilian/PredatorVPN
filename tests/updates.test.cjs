@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const {Updates,newer,assetName,selectRelease}=require('../src/lib/updates.cjs');
-function release(version,target){const name=assetName(version,target);return {tag_name:'v'+version,draft:false,prerelease:false,assets:[{name,browser_download_url:`https://github.com/erfan-tahvilian/FoxVPN/releases/download/v${version}/${name}`,state:'uploaded',size:1024,digest:'sha256:'+'ab'.repeat(32)}]};}
+function release(version,target){const name=assetName(version,target);return {tag_name:'v'+version,draft:false,prerelease:false,assets:[{name,browser_download_url:`https://github.com/erfan-tahvilian/PredatorVPN/releases/download/v${version}/${name}`,state:'uploaded',size:1024,digest:'sha256:'+'ab'.repeat(32)}]};}
 test('update versions compare numerically and never offer equal, older or prerelease versions',()=>{
   assert(newer('1.0.10','1.0.9'));assert(newer('2.0.0','1.99.99'));assert(!newer('1.0.1','1.0.1'));assert(!newer('1.0.0','1.0.1'));
   for(const version of ['1.0.2-beta','1.0','01.0.1','1.0.0.1','javascript:alert(1)'])assert.throws(()=>newer(version,'1.0.1'));

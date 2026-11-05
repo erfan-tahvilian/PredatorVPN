@@ -1,6 +1,6 @@
 !macro customInstall
   FileOpen $0 "$INSTDIR\.foxvpn-installed" w
-  FileWrite $0 "Fox VPN installer"
+  FileWrite $0 "Predator VPN installer"
   FileClose $0
 !macroend
 

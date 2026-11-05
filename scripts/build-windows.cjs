@@ -10,7 +10,7 @@ for(const file of [path.join(electron,'electron.exe'),path.join(engineRoot(),'si
 }
 const config=path.resolve('.tools',`build-${t.arch}.json`);
 fs.mkdirSync(path.dirname(config),{recursive:true});
-fs.writeFileSync(config,JSON.stringify({...require('../package.json').build,afterPack:'scripts/capture-windows-payload.cjs',electronVersion:t.electron,electronDist:electron,artifactName:`FoxVPN-\${version}-Windows-${t.label}.\${ext}`},null,2));
+fs.writeFileSync(config,JSON.stringify({...require('../package.json').build,afterPack:'scripts/capture-windows-payload.cjs',electronVersion:t.electron,electronDist:electron,artifactName:`PredatorVPN-\${version}-Windows-${t.label}.\${ext}`},null,2));
 // Use the pinned builder's full maximum preset, including multi-pass standard
 // Deflate for portable ZIPs. Compression is a build-time cost; runtime stays intact.
 delete process.env.ELECTRON_BUILDER_COMPRESSION_LEVEL;

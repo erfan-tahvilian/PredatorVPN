@@ -1,20 +1,39 @@
 {
+  "version": "1.0.4",
   "items": [
+    {
+      "platforms": [
+        "win32",
+        "darwin",
+        "linux",
+        "android"
+      ],
+      "title": "Introducing Predator VPN",
+      "description": "Refreshed branding and updated light and dark logos throughout the app."
+    },
+    {
+      "platforms": [
+        "win32",
+        "darwin",
+        "linux",
+        "android"
+      ],
+      "title": "Personalized appearance",
+      "description": "Choose from ten accent colors, including orange by default and gold, with your choice saved securely."
+    },
     {
       "platforms": [
         "win32"
       ],
-      "title": "Automatic tunnel recovery",
-      "description": "If the Windows tunnel engine unexpectedly stops, Fox VPN attempts to restore the connection automatically."
+      "title": "Resilient proxy session authentication",
+      "description": "When a temporary proxy pass is rejected, the client attempts a fresh pass and retries the request without immediately tearing down the VPN."
     },
     {
       "platforms": [
-        "win32",
-        "darwin",
-        "linux"
+        "android"
       ],
-      "title": "More resilient connections",
-      "description": "Temporary account-service interruptions no longer end an active connection during routine pass renewal."
+      "title": "Android-specific controls",
+      "description": "A refined phone layout and a dedicated monochrome icon for the Android Quick Settings tile."
     },
     {
       "platforms": [
@@ -23,29 +42,8 @@
         "linux",
         "android"
       ],
-      "title": "Prompt update checks",
-      "description": "Update checks start when you open the app and refresh when you return, with downloads matched to your device."
-    },
-    {
-      "platforms": [
-        "win32",
-        "darwin",
-        "linux",
-        "android"
-      ],
-      "title": "Refined dialogs",
-      "description": "Dialogs and selection menus follow your application theme in dark, light and system appearance."
-    },
-    {
-      "platforms": [
-        "win32",
-        "darwin",
-        "linux",
-        "android"
-      ],
-      "title": "Compact downloads",
-      "description": "Improved standard archive compression preserves the complete application and VPN components."
+      "title": "Updates and accounts preserved",
+      "description": "Existing installation identities and securely saved account data remain compatible with the new brand."
     }
-  ],
-  "version": "1.0.3"
+  ]
 }

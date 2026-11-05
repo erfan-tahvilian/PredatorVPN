@@ -17,12 +17,15 @@ const {Control,Guardian}=require('./lib/control.cjs');
 function makeControl(){return new Control({transport:(...args)=>electronNet.fetch(...args)});}
 const {Auth}=require('./lib/auth.cjs');
 const APP_VERSION=require('../package.json').version;
+// Preserve encrypted settings/accounts across the product display-name migration.
+app.setPath('userData',path.join(app.getPath('appData'),'Fox VPN'));
 const {Updates}=require('./lib/updates.cjs');
 const {updateTarget}=require('./lib/update-target.cjs');
 const {ReleaseNotes}=require('./lib/release-notes.cjs');
 const {Tunnel}=require('./lib/tunnel.cjs');
 const {AdaptiveTunnel}=require('./lib/h3-tunnel.cjs');
 const {PassRenewer}=require('./lib/pass-renewal.cjs');
+const {ProxyPassRecovery}=require('./lib/proxy-pass-recovery.cjs');
 const {WindowsEngine}=require('./lib/windows-engine.cjs');
 function makeTunnel(settings,log,onFatal){return new AdaptiveTunnel(settings,log,onFatal,path.join(engineDir(),process.platform==='win32'?'fox-h3.exe':'fox-h3'));}
 const {measure,measureAll}=require('./lib/latency.cjs');
@@ -82,8 +85,8 @@ async function admin() {
 async function refreshServers() {const next=await guardian.servers();store.setServers(next);servers=store.servers;log('info',`Updated server list · ${servers.length} available endpoints`);return servers;}
 async function launchEngine(candidate, epoch) {
   const executable=path.join(engineDir(),mac||linux?'sing-box':'sing-box.exe');
-  if(!fs.existsSync(executable)||(!mac&&!linux&&!fs.existsSync(path.join(engineDir(),'wintun.dll'))))throw Error('The tunnel engine is missing. Reinstall Fox VPN.');
-  if(!mac&&!linux&&!await admin())throw Error('System VPN mode requires Administrator access. Close Fox VPN and run it as administrator, or enable proxy-only mode.');
+  if(!fs.existsSync(executable)||(!mac&&!linux&&!fs.existsSync(path.join(engineDir(),'wintun.dll'))))throw Error('The tunnel engine is missing. Reinstall Predator VPN.');
+  if(!mac&&!linux&&!await admin())throw Error('System VPN mode requires Administrator access. Close Predator VPN and run it as administrator, or enable proxy-only mode.');
   const edgeHost=store.settings.edge||candidate.host;
   const edgeIP=tunnel?.edgeIP||(await dns.lookup(edgeHost)).address;
   const proxyIP=store.settings.upstream.enabled?(await dns.lookup(store.settings.upstream.host)).address:null;
@@ -98,7 +101,7 @@ async function launchEngine(candidate, epoch) {
     const controller=new Controller(app.getPath('userData'),executable,()=>{if(macEngine===controller&&connection==='connected')fail(Error(`The ${osName} tunnel engine stopped unexpectedly.`));});
     macEngine=controller;await controller.start(config);
     if(epoch!==generation){await controller.stop();throw Error('Connection cancelled');}
-    log('info',`${osName} tunnel adapter ready · system traffic routed through Fox VPN`);return;
+    log('info',`${osName} tunnel adapter ready · system traffic routed through Predator VPN`);return;
   }
   const configPath=path.join(app.getPath('userData'),'tunnel.json');
   fs.writeFileSync(configPath,JSON.stringify(config,null,2));
@@ -111,7 +114,7 @@ async function launchEngine(candidate, epoch) {
   await controller.start();
   if(!controller.child)throw Error('Windows tunnel engine stopped during startup.');
   if(epoch!==generation)throw Error('Connection cancelled');
-  log('info','Windows TUN adapter ready · system traffic routed through Fox VPN');
+  log('info','Windows TUN adapter ready · system traffic routed through Predator VPN');
 }
 async function stopEngine() {
   const controller=macEngine;macEngine=null;if(controller)await controller.stop();
@@ -170,6 +173,21 @@ async function fail(error) {
   }
   lastError=error.message;log('error',error.message);await disconnect();
 }
+let proxyPassRecovery=null;
+async function handleProxyRejection(error){
+  const current=tunnel||pendingTunnel,epoch=generation,id=store.activeAccountId,source=guardian;
+  if(!current||!source)return false;
+  if(!proxyPassRecovery||proxyPassRecovery.current!==current){
+    const controller=new ProxyPassRecovery({
+      getPass:()=>source.pass(),
+      canApply:()=>generation===epoch&&store.activeAccountId===id&&(tunnel===current||pendingTunnel===current),
+      applyPass:fresh=>{current.token=fresh.token;if(connection==="connected"){renew(fresh);quota=quotaFromPass(fresh);emit();}},
+      onExhausted:err=>fail(err),log
+    });
+    proxyPassRecovery={current,controller};
+  }
+  return proxyPassRecovery.controller.handle(error);
+}
 function renew(pass) {
   passRenewer?.stop();
   const epoch=generation,accountId=store.activeAccountId,source=guardian;
@@ -192,7 +210,7 @@ async function connect({resumeTraffic=false,prepared=null,automaticRecovery=fals
   try {
     if(!store.auth)throw Error('Sign in to your service account first.');
     if(!store.settings.proxyOnly&&store.settings.splitMode==='include'&&!store.settings.excludedApps.length)throw Error('Select at least one app in Split tunneling before connecting.');
-    if(!mac&&!linux&&!store.settings.proxyOnly&&!await admin())throw Error('Run Fox VPN as administrator for system VPN, or enable proxy-only mode in Settings.');
+    if(!mac&&!linux&&!store.settings.proxyOnly&&!await admin())throw Error('Run Predator VPN as administrator for system VPN, or enable proxy-only mode in Settings.');
     if(!servers.length)await refreshServers();
     check();
     const id=store.settings.serverId;
@@ -203,7 +221,7 @@ async function connect({resumeTraffic=false,prepared=null,automaticRecovery=fals
     check();
     let selected;
     for(const candidate of list.slice(0,5)) {
-      const attempt=makeTunnel(structuredClone(store.settings),log,fail);
+      const attempt=makeTunnel(structuredClone(store.settings),log,handleProxyRejection);
       pendingTunnel=attempt;
       try{await attempt.start(candidate,pass);check();exit=await attempt.exit(id==='REC'?null:candidate.code);check();tunnel=attempt;pendingTunnel=null;selected=candidate;break;}
       catch(e){attempt.stop();pendingTunnel=null;check();lastError=e.message;log('warn',`Could not connect to ${[candidate.country,candidate.city].filter((v,i,a)=>v&&a.indexOf(v)===i).join(', ')}. ${e.message}`);}
@@ -229,7 +247,7 @@ function handle(channel, fn) {
   });
 }
 function createWindow() {
-  window=new BrowserWindow({width:1180,height:800,minWidth:960,minHeight:700,backgroundColor:'#101117',title:'Fox VPN',icon,autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true}});
+  window=new BrowserWindow({width:1180,height:800,minWidth:960,minHeight:700,backgroundColor:'#101117',title:'Predator VPN',icon,autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true}});
   window.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   window.webContents.on('will-navigate',event=>event.preventDefault());
   window.loadFile(path.join(__dirname,'ui/index.html'));
@@ -240,11 +258,11 @@ if(!app.requestSingleInstanceLock())app.quit();
 else {
   app.on('second-instance',()=>{showWindow();});
   app.whenReady().then(()=>{
-    if(mac)Menu.setApplicationMenu(Menu.buildFromTemplate([{label:'Fox VPN',submenu:[{role:'about'},{type:'separator'},{role:'hide'},{role:'hideOthers'},{role:'unhide'},{type:'separator'},{role:'quit'}]},{label:'File',submenu:[{label:'Close Window',accelerator:'Command+W',click:()=>{if(window&&!window.isDestroyed())window.close();}}]},{role:'editMenu'},{role:'windowMenu'}]));
+    if(mac)Menu.setApplicationMenu(Menu.buildFromTemplate([{label:'Predator VPN',submenu:[{role:'about'},{type:'separator'},{role:'hide'},{role:'hideOthers'},{role:'unhide'},{type:'separator'},{role:'quit'}]},{label:'File',submenu:[{label:'Close Window',accelerator:'Command+W',click:()=>{if(window&&!window.isDestroyed())window.close();}}]},{role:'editMenu'},{role:'windowMenu'}]));
     store=new Store(app.getPath('userData'),safeStorage);servers=store.servers;if(multiAccount){traffic=new TrafficLedger(store.traffic,value=>store.setTraffic(value));accountCoordinator=new AccountCoordinator(store,accountGuardian);quota=store.activeAccount?.quota||null;}
     const control=makeControl();guardian=new Guardian(control,new Auth(control,store));
     const updates=new Updates({version:APP_VERSION,target:updateTarget(process.platform,process.arch,app.getPath('exe')),fetch:(...args)=>electronNet.fetch(...args),cacheFile:path.join(app.getPath('userData'),'release-cache.json')});
-    syncGuardian();createWindow();tray=new Tray(mac||linux?nativeImage.createFromPath(icon).resize({width:22,height:22}):icon);tray.setToolTip('Fox VPN');
+    syncGuardian();createWindow();tray=new Tray(mac||linux?nativeImage.createFromPath(icon).resize({width:22,height:22}):icon);tray.setToolTip('Predator VPN');
     trayPopup=new TrayPopup({state:trayState,command:trayCommand,bounds:()=>{const bounds=tray.getBounds();if(mac)return bounds;const point=screen.getCursorScreenPoint();return point.x>=bounds.x-8&&point.x<=bounds.x+bounds.width+8&&point.y>=bounds.y-8&&point.y<=bounds.y+bounds.height+8?bounds:{...point,width:0,height:0};}});
     bindTrayActions(tray,trayPopup,showWindow,error=>log('warn',error.message));emit();
     handle('state',()=>state());
@@ -288,13 +306,14 @@ else {
     handle('appIcon',id=>applications.icon(id));
     handle('select',id=>{if(connection!=='disconnected')throw Error('Disconnect before choosing another server.');if(id!=='REC'&&!servers.some(s=>s.id===id))throw Error('Unknown server.');store.setSettings({...store.settings,serverId:id});emit();});
     handle('theme',theme=>{store.setSettings({...store.settings,theme});emit();});
+    handle('accentColor',accentColor=>{store.setSettings({...store.settings,accentColor});emit();});
     handle('connect',async()=>{if(busy)throw Error('Wait for the current operation.');busy=true;emit();try{await connect();}finally{busy=false;emit();}});
     handle('disconnect',async()=>{if(busy&&!switchingAccount)throw Error('Wait for the current operation.');await disconnect();});
     handle('cancel',async()=>{if(connection==='connecting')await disconnect();});
     handle('exit',async()=>{if(connection!=='connected')throw Error('Connect before verifying your connection.');const active=tunnel,epoch=generation;const result=await active.exit(store.settings.serverId==='REC'?null:active.candidate.code);if(tunnel!==active||epoch!==generation)throw Error('Connection changed while checking.');exit=result;emit();void refreshAddresses(active,epoch);return result;});
     handle('clearLogs',()=>{logs=[];emit();});
     handle('exportLogs',async()=>{const result=await dialog.showSaveDialog(window,{defaultPath:'FoxVPN-diagnostics.txt',filters:[{name:'Text files',extensions:['txt']}]});if(!result.canceled)fs.writeFileSync(result.filePath,logs.map(l=>`${l.time} [${l.level}] ${l.message}`).join('\n'));});
-    handle('openLink',id=>{const urls={source:'https://github.com/erfan-tahvilian/FoxVPN',license:'https://github.com/erfan-tahvilian/FoxVPN/blob/main/LICENSE'};if(!urls[id])throw Error('Unknown link');return shell.openExternal(urls[id]);});
+    handle('openLink',id=>{const urls={source:'https://github.com/erfan-tahvilian/PredatorVPN',license:'https://github.com/erfan-tahvilian/PredatorVPN/blob/main/LICENSE'};if(!urls[id])throw Error('Unknown link');return shell.openExternal(urls[id]);});
     nativeTheme.on('updated',emit);setInterval(()=>{if(multiAccount&&traffic){observeTraffic();try{traffic.checkpoint();trafficSaveWarning=false;}catch{if(!trafficSaveWarning){logs.push({time:new Date().toISOString(),level:'warn',message:'Traffic statistics could not be saved.'});trafficSaveWarning=true;}}}emit();},1000).unref();
     if(store.loadError)log('warn',store.loadError);
     refreshServers().catch(()=>log('warn','Locations could not be refreshed. Saved locations remain available; try Refresh again later.'));

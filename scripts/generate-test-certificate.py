@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 import ipaddress
 key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, 'Fox VPN localhost TEST ONLY')])
+name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, 'Predator VPN localhost TEST ONLY')])
 cert = (x509.CertificateBuilder().subject_name(name).issuer_name(name)
         .public_key(key.public_key()).serial_number(x509.random_serial_number())
         .not_valid_before(datetime(2020, 1, 1, tzinfo=timezone.utc))

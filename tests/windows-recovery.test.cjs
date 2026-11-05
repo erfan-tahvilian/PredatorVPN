@@ -35,18 +35,19 @@ test('a failed refresh after expiry keeps retrying without discarding the connec
   assert.equal(rejected,0);assert.equal(clock.timers.at(-1).delay,5000);
   renewer.stop();
 });
-test('confirmed exhaustion and invalid account authorization remain hard failures',async()=>{
-  for(const mode of ['exhausted','denied']){
-    let rejected;
-    const clock=timerHarness();
-    const renewer=new PassRenewer({...clock,now:()=>0,getPass:async()=>{
-      if(mode==='exhausted')return {...pass(),quotaRemaining:'0'};
-      throw Object.assign(Error('Authorization rejected'),{status:401});
-    },applyPass:async()=>{throw Error('must not apply');},onRejected:async error=>{rejected=error;},log:()=>{}});
+test('confirmed exhaustion is terminal but isolated 401/403 renewals back off',async()=>{
+  for(const status of [401,403]){
+    const clock=timerHarness(),logs=[];let rejected=0;
+    const renewer=new PassRenewer({...clock,now:()=>0,getPass:async()=>{throw Object.assign(Error('Auth temporarily unavailable'),{status});},applyPass:async()=>{},onRejected:async()=>{rejected++;},log:(_level,msg)=>logs.push(msg)});
     renewer.start(pass());await renewer.refresh(renewer.epoch);
-    assert.equal(rejected.status,mode==='exhausted'?429:401);
-    assert.equal(renewer.active,false);
+    assert.equal(renewer.active,true);assert.equal(rejected,0);
+    assert.equal(clock.timers.at(-1).delay,5000);
+    assert(logs.some(line=>line.includes('Retrying')));renewer.stop();
   }
+  const clock=timerHarness();let rejected;
+  const renewer=new PassRenewer({...clock,now:()=>0,getPass:async()=>({...pass(),quotaRemaining:'0'}),applyPass:async()=>{throw Error('must not apply');},onRejected:async error=>{rejected=error;},log:()=>{}});
+  renewer.start(pass());await renewer.refresh(renewer.epoch);
+  assert.equal(rejected.status,429);assert.equal(renewer.active,false);
 });
 test('stopped renewals never apply a late response after disconnect',async()=>{
   const clock=timerHarness();let complete,applied=0;

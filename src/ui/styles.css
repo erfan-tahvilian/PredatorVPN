@@ -35,3 +35,35 @@ body{-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:trans
 dialog,#app-picker,.account-remove-dialog,.select-menu{background:var(--bg);color:var(--text);border:1px solid var(--line);box-shadow:0 24px 80px #0004;color-scheme:inherit}
 #toast{background:var(--bg)}
 dialog::backdrop{background:#0008;backdrop-filter:blur(5px)}
+
+/* Predator VPN rebrand: balanced sidebar logo and accessible accent selection. */
+:root{
+ --swatch-orange:#ff802c;--swatch-gold:#e6a620;--swatch-blue:#348aff;
+ --swatch-teal:#16b9ac;--swatch-emerald:#2dc670;--swatch-red:#ed5353;
+ --swatch-purple:#a067ea;--swatch-pink:#f35b9d;--swatch-indigo:#6864d9;--swatch-cyan:#24c6df;
+}
+.mobile-app-brand{display:none}
+.brand{display:flex;justify-content:center;align-items:center;margin:0 0 20px}
+.brand img{width:min(154px,100%);height:154px;object-fit:contain}
+.accent-setting{padding:16px 0 3px;border-top:1px solid var(--line)}
+.accent-setting>p{margin:5px 0 14px}
+.visually-hidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.accent-options{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:8px}
+.accent-choice{min-width:0;min-height:72px;padding:10px 5px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px}
+.accent-choice:hover{border-color:var(--orange)}
+.accent-choice[aria-pressed="true"]{border:2px solid var(--orange);background:var(--orange-soft)}
+.accent-choice:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+.accent-choice small{font-size:9px;font-weight:600}
+.accent-dot{width:26px;height:26px;border-radius:50%;background:var(--swatch);box-shadow:0 2px 6px #0002}
+@media(max-width:1050px){.accent-options{grid-template-columns:repeat(5,minmax(0,1fr))}}
+
+.accent-choice[data-accent="orange"]{--swatch:var(--swatch-orange)}
+.accent-choice[data-accent="gold"]{--swatch:var(--swatch-gold)}
+.accent-choice[data-accent="blue"]{--swatch:var(--swatch-blue)}
+.accent-choice[data-accent="teal"]{--swatch:var(--swatch-teal)}
+.accent-choice[data-accent="emerald"]{--swatch:var(--swatch-emerald)}
+.accent-choice[data-accent="red"]{--swatch:var(--swatch-red)}
+.accent-choice[data-accent="purple"]{--swatch:var(--swatch-purple)}
+.accent-choice[data-accent="pink"]{--swatch:var(--swatch-pink)}
+.accent-choice[data-accent="indigo"]{--swatch:var(--swatch-indigo)}
+.accent-choice[data-accent="cyan"]{--swatch:var(--swatch-cyan)}

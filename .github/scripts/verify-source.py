@@ -39,7 +39,7 @@ def main():
     args = parser.parse_args()
     commit = subprocess.check_output(["git", "rev-parse", args.commit], text=True).strip()
     exported = subprocess.check_output(["git", "archive", "--format=tar", "--prefix=FoxVPN/", commit])
-    url = args.url or "https://codeload.github.com/erfan-tahvilian/FoxVPN/tar.gz/" + commit
+    url = args.url or "https://codeload.github.com/erfan-tahvilian/PredatorVPN/tar.gz/" + commit
     request = urllib.request.Request(url, headers={"User-Agent": "FoxVPN-source-verifier"})
     with urllib.request.urlopen(request, timeout=120) as response:
         downloaded = response.read()
