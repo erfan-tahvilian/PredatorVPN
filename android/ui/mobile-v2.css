@@ -232,3 +232,25 @@ input[type=checkbox].switch:focus-visible{outline:2px solid var(--accent);outlin
  #settings .settings-sections>.settings-card:first-child,#settings .settings-sections>#split-tunneling,
  #settings .settings-sections>#settings-license,#settings .settings-sections>.settings-footer{grid-column:1/-1}
 }
+
+/* 2.0 user-review parity: mobile and desktop share semantic-status and accent rules. */
+.connection-health[data-status="connected"] .health-emblem{
+ color:var(--green)!important;background:rgba(45,184,113,.12)!important;
+ border-color:rgba(45,184,113,.4)!important;
+}
+.accent-options{margin-top:10px!important}
+body.light{--on-accent:#fff}
+body.light #settings .accent-choice{background:#fff;border-color:rgba(38,56,82,.15)}
+body.light #settings .accent-choice small{color:#263347;text-shadow:none}
+body.light #settings .accent-choice[aria-pressed="true"]{background:var(--accent-surface);border-color:var(--accent)}
+body.light input[type=checkbox].switch::after{background:#fff!important;box-shadow:0 2px 5px rgba(20,34,54,.18)}
+body.light input[type=checkbox].switch:checked{background:var(--accent);border-color:var(--accent)}
+@keyframes mobile-accent-pulse{
+ 0%,100%{box-shadow:0 0 0 7px var(--accent-surface),0 0 29px var(--accent-glow);transform:scale(1)}
+ 50%{box-shadow:0 0 0 12px var(--accent-surface),0 0 49px var(--accent-glow);transform:scale(.975)}
+}
+#home .power-button.connecting{animation:mobile-accent-pulse 1.4s ease-in-out infinite!important;color:var(--accent)!important;border-color:var(--accent)!important}
+@media(prefers-reduced-motion:reduce){#home .power-button.connecting{animation:none!important}}
+
+/* Keep light-theme thumb white immediately, including for offscreen toggles. */
+body.light input[type=checkbox].switch::after{transition:transform .16s ease!important;background:#fff!important}

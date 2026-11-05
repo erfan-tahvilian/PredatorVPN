@@ -34,6 +34,16 @@ async function desktop(){
   await wait(75);
   const gold=await inspect(w,"(()=>{const b=document.body,s=document.querySelector('#connect'),sw=document.querySelector('#proxyOnly');return {accent:b.dataset.accent,power:getComputedStyle(s).borderTopColor,root:getComputedStyle(b).getPropertyValue('--accent').trim(),checked:getComputedStyle(sw).width}})()");
   assert.equal(gold.accent,'gold');assert(gold.root.startsWith('#'));assert(gold.power);
+  await inspect(w,"document.body.classList.add('light');document.querySelector('#proxyOnly').checked=true");await wait(100);
+  const checkedVisual=await inspect(w,"(()=>{const b=document.body;const swatches=document.querySelector('.accent-options');const selector=document.querySelector('#settings .accent-setting .select-control');const emblem=document.querySelector('.connection-health .health-emblem');document.getElementById('connection-health').dataset.status='connected';const connected=getComputedStyle(emblem).backgroundColor;document.querySelector('#connect').classList.add('connecting');const animation=getComputedStyle(document.querySelector('#connect')).animationName;const power=getComputedStyle(document.querySelector('#connect')).borderTopColor;const transfer=document.querySelector('#total-traffic-card use').getAttribute('href');const gap=swatches.getBoundingClientRect().top-selector.getBoundingClientRect().bottom;const label=getComputedStyle(document.querySelector('.accent-choice small')).color;const knob=getComputedStyle(document.querySelector('#proxyOnly'),'::after').backgroundColor;const primary=getComputedStyle(document.querySelector('#login-button')).color;return {connected,animation,power,transfer,gap,label,knob,primary}})()");
+  assert.match(checkedVisual.connected,/45, 184, 113|33, 138, 96/,'Connected status emblem must use semantic green');
+  assert.equal(checkedVisual.transfer,'#glyph-transfer','Total transferred must use up/down arrows');
+  assert(checkedVisual.gap>=10,'Color selector and swatches must have at least a full-card gap');
+  assert.match(checkedVisual.animation,/pulse/,'Connecting state uses accent-variable pulse animation');
+  assert.equal(checkedVisual.knob,'rgb(255, 255, 255)','Light theme switch knob must be white');
+  assert.equal(checkedVisual.primary,'rgb(255, 255, 255)','Light theme filled buttons must be legible');
+  assert.equal(checkedVisual.label,'rgb(38, 51, 71)','Light theme swatch labels must use readable neutral text');
+  await inspect(w,"document.body.classList.remove('light');document.querySelector('#proxyOnly').checked=false");
   await w.setSize(1024,820);await wait(125);
   const compact=await inspect(w,"(()=>{const b=document.querySelector('.settings-sections').getBoundingClientRect(),items=[...document.querySelectorAll('#settings .accent-choice')].map(e=>e.getBoundingClientRect());return {overflow:items.some(r=>r.right>b.right+2||r.left<b.left-2),gap:items[1].left-items[0].right,all:items.length}})()");
   assert(!compact.overflow,'Compact settings must keep all color tiles in bounds');
