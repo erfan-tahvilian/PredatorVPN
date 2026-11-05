@@ -1,0 +1,39 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Account API requests use isolated, in-memory Chromium sessions rather than
+// inheriting any proxy applied to the application window. An OS-level VPN route
+// is not bypassed by this setting; direct here means "no Chromium proxy".
+const TRANSIENT=/\b(?:ERR_CONNECTION_RESET|ERR_NETWORK_CHANGED|ERR_CONNECTION_CLOSED|ERR_TIMED_OUT|ETIMEDOUT|ECONNRESET|EPIPE)\b/i;
+const APPROVED=new Set(['api.accounts.firefox.com','accounts.firefox.com','vpn.mozilla.org','firefox.settings.services.mozilla.com']);
+function isTransient(error) {
+  const candidate=[error?.code,error?.message,error?.cause?.code,error?.cause?.message].filter(Boolean).join(' ');
+  return TRANSIENT.test(candidate);
+}
+function friendlyAccountNetworkError(error) {
+  if(!isTransient(error))return error;
+  const e=new Error('The account service connection was interrupted. Check your network and retry. Verification requests are never automatically resubmitted.');
+  e.code='ACCOUNT_NETWORK_INTERRUPTED';
+  e.cause=error;
+  return e;
+}
+function createAccountTransport({createSession,systemFetch}){
+  const isolated=createSession();
+  if(!isolated||typeof isolated.setProxy!=='function'||typeof isolated.fetch!=='function')throw Error('Isolated account session is unavailable');
+  const ready=isolated.setProxy({mode:'direct'});
+  return async function accountFetch(url,options={}){
+    const target=new URL(url);
+    if(target.protocol!=='https:'||!APPROVED.has(target.hostname))throw Error('Unapproved account-service endpoint');
+    await ready;
+    const method=(options.method||'GET').toUpperCase();
+    try {return await isolated.fetch(url,options);}
+    catch(error){
+      // Only idempotent reads can safely be retried on another network stack.
+      // POST (verification codes, sign-in, token refresh) must NOT be replayed.
+      if(isTransient(error)&&(method==='GET'||method==='HEAD')){
+        try{return await systemFetch(url,options);}
+        catch(fallback){throw friendlyAccountNetworkError(fallback);}
+      }
+      throw friendlyAccountNetworkError(error);
+    }
+  };
+}
+module.exports={createAccountTransport,isTransient,friendlyAccountNetworkError};

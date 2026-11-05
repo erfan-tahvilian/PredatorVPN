@@ -14,7 +14,16 @@ const {AccountCoordinator,knownEmpty,quotaFromPass}=require('./lib/accounts.cjs'
 const {Control,Guardian}=require('./lib/control.cjs');
 // Chromium uses the operating system's network/proxy stack consistently for
 // account verification, sign-in and token renewal. Do not mix it with Node fetch.
-function makeControl(){return new Control({transport:(...args)=>electronNet.fetch(...args)});}
+const {session}=require('electron');
+const {createAccountTransport}=require('./lib/account-transport.cjs');
+let authSessionSequence=0;
+function makeControl(){
+  const transport=createAccountTransport({
+    createSession:()=>session.fromPartition('predator-auth-'+(++authSessionSequence)),
+    systemFetch:(...args)=>electronNet.fetch(...args)
+  });
+  return new Control({transport});
+}
 const {Auth}=require('./lib/auth.cjs');
 const APP_VERSION=require('../package.json').version;
 // Preserve encrypted settings/accounts across the product display-name migration.
@@ -65,7 +74,7 @@ function trayState(){
   const server=tunnel?.candidate;
   const country=exit?.country?new Intl.DisplayNames(['en'],{type:'region'}).of(exit.country):server?.country;
   const city=server&&(!exit?.country||exit.country===server.code)?server.city:'';
-  return {version:APP_VERSION,connection,signedIn:!!store.auth,busy,light:!nativeTheme.shouldUseDarkColors,location:[country,city].filter((v,i,a)=>v&&a.indexOf(v)===i).join(', ')};
+  return {version:APP_VERSION,connection,signedIn:!!store.auth,busy,light:!nativeTheme.shouldUseDarkColors,accent:store.settings.accentColor||'orange',location:[country,city].filter((v,i,a)=>v&&a.indexOf(v)===i).join(', ')};
 }
 async function trayCommand(action){
   if(action==='open'){showWindow();return;}

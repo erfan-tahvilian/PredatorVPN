@@ -38,8 +38,14 @@ class Auth {
     if (!this.pending) throw Error('Start sign-in again.');
     code=String(code).trim();
     if (!code) throw Error('Enter the verification code.');
-    const path=this.pending.method==='totp-2fa'?'/session/verify/totp':'/session/verify_code';
-    await this.request(path, {code}, this.pending.session);
+    // Once an email/TOTP code is accepted, a later OAuth transport failure
+    // must not force us to submit the already-consumed one-time code again.
+    // Only skip verification after receiving a confirmed success response.
+    if(!this.pending.verified){
+      const path=this.pending.method==='totp-2fa'?'/session/verify/totp':'/session/verify_code';
+      await this.request(path,{code},this.pending.session);
+      this.pending.verified=true;
+    }
     return this.complete();
   }
   async complete() {
