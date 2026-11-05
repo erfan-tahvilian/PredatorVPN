@@ -11,7 +11,7 @@ function timerHarness(){
 function pass(expiry=600000){return {token:'fixture',expiresAt:expiry,quotaRemaining:'100'};}
 test('pass refresh retains the VPN on transient service errors and retries with backoff',async()=>{
   const clock=timerHarness(),logs=[];let fetched=0,applied=0,rejected=0;
-  const renewer=new PassRenewer({...clock,now:()=>0,
+  const renewer=new PassRenewer({...clock,now:()=>0,random:()=>0.5,
     getPass:async()=>{if(++fetched===1)throw Object.assign(Error('temporary'),{status:503});return pass();},
     applyPass:async()=>{applied++;},onRejected:async()=>{rejected++;},log:(level,message)=>logs.push(message)});
   renewer.start(pass());
@@ -23,12 +23,12 @@ test('pass refresh retains the VPN on transient service errors and retries with 
   await renewer.refresh(renewer.epoch);
   assert.equal(applied,1);
   assert.equal(clock.timers.at(-1).delay,480000);
-  assert(logs.some(message=>message.includes('Retrying without disconnecting')));
+  assert(logs.some(message=>message.includes('Keeping the VPN active')));
   renewer.stop();
 });
 test('a failed refresh after expiry keeps retrying without discarding the connection',async()=>{
   const clock=timerHarness(),logs=[];let rejected=0;
-  const renewer=new PassRenewer({...clock,now:()=>650000,getPass:async()=>{throw Error('offline');},
+  const renewer=new PassRenewer({...clock,now:()=>650000,random:()=>0.5,getPass:async()=>{throw Error('offline');},
     applyPass:async()=>{},onRejected:async()=>{rejected++;},log:(_level,message)=>logs.push(message)});
   renewer.start(pass());
   await renewer.refresh(renewer.epoch);
@@ -38,20 +38,20 @@ test('a failed refresh after expiry keeps retrying without discarding the connec
 test('confirmed exhaustion is terminal but isolated 401/403 renewals back off',async()=>{
   for(const status of [401,403]){
     const clock=timerHarness(),logs=[];let rejected=0;
-    const renewer=new PassRenewer({...clock,now:()=>0,getPass:async()=>{throw Object.assign(Error('Auth temporarily unavailable'),{status});},applyPass:async()=>{},onRejected:async()=>{rejected++;},log:(_level,msg)=>logs.push(msg)});
+    const renewer=new PassRenewer({...clock,now:()=>0,random:()=>0.5,getPass:async()=>{throw Object.assign(Error('Auth temporarily unavailable'),{status});},applyPass:async()=>{},onRejected:async()=>{rejected++;},log:(_level,msg)=>logs.push(msg)});
     renewer.start(pass());await renewer.refresh(renewer.epoch);
     assert.equal(renewer.active,true);assert.equal(rejected,0);
     assert.equal(clock.timers.at(-1).delay,5000);
-    assert(logs.some(line=>line.includes('Retrying')));renewer.stop();
+    assert(logs.some(line=>line.includes('Keeping the VPN active')));renewer.stop();
   }
   const clock=timerHarness();let rejected;
-  const renewer=new PassRenewer({...clock,now:()=>0,getPass:async()=>({...pass(),quotaRemaining:'0'}),applyPass:async()=>{throw Error('must not apply');},onRejected:async error=>{rejected=error;},log:()=>{}});
+  const renewer=new PassRenewer({...clock,now:()=>0,random:()=>0.5,getPass:async()=>({...pass(),quotaRemaining:'0'}),applyPass:async()=>{throw Error('must not apply');},onRejected:async error=>{rejected=error;},log:()=>{}});
   renewer.start(pass());await renewer.refresh(renewer.epoch);
   assert.equal(rejected.status,429);assert.equal(renewer.active,false);
 });
 test('stopped renewals never apply a late response after disconnect',async()=>{
   const clock=timerHarness();let complete,applied=0;
-  const renewer=new PassRenewer({...clock,now:()=>0,getPass:()=>new Promise(resolve=>{complete=resolve;}),
+  const renewer=new PassRenewer({...clock,now:()=>0,random:()=>0.5,getPass:()=>new Promise(resolve=>{complete=resolve;}),
     applyPass:async()=>{applied++;},onRejected:async()=>{},log:()=>{}});
   renewer.start(pass());const pending=renewer.refresh(renewer.epoch);
   renewer.stop();complete(pass());await pending;
@@ -59,7 +59,7 @@ test('stopped renewals never apply a late response after disconnect',async()=>{
 });
 test('expiration scheduling remains bounded and does not spin on missing dates',()=>{
   assert.equal(nextPassDelay(600000,0),480000);
-  assert.equal(nextPassDelay(1000,0),30000);
+  assert.equal(nextPassDelay(1000,0),1000);
   assert.equal(nextPassDelay(Number.NaN,0),3600000);
 });
 function fakeProcess(){

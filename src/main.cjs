@@ -177,13 +177,22 @@ async function fail(error) {
   }
   lastError=error.message;log('error',error.message);await disconnect();
 }
+let sessionPassFlight=null;
+function fetchSessionPass(source){
+ if(!source)throw Error('No active account');
+ if(sessionPassFlight?.source===source)return sessionPassFlight.promise;
+ const promise=Promise.resolve().then(()=>source.pass());
+ sessionPassFlight={source,promise};
+ promise.finally(()=>{if(sessionPassFlight?.promise===promise)sessionPassFlight=null;}).catch(()=>{});
+ return promise;
+}
 let proxyPassRecovery=null;
 async function handleProxyRejection(error){
   const current=tunnel||pendingTunnel,epoch=generation,id=store.activeAccountId,source=guardian;
   if(!current||!source)return false;
   if(!proxyPassRecovery||proxyPassRecovery.current!==current){
     const controller=new ProxyPassRecovery({
-      getPass:()=>source.pass(),
+      getPass:()=>fetchSessionPass(source),
       canApply:()=>generation===epoch&&store.activeAccountId===id&&(tunnel===current||pendingTunnel===current),
       applyPass:fresh=>{current.token=fresh.token;if(connection==="connected"){renew(fresh);quota=quotaFromPass(fresh);emit();}},
       onExhausted:err=>fail(err),log
@@ -195,7 +204,7 @@ async function handleProxyRejection(error){
 function renew(pass) {
   passRenewer?.stop();
   const epoch=generation,accountId=store.activeAccountId,source=guardian;
-  const controller=new PassRenewer({getPass:()=>source.pass(),log,
+  const controller=new PassRenewer({getPass:()=>fetchSessionPass(source),log,
     applyPass:fresh=>{
       if(epoch!==generation||connection!=='connected'||store.activeAccountId!==accountId)return;
       if(multiAccount)store.updateAccount(accountId,{quota:quotaFromPass(fresh),status:'ready',checkedAt:Date.now()});
