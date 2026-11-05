@@ -16,10 +16,12 @@ async function run(){
     const state=await win.webContents.executeJavaScript(`window.fox.call('state')`);
     assert(state.ok);assert.equal(state.data.connection,'disconnected');assert.equal(state.data.signedIn,false);
     const theme=await win.webContents.executeJavaScript(`window.fox.call('theme','light')`);assert(theme.ok);
+    const accent=await win.webContents.executeJavaScript(`window.fox.call('accentColor','gold')`);assert(accent.ok,accent.error||'Accent IPC must work');
     assert((await win.webContents.executeJavaScript(`window.fox.call('locationSort','ping-desc')`)).ok);
     await win.webContents.executeJavaScript(`new Promise(r=>{location.reload();setTimeout(r,200)})`).catch(()=>{});
     if(win.webContents.isLoading())await new Promise(resolve=>win.webContents.once('did-finish-load',resolve));
-    const persisted=await win.webContents.executeJavaScript(`window.fox.call('state')`);assert.equal(persisted.data.settings.locationSort,'ping-desc');
+    const persisted=await win.webContents.executeJavaScript(`window.fox.call('state')`);assert.equal(persisted.data.settings.locationSort,'ping-desc');assert.equal(persisted.data.settings.accentColor,'gold');
+    assert(await win.webContents.executeJavaScript(`document.body.dataset.accent==='gold'`));
     const apps=await win.webContents.executeJavaScript(`window.fox.call('apps')`);assert(apps.ok&&Array.isArray(apps.data),apps.error||'Application catalog must return a list');
     if(apps.data.length){const image=await win.webContents.executeJavaScript(`window.fox.call('appIcon',${JSON.stringify(apps.data[0].id)})`);assert(image.ok&&(image.data===null||image.data.startsWith('data:image/')));}
     const deniedIcon=await win.webContents.executeJavaScript(`window.fox.call('appIcon','../../vault.bin')`);assert(deniedIcon.ok&&deniedIcon.data===null);

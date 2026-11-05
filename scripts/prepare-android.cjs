@@ -10,7 +10,7 @@ fs.copyFileSync(path.join(root,'android/LICENSE'),path.join(dest,'LICENSE-Androi
 for(const name of ['LICENSE','COPYRIGHT','release-notes.json'])fs.copyFileSync(path.join(root,name),path.join(dest,name));
 let html=fs.readFileSync(path.join(dest,'src/ui/index.html'),'utf8');
 html=html.replace('<script src="desktop.js"></script>','');
-html=html.replace('<link rel="stylesheet" href="styles.css">','<link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="mobile.css">');
+html=html.replace('<link rel="stylesheet" href="theme-v2.css">','<link rel="stylesheet" href="theme-v2.css"><link rel="stylesheet" href="mobile.css">');
 html=html.replace('<script src="app.js"></script>','<script src="android-bridge.js"></script><script src="app.js"></script>');
 fs.writeFileSync(path.join(dest,'src/ui/index.html'),html);
 for(const name of ['android-bridge.js','mobile.css'])fs.copyFileSync(path.join(root,'android/ui',name),path.join(dest,'src/ui',name));

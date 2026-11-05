@@ -19,8 +19,7 @@ function time(n) {const s=Math.max(0,Math.floor(n/1000));return [Math.floor(s/36
 const ACCENTS={
 orange:['#ff8b3d','#d95812'],gold:['#ffc43d','#9b6800'],blue:['#5aa6ff','#126fc9'],teal:['#42d0c2','#087c73'],emerald:['#4bd68b','#16824f'],red:['#fa7575','#c53a38'],purple:['#bb87ff','#823cc9'],pink:['#ff79b5','#bf267c'],indigo:['#9c9bff','#514ac5'],cyan:['#4ad9ee','#007f9e']
 };
-function setAccent(color,light){const name=Object.hasOwn(ACCENTS,color)?color:'orange',value=ACCENTS[name][light?1:0];
-document.body.style.setProperty('--orange',value);document.body.style.setProperty('--accent',value);document.body.style.setProperty('--orange-soft',value+'1c');
+function setAccent(color,light){const name=Object.hasOwn(ACCENTS,color)?color:'orange';
 document.body.dataset.accent=name;for(const button of document.querySelectorAll('[data-accent]'))button.setAttribute('aria-pressed',String(button.dataset.accent===name));}
 for(const button of document.querySelectorAll('[data-accent]'))button.addEventListener('click',()=>{
 const selector=$('accentColor');selector.value=button.dataset.accent;setAccent(selector.value,document.body.classList.contains('light'));selector.dispatchEvent(new Event('change',{bubbles:true}));});
