@@ -11,7 +11,7 @@ Use the exact GitHub [source ZIP](https://github.com/erfan-tahvilian/PredatorVPN
 
 Use GitHub's native [source ZIP](https://github.com/erfan-tahvilian/PredatorVPN/archive/refs/tags/v1.0.2-maintenance.2.zip) or [source tar.gz](https://github.com/erfan-tahvilian/PredatorVPN/archive/refs/tags/v1.0.2-maintenance.2.tar.gz). These archives contain the tracked application, Android native integration, HTTP/3 helper, assets, dependency lockfiles, build scripts, license notices and GitHub Actions for the immutable maintenance source tag `v1.0.2-maintenance.2`. The app and download version remain 1.0.2; the original release tag is preserved. See [BUILDING.md](BUILDING.md).
 
-The staging workflow compares every exported Git entry against the native GitHub archive of the release commit, including contents, symlinks and executable permissions. The maintenance workflow verifies that its immutable source tag matches the build inputs before replacing packages. A second manually uploaded FoxVPN source archive is therefore unnecessary. Signing credentials are private and are not part of the source; Android builds can be signed with a recipient's own identity.
+The staging workflow compares every exported Git entry against the native GitHub archive of the release commit, including contents, symlinks and executable permissions. The maintenance workflow verifies that its immutable source tag matches the build inputs before replacing packages. A second manually uploaded custom source archive is therefore unnecessary. Signing credentials are private and are not part of the source; Android builds can be signed with a recipient's own identity.
 
 ## sing-box v1.12.0
 
