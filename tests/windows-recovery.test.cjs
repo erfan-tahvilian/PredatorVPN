@@ -95,3 +95,50 @@ test('Windows engine exits during startup fail fast without reporting healthy',a
   const started=engine.start();child.emit('exit',1);
   await assert.rejects(started,/stopped \(1\)/);
 });
+
+test('simultaneous scheduled and reactive pass refreshes share one request and one successor timer',async()=>{
+ const clock=timerHarness();let finish,calls=0,applied=0;
+ const renewer=new PassRenewer({...clock,now:()=>0,random:()=>0.5,
+  getPass:()=>{calls++;return new Promise(resolve=>{finish=resolve;});},
+  applyPass:async fresh=>{applied++;assert.equal(fresh.token,'rotated');},
+  onRejected:async()=>{throw Error('Unexpected rejection');},log:()=>{}});
+ renewer.start(pass());
+ assert.equal(clock.timers.length,1);
+ const p1=renewer.refresh(renewer.epoch);
+ const p2=renewer.refresh(renewer.epoch);
+ assert.strictEqual(p1,p2,'Concurrent calls to the same session must share a promise');
+ assert.equal(clock.timers.length,0,'Old scheduled timer must be cleared before manual refresh');
+ assert.equal(calls,1);
+ finish({...pass(),token:'rotated'});
+ await Promise.all([p1,p2]);
+ assert.equal(applied,1);
+ assert.equal(clock.timers.length,1,'Exactly one new timer must be scheduled');
+ const next=renewer.refresh(renewer.epoch);
+ // A new request can finish independently, but no duplicate timers remain.
+ finish({...pass(),token:'rotated'});
+ await next;
+ assert.equal(clock.timers.length,1);
+ renewer.stop();
+ assert.equal(clock.timers.length,0);
+});
+test('a stale refresh from the old session never replaces the token or timer of a new session',async()=>{
+ const clock=timerHarness();const resolutions=[];let applied=0;
+ const renewer=new PassRenewer({...clock,now:()=>0,random:()=>0.5,
+  getPass:()=>new Promise(resolve=>{resolutions.push(resolve);}),
+  applyPass:async()=>{applied++;},onRejected:async()=>{},log:()=>{}});
+ renewer.start(pass());
+ const first=renewer.refresh(renewer.epoch);
+ renewer.stop();
+ renewer.start({...pass(),token:'new-session'});
+ assert.equal(clock.timers.length,1);
+ resolutions[0]({...pass(),token:'stale'});
+ await first;
+ assert.equal(applied,0);
+ assert.equal(clock.timers.length,1);
+ const second=renewer.refresh(renewer.epoch);
+ resolutions[1]({...pass(),token:'valid'});
+ await second;
+ assert.equal(applied,1);
+ assert.equal(clock.timers.length,1);
+ renewer.stop();
+});
