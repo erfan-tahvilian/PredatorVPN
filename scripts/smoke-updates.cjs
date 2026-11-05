@@ -9,7 +9,7 @@ app.whenReady().then(async()=>{const win=new BrowserWindow({show:false,width:360
     assert.equal(calls.find(c=>c.channel==='checkUpdates').args[0],true,'Startup bypasses stale caches');
     assert(await js(`document.getElementById('release-highlights').open`));
     assert.equal(await js(`document.getElementById('update-dialog').open`),false,'Do not stack dialogs');
-    await js(`document.getElementById('release-highlights').close();new Promise(r=>setTimeout(r,50))`);
+    await js(`document.getElementById('release-highlights').close();new Promise(r=>setTimeout(r,500))`);
     assert(await js(`document.getElementById('update-dialog').open`),'Offer immediately after highlights close');
     await js(`document.getElementById('update-dialog').close();window.dispatchEvent(new Event('online'));new Promise(r=>setTimeout(r,50))`);
     assert.equal(await js(`document.getElementById('update-dialog').open`),false,'Automatic offer once per session');

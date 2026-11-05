@@ -1,0 +1,167 @@
+/* Predator VPN 2.0 — desktop design system.
+   Visual layers only. Connection and account behavior remain in their original modules. */
+@font-face{font-family:Inter;src:local("Inter")}
+body{
+  --bg:#0d0f14;--sidebar:#12151d;--card:#171a22;--card-alt:#1d212b;
+  --line:rgba(205,214,236,.105);--text:#f6f7fb;--muted:#a0a8ba;
+  --input:#141820;--shadow:0 12px 34px rgba(0,0,0,.14);
+  font-family:Inter,"Segoe UI",system-ui,sans-serif;
+  background:radial-gradient(ellipse at 68% -8%,rgba(var(--accent-rgb),.045),transparent 45%),var(--bg);
+  color:var(--text);font-size:14px;
+}
+body.light{
+ --bg:#f5f7fb;--sidebar:#fff;--card:#fff;--card-alt:#f3f5fa;
+ --line:rgba(33,46,73,.105);--text:#202737;--muted:#637083;
+ --input:#f8faff;--shadow:0 10px 28px rgba(29,51,83,.055);
+}
+.sidebar{
+ width:244px;padding:24px 16px 23px;z-index:20;border-right:1px solid var(--line);
+ background:radial-gradient(ellipse at -45% 110%,var(--accent-surface),transparent 65%),var(--sidebar);
+}
+.sidebar .brand{margin:0 0 30px;min-height:94px}
+.sidebar .brand img{width:77px;height:77px;max-width:77px;max-height:77px;filter:drop-shadow(0 9px 22px rgba(0,0,0,.16))}
+.nav-label{font-size:10px;letter-spacing:2.4px;padding-left:17px;margin:18px 0 11px}
+nav{gap:6px}
+.nav-item{min-height:51px;padding:13px 15px;gap:15px;font-size:13px;font-weight:550;border-radius:13px;transition:background .18s,color .18s,border-color .18s}
+.nav-item svg{width:20px;height:20px}
+.nav-item.active{box-shadow:inset 3px 0 var(--accent)}
+.nav-item:hover:not(.active){background:rgba(151,167,197,.055)}
+.sidebar-bottom{padding:14px 13px;border-top:1px solid var(--line)}
+.sidebar-bottom .subtle{font-size:11px}
+.version{font-size:10px;gap:12px}
+.workspace{margin-left:244px;width:calc(100% - 244px);min-width:0}
+header{height:66px;padding:0 32px;border-color:var(--line);background:var(--sidebar)}
+.breadcrumbs{letter-spacing:.2px;font-size:12px}
+.breadcrumbs span{color:var(--accent)}
+.breadcrumbs strong{font-weight:650}
+.account-chip{background:var(--card-alt);border:1px solid var(--line);border-radius:28px;padding:5px 10px 5px 5px;min-height:40px;font-size:12px}
+.account-chip:hover{border-color:var(--accent-hairline)}
+.icon-button{border-radius:11px;min-height:38px;min-width:38px;justify-content:center;align-items:center}
+.icon-button:hover{color:var(--accent);border-color:var(--accent-hairline)}
+main{width:100%;max-width:1470px;padding:27px 30px 31px}
+.page-heading{margin-bottom:24px}
+.eyebrow{letter-spacing:2.3px;font-size:9px;font-weight:700;margin-bottom:10px}
+h1{font-size:31px;font-weight:740;letter-spacing:-1.1px;margin-bottom:7px}
+.page-heading p{font-size:13px;color:var(--muted)}
+.page{animation:page-enter .24s ease}
+@keyframes page-enter{from{opacity:.8;transform:translateY(3px)}to{opacity:1;transform:none}}
+.connection-card,.network-card,.privacy-card,.metric,.form-card,.settings-card,.allowance-card,.recent-activity,.saved-account,.server-row{
+ background:var(--card);border:1px solid var(--line);border-radius:19px;box-shadow:var(--shadow);
+}
+#home.active{display:grid;grid-template-columns:minmax(0,42fr) minmax(0,58fr);gap:18px}
+#home .page-heading{grid-column:1/-1;margin-bottom:3px}
+#home .overview-grid{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,.98fr) minmax(0,1.02fr);gap:18px}
+#home .connection-card{padding:20px 23px 0;min-height:392px;background:radial-gradient(ellipse at 50% 39%,var(--accent-surface),transparent 64%),var(--card)}
+#home .card-top{gap:14px}
+#home .pill{border-radius:30px;font-size:9px;letter-spacing:1.1px;padding:7px 11px;background:var(--card-alt)}
+#home .status{font-size:11px;font-weight:600}
+#home .status i{width:7px;height:7px}
+#home .orbital{height:216px;margin:4px auto 0}
+#home .orbit-1{width:201px;height:201px;border-width:1.5px}
+#home .orbit-2{width:173px;height:173px}
+#home .orbit-3{width:142px;height:142px}
+#home .power-button{width:125px;height:125px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px}
+#home .power-button svg{width:31px;height:31px}
+#home .power-button::after{content:'Connect';font-size:12px;font-weight:700;letter-spacing:.1px}
+#home .power-button.connected::after{content:'Disconnect'}
+#home .power-button.connecting::after{content:'Cancel'}
+#home .connection-card h2{font-size:20px;letter-spacing:-.5px;margin-bottom:4px}
+#home .connection-card>p{font-size:12px;margin-bottom:16px}
+#home .server-selector{border-radius:13px;background:var(--card-alt);padding:12px 13px;margin-bottom:14px}
+#home .location-symbol{border-radius:12px}
+#home .server-selector strong{font-size:12px}
+#home .server-selector small{font-size:9px}
+#home .server-selector em{font-size:10px}
+#home .connection-footer{font-size:10px;padding:10px 0}
+#home .right-column{grid-template-rows:auto 1fr;gap:13px}
+#home .network-card{padding:22px 23px;min-height:310px}
+#home .network-card .card-top h3{font-size:14px;font-weight:700}
+#home .tiny-pill{font-size:9px;letter-spacing:1px;border-radius:24px}
+#home .globe-visual{display:none}
+.connection-health{margin:20px -2px 14px;border:1px solid var(--line);border-radius:15px;display:flex;align-items:center;gap:17px;padding:17px;background:linear-gradient(100deg,var(--accent-surface),var(--card-alt))}
+.connection-health .health-emblem{display:grid;place-items:center;width:45px;height:45px;flex:0 0 45px;background:var(--accent-surface);border-radius:50%;color:var(--accent);border:1px solid var(--accent-hairline)}
+.connection-health .health-emblem svg{width:24px;height:24px}
+.connection-health strong{font-size:19px;font-weight:750}
+.connection-health p{color:var(--muted);font-size:11px;margin:4px 0 0;line-height:1.6}
+.connection-health[data-status="connected"]{background:linear-gradient(105deg,rgba(52,169,112,.13),var(--card-alt))}
+.connection-health[data-status="connected"] .health-emblem,.connection-health[data-status="connected"] strong{color:var(--green)}
+.connection-health[data-status="disconnected"]{background:var(--card-alt)}
+#home .network-card dl>div{padding:11px 0;font-size:12px}
+#home .network-card dt{font-size:11px}
+#home .network-card dd{max-width:62%;font-size:11px;font-weight:650}
+#home .privacy-card{padding:14px 17px;align-items:center}
+#home .privacy-card h3{font-size:11px;font-weight:690}
+#home .privacy-card p{font-size:10px;line-height:1.6}
+#home .privacy-icon{border-radius:13px}
+#home .allowance-card{grid-column:1;margin:0;padding:20px 19px;gap:12px;min-height:127px}
+#home .allowance-ring{width:62px;height:62px}
+#home .allowance-total{font-size:19px}
+#home .allowance-label{font-size:9px}
+#home .allowance-copy p{font-size:11px}
+#home .metrics{grid-column:2;margin:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border:1px solid var(--line);border-radius:19px;background:var(--card);overflow:hidden;box-shadow:var(--shadow);min-width:0}
+#home .metrics.has-total{grid-template-columns:repeat(4,minmax(0,1fr))}
+#home .metric{min-width:0;padding:16px 13px;border:0;border-radius:0;background:transparent;box-shadow:none;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:8px}
+#home .metric:not(:last-child){border-right:1px solid var(--line)}
+#home .metric-icon{width:28px;height:28px;display:grid;place-items:center;border-radius:9px;color:var(--accent);background:var(--accent-surface);padding:0}
+#home .metric-icon svg{width:15px;height:15px}
+#home .metric strong{font-size:16px;font-weight:730;white-space:nowrap}
+#home .metric small{font-size:9px;white-space:nowrap}
+#home .metric em{font-size:9px}
+#home .metric[hidden]{display:none}
+#home .recent-activity{grid-column:1/-1;padding:18px 21px 14px}
+.activity-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;padding-bottom:13px}
+.activity-heading h3{font-size:13px;font-weight:740;margin:0 0 5px}
+.activity-heading p{font-size:10px;color:var(--muted);margin:0}
+.activity-heading button{font-weight:650;white-space:nowrap;font-size:11px}
+.recent-activity-list{display:grid;gap:1px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.recent-row{display:grid;grid-template-columns:75px 58px minmax(0,1fr);gap:12px;align-items:start;padding:12px 14px;font-size:11px;background:var(--card-alt);line-height:1.5}
+.recent-row>time{color:var(--muted);font-variant-numeric:tabular-nums}
+.recent-row>span:last-child{overflow-wrap:anywhere}
+.recent-severity{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;color:var(--green)}
+.recent-severity.warn{color:#fbbd61}
+.recent-severity.error{color:#f5757c}
+.recent-empty{padding:17px;margin:0;background:var(--card-alt);color:var(--muted);font-size:11px}
+#home .info-strip{grid-column:1/-1;margin:0 0 5px;font-size:11px;padding:3px 6px}
+#home .info-strip .small-dot{background:var(--accent)}
+/* All feature pages: spatial hierarchy, comfortable click targets, no features hidden. */
+.toolbar{gap:15px}
+input,textarea,select{border-radius:11px;background:var(--input);padding:12px 14px;min-height:42px}
+.select-trigger{min-height:42px;border-radius:11px;background:var(--input)}
+.primary,.secondary{min-height:42px;padding:12px 18px;border-radius:11px;font-size:12px;font-weight:650;transition:box-shadow .18s,border-color .18s}
+#locations .recommended{padding:20px 23px;border-radius:18px}
+#locations .server-list{gap:12px}
+#locations .server-row{padding:15px;border-radius:15px;transition:transform .16s,border-color .16s}
+#locations .server-row:hover{transform:translateY(-1px)}
+#locations .server-row strong{font-size:13px}
+#locations .server-row small{font-size:11px}
+#account .form-card{border-radius:20px;padding:30px}
+#account .account-story{padding:32px 16px}
+#account .account-story img{width:142px;height:142px}
+#account .saved-account{padding:19px}
+#settings #settings-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:17px}
+#settings #settings-form>.settings-card{min-width:0;margin:0;border-radius:19px;padding:23px 24px}
+#settings #settings-form>.settings-card:first-of-type{grid-column:1/-1}
+#settings #split-tunneling{grid-column:1/-1}
+#settings .accent-options{grid-template-columns:repeat(10,minmax(0,1fr));gap:8px}
+#settings .accent-choice{min-height:77px;border-radius:13px}
+#settings .setting-row{min-height:64px}
+#settings .settings-footer{grid-column:1/-1}
+#logs .log-list{border:1px solid var(--line);border-radius:19px;overflow:hidden;background:var(--card)}
+#logs .log-row{padding:15px 18px;grid-template-columns:90px 65px minmax(0,1fr);border-bottom:1px solid var(--line);line-height:1.6}
+#logs .log-row:hover{background:var(--card-alt)}
+#logs .log-level{font-size:10px;font-weight:750}
+#toast{border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.25)}
+@media(max-width:1240px){
+ #home .overview-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+ #home .metric{padding:13px 10px}
+ #home .metric strong{font-size:14px}
+ #settings #settings-form{grid-template-columns:1fr}
+ #settings #settings-form>.settings-card{grid-column:1/-1}
+}
+@media(max-width:1050px){
+ #home.active{grid-template-columns:1fr}
+ #home .allowance-card,#home .metrics{grid-column:1/-1}
+ #home .overview-grid{grid-template-columns:1fr}
+ #home .connection-card{min-height:auto}
+ #home .network-card{min-height:auto}
+}

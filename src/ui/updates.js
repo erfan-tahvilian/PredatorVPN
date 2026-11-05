@@ -53,7 +53,9 @@
       welcome.append(title);
       for(const item of notes.items){const article=document.createElement('article'),heading=document.createElement('h3'),description=document.createElement('p');heading.textContent=item.title;description.textContent=item.description;description.className='muted';article.append(heading,description);welcome.append(article);}
       const done=document.createElement('button');done.className='primary';done.textContent='Continue';done.addEventListener('click',()=>welcome.close());welcome.append(done);
-      welcome.addEventListener('close',()=>{call('ackReleaseNotes').catch(()=>{});welcome.remove();},{once:true});document.body.append(welcome);welcome.showModal();
+      let finished=false;const afterClose=()=>{if(finished)return;finished=true;observer.disconnect();call('ackReleaseNotes').catch(()=>{});welcome.remove();queueMicrotask(presentPending);};
+      const observer=new MutationObserver(()=>{if(!welcome.open)afterClose();});observer.observe(welcome,{attributes:true,attributeFilter:['open']});
+      welcome.addEventListener('close',afterClose,{once:true});document.body.append(welcome);welcome.showModal();
     }catch{/* Release highlights must never prevent starting the app. */}
   }
 })();

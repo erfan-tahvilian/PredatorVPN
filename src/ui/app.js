@@ -80,7 +80,7 @@ async function refreshAllowance(announce){
 $('refresh-allowance').addEventListener('click',()=>refreshAllowance(true));
 $('allowance-account').addEventListener('click',()=>navigate('account'));
 function render(s) {
-  currentState=s;applyTheme(s);renderAllowance(s);$('transport-field').hidden=!['win32','darwin','linux','android'].includes(s.platform);document.querySelector('#transport option[value=auto]').textContent='Automatic · Compare HTTP/3 and HTTP/2';$('protocol-name').textContent=s.connection==='connected'?(s.protocol==='h3'?'HTTP/3 over QUIC':'HTTP/2 over TLS'):'-';$('protocol-secure').hidden=s.connection!=='connected';
+  currentState=s;applyTheme(s);renderAllowance(s);updateConnectionHealth(s);renderRecentEvents(s);$('transport-field').hidden=!['win32','darwin','linux','android'].includes(s.platform);document.querySelector('#transport option[value=auto]').textContent='Automatic · Compare HTTP/3 and HTTP/2';$('protocol-name').textContent=s.connection==='connected'?(s.protocol==='h3'?'HTTP/3 over QUIC':'HTTP/2 over TLS'):'-';$('protocol-secure').hidden=s.connection!=='connected';
   if(!initialized){fillSettings(s.settings);initialized=true;}
   syncSelects();
   const connected=s.connection==='connected', transitional=['connecting','disconnecting'].includes(s.connection);
@@ -156,6 +156,20 @@ function renderServers() {
     ping.addEventListener('click',action(async()=>{await call('ping',server.id);}));const choose=document.createElement('button');choose.type='button';choose.className='server-select icon-button';choose.setAttribute('aria-label',`Select ${locationLabel(server)}`);choose.title=`Select ${server.country}`;choose.append(icon('arrow'));choose.addEventListener('click',()=>button.click());row.append(button,ping,choose);$('server-list').append(row);
   }
   $('server-empty').hidden=servers.length>0;$('server-empty').textContent=query?'No matching locations.':'No locations loaded. Refresh to fetch the live server list.';
+}
+function renderRecentEvents(s){
+ const list=$('recent-activity-list');if(!list)return;
+ const recent=(s.logs||[]).slice(-3).reverse();list.replaceChildren();
+ if(!recent.length){const empty=document.createElement('p');empty.className='recent-empty';empty.textContent='No connection events yet. Diagnostics will appear here.';list.append(empty);return;}
+ for(const item of recent){const row=document.createElement('div');row.className='recent-row';
+ const timestamp=document.createElement('time');timestamp.textContent=new Date(item.time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+ const level=document.createElement('span');level.className='recent-severity '+item.level;level.textContent=item.level.toUpperCase();
+ const message=document.createElement('span');message.textContent=item.message;row.append(timestamp,level,message);list.append(row);}
+}
+function updateConnectionHealth(s){const root=$('connection-health');if(!root)return;root.dataset.status=s.connection;
+ const label={connected:'Connected',connecting:'Connecting…',disconnecting:'Disconnecting…',disconnected:'Not connected'};
+ $('health-title').textContent=label[s.connection]||'Connection status unavailable';
+ $('health-subtitle').textContent=s.connection==='connected'?(s.settings.proxyOnly?'Local SOCKS5 proxy is active.':'System VPN tunnel is active.'):s.connection==='connecting'?'Establishing the connection…':s.connection==='disconnecting'?'Closing the active connection…':'Choose a location and connect when you are ready.';
 }
 function renderLogs() {
   if(!currentState)return;
@@ -239,6 +253,7 @@ if(!window.desktopUI)$('settings-form').addEventListener('submit',action(async e
   e.preventDefault();const settings=readSettings();
   await call('settings',settings);$('upstreamPassword').value='';$('clearUpstreamPassword').checked=false;toast('Preferences saved.');
 }));
+$('view-all-activity').addEventListener('click',()=>navigate('logs'));
 $('log-filter').addEventListener('change',renderLogs);
 $('clear-logs').addEventListener('click',action(()=>call('clearLogs')));
 $('export-logs').addEventListener('click',action(()=>call('exportLogs')));
