@@ -67,3 +67,6 @@ dialog::backdrop{background:#0008;backdrop-filter:blur(5px)}
 .accent-choice[data-accent="pink"]{--swatch:var(--swatch-pink)}
 .accent-choice[data-accent="indigo"]{--swatch:var(--swatch-indigo)}
 .accent-choice[data-accent="cyan"]{--swatch:var(--swatch-cyan)}
+
+/* 2.0 desktop logo: 50% of its previous 154px width. */
+@media(min-width:701px){.sidebar .brand{min-height:96px;justify-content:center;align-items:center;margin:0 0 34px}.sidebar .brand img{width:77px;height:77px;max-width:77px;max-height:77px;object-fit:contain}}
