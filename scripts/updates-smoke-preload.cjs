@@ -8,4 +8,4 @@ contextBridge.exposeInMainWorld('fox',{onState(fn){listeners.add(fn);return()=>l
   if(channel==='testCalls')data=calls;
   return {ok:true,data};}});
 // Reproduce the mobile About card before the shared update controls are set up.
-window.addEventListener('DOMContentLoaded',()=>{const about=document.createElement('div');about.className='settings-card';about.dataset.appAbout='';const heading=document.createElement('h3');heading.textContent='About Fox VPN';about.append(heading,document.getElementById('source'));document.querySelector('.settings-footer').before(about);});
+window.addEventListener('DOMContentLoaded',()=>{const about=document.createElement('div');about.className='settings-card';about.dataset.appAbout='';const heading=document.createElement('h3');heading.textContent='About Predator VPN';about.append(heading,document.getElementById('source'));document.querySelector('.settings-footer').before(about);});

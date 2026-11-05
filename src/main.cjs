@@ -18,7 +18,11 @@ function makeControl(){return new Control({transport:(...args)=>electronNet.fetc
 const {Auth}=require('./lib/auth.cjs');
 const APP_VERSION=require('../package.json').version;
 // Preserve encrypted settings/accounts across the product display-name migration.
-app.setPath('userData',path.join(app.getPath('appData'),'Fox VPN'));
+const defaultUserData=app.getPath('userData');
+// Respect a test/explicitly overridden userData path while still using the
+// existing encrypted-profile directory for ordinary production installations.
+if(path.resolve(defaultUserData)===path.resolve(path.join(app.getPath('appData'),app.getName())))
+  app.setPath('userData',path.join(app.getPath('appData'),'Fox VPN'));
 const {Updates}=require('./lib/updates.cjs');
 const {updateTarget}=require('./lib/update-target.cjs');
 const {ReleaseNotes}=require('./lib/release-notes.cjs');
@@ -312,7 +316,7 @@ else {
     handle('cancel',async()=>{if(connection==='connecting')await disconnect();});
     handle('exit',async()=>{if(connection!=='connected')throw Error('Connect before verifying your connection.');const active=tunnel,epoch=generation;const result=await active.exit(store.settings.serverId==='REC'?null:active.candidate.code);if(tunnel!==active||epoch!==generation)throw Error('Connection changed while checking.');exit=result;emit();void refreshAddresses(active,epoch);return result;});
     handle('clearLogs',()=>{logs=[];emit();});
-    handle('exportLogs',async()=>{const result=await dialog.showSaveDialog(window,{defaultPath:'FoxVPN-diagnostics.txt',filters:[{name:'Text files',extensions:['txt']}]});if(!result.canceled)fs.writeFileSync(result.filePath,logs.map(l=>`${l.time} [${l.level}] ${l.message}`).join('\n'));});
+    handle('exportLogs',async()=>{const result=await dialog.showSaveDialog(window,{defaultPath:'PredatorVPN-diagnostics.txt',filters:[{name:'Text files',extensions:['txt']}]});if(!result.canceled)fs.writeFileSync(result.filePath,logs.map(l=>`${l.time} [${l.level}] ${l.message}`).join('\n'));});
     handle('openLink',id=>{const urls={source:'https://github.com/erfan-tahvilian/PredatorVPN',license:'https://github.com/erfan-tahvilian/PredatorVPN/blob/main/LICENSE'};if(!urls[id])throw Error('Unknown link');return shell.openExternal(urls[id]);});
     nativeTheme.on('updated',emit);setInterval(()=>{if(multiAccount&&traffic){observeTraffic();try{traffic.checkpoint();trafficSaveWarning=false;}catch{if(!trafficSaveWarning){logs.push({time:new Date().toISOString(),level:'warn',message:'Traffic statistics could not be saved.'});trafficSaveWarning=true;}}}emit();},1000).unref();
     if(store.loadError)log('warn',store.loadError);

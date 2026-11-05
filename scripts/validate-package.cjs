@@ -11,8 +11,8 @@ for(const file of ['src/lib/accounts.cjs','src/lib/traffic.cjs','src/lib/h3-tunn
 for(const file of fs.readdirSync('assets/flags'))assert.equal(hash(packaged('assets/flags/'+file)),hash(fs.readFileSync('assets/flags/'+file)));
 for(const file of ['src/lib/applications.cjs','src/lib/list-apps.ps1','src/ui/desktop.js','assets/app-placeholder.svg','COPYRIGHT'])assert.equal(hash(packaged(file)),hash(fs.readFileSync(file)),file);
 for(const file of ['sing-box.exe','wintun.dll','fox-h3.exe','LICENSE-sing-box.txt','LICENSE-wintun.txt','provenance.txt'])assert.equal(hash(fs.readFileSync(path.join(root,'resources/engine',file))),hash(fs.readFileSync(path.join(engineRoot(),file))),`Engine resource differs: ${file}`);
-for(const file of ['Fox VPN.exe','resources/engine/sing-box.exe','resources/engine/wintun.dll','resources/engine/fox-h3.exe'])assert.equal(machine(path.join(root,file)),target().machine,'Wrong executable architecture: '+file);
-const executable=fs.readFileSync(path.join(root,'Fox VPN.exe'));
+for(const file of ['Predator VPN.exe','resources/engine/sing-box.exe','resources/engine/wintun.dll','resources/engine/fox-h3.exe'])assert.equal(machine(path.join(root,file)),target().machine,'Wrong executable architecture: '+file);
+const executable=fs.readFileSync(path.join(root,'Predator VPN.exe'));
 assert(executable.includes(Buffer.from('requireAdministrator')),'Administrator manifest missing');
 assert.equal(JSON.parse(asar.extractFile(archive,'package.json')).version,require('../package.json').version);
 assert.equal(JSON.parse(asar.extractFile(archive,'package.json')).license,'GPL-3.0-or-later');
