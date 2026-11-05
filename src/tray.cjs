@@ -19,11 +19,19 @@ class TrayPopup {
       this.hide();if(action!=='dismiss')await this.command(action);
     });
   }
-  async show() {
-    // Capture the click anchor before renderer startup or pointer movement.
+  show() {
+    // Idempotent right-click: never hide/re-open an already visible context menu.
+    if(this.window&&!this.window.isDestroyed()&&this.window.isVisible())return Promise.resolve();
+    // Two events can arrive during a slow first load; share the same show request.
+    if(this.showing)return this.showing;
+    const pending=this.showOnce();
+    this.showing=pending.finally(()=>{if(this.showing===wrapped)this.showing=null;});
+    const wrapped=this.showing;
+    return wrapped;
+  }
+  async showOnce() {
     const anchor=this.bounds();
     const request=this.epoch=(this.epoch||0)+1;
-    if(this.window&&!this.window.isDestroyed()&&this.window.isVisible())this.window.hide();
     if(!this.window||this.window.isDestroyed()){
       this.window=new BrowserWindow({width:306,height:244,show:false,frame:false,transparent:true,resizable:false,movable:false,alwaysOnTop:true,skipTaskbar:true,hasShadow:true,roundedCorners:true,webPreferences:{preload:path.join(__dirname,'tray-preload.cjs'),sandbox:true,nodeIntegration:false,contextIsolation:true,backgroundThrottling:false}});
       this.window.webContents.setWindowOpenHandler(()=>({action:'deny'}));
@@ -40,7 +48,11 @@ class TrayPopup {
     const x=Math.max(work.x,Math.min(work.x+work.width-306,point.x-153));
     const proposed=point.y>work.y+work.height/2?anchor.y-height-4:anchor.y+anchor.height+4;
     const y=Math.max(work.y,Math.min(work.y+work.height-height,proposed));
-    this.window.setBounds({x:Math.round(x),y:Math.round(y),width:306,height},false);this.window.show();this.window.focus();
+    this.window.setBounds({x:Math.round(x),y:Math.round(y),width:306,height},false);
+    // Animate content only, never resize a visible native window.
+    await this.window.webContents.executeJavaScript("document.body.classList.remove('popup-open');document.body.classList.toggle('anchor-top',"+(point.y<=work.y+work.height/2)+");void document.body.offsetHeight;document.body.classList.add('popup-open')");
+    if(request!==this.epoch||!this.window||this.window.isDestroyed())return;
+    this.window.show();this.window.focus();
   }
   update(){if(this.window&&!this.window.isDestroyed())this.window.webContents.send('fox:tray-state',this.state());}
   hide(){this.epoch=(this.epoch||0)+1;if(this.window&&!this.window.isDestroyed())this.window.hide();}

@@ -2,6 +2,8 @@
 // Copyright (C) 2026 Erfan Tahvilian
 function render(state){
   document.body.classList.toggle('light',state.light);document.body.classList.toggle('connected',state.connection==='connected');
+  const allowed=new Set(['orange','gold','blue','teal','emerald','red','purple','pink','indigo','cyan']);
+  document.body.dataset.accent=allowed.has(state.accent)?state.accent:'orange';
   document.getElementById('logo').src=`../../assets/${state.light?'logo':'logo-light'}.png`;
   document.getElementById('status').textContent=state.connection[0].toUpperCase()+state.connection.slice(1);
   document.getElementById('location').textContent=state.location||'Your connection. Your control.';
