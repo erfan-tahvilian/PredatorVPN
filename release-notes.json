@@ -1,5 +1,5 @@
 {
-  "version": "1.0.4",
+  "version": "2.0.0",
   "items": [
     {
       "platforms": [
@@ -8,8 +8,8 @@
         "linux",
         "android"
       ],
-      "title": "Introducing Predator VPN",
-      "description": "Refreshed branding and updated light and dark logos throughout the app."
+      "title": "A redesigned Predator VPN",
+      "description": "Purpose-built desktop and phone interfaces with clearer connection, account, location, and diagnostics controls."
     },
     {
       "platforms": [
@@ -18,22 +18,24 @@
         "linux",
         "android"
       ],
-      "title": "Personalized appearance",
-      "description": "Choose from ten accent colors, including orange by default and gold, with your choice saved securely."
+      "title": "Ten cohesive accent palettes",
+      "description": "Orange remains the default; Gold and eight other color choices now apply throughout the interface, including the connection button."
     },
     {
       "platforms": [
-        "win32"
+        "win32",
+        "darwin",
+        "linux"
       ],
-      "title": "Resilient proxy session authentication",
-      "description": "When a temporary proxy pass is rejected, the client attempts a fresh pass and retries the request without immediately tearing down the VPN."
+      "title": "More resilient proxy credentials",
+      "description": "Authorization refresh uses single-flight requests, controlled backoff, and avoids repeated connection retries during temporary service errors."
     },
     {
       "platforms": [
         "android"
       ],
-      "title": "Android-specific controls",
-      "description": "A refined phone layout and a dedicated monochrome icon for the Android Quick Settings tile."
+      "title": "Phone-first interface and Quick Settings tile",
+      "description": "Touch-friendly bottom navigation, adaptive cards, and the newly supplied monochrome Quick Settings icon."
     },
     {
       "platforms": [
@@ -42,8 +44,8 @@
         "linux",
         "android"
       ],
-      "title": "Updates and accounts preserved",
-      "description": "Existing installation identities and securely saved account data remain compatible with the new brand."
+      "title": "Existing accounts and settings preserved",
+      "description": "Keeps prior app identifiers and secure saved credentials to support in-place upgrades."
     }
   ]
 }
