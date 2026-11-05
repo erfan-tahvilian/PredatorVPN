@@ -22,6 +22,8 @@ const {updateTarget}=require('./lib/update-target.cjs');
 const {ReleaseNotes}=require('./lib/release-notes.cjs');
 const {Tunnel}=require('./lib/tunnel.cjs');
 const {AdaptiveTunnel}=require('./lib/h3-tunnel.cjs');
+const {PassRenewer}=require('./lib/pass-renewal.cjs');
+const {WindowsEngine}=require('./lib/windows-engine.cjs');
 function makeTunnel(settings,log,onFatal){return new AdaptiveTunnel(settings,log,onFatal,path.join(engineDir(),process.platform==='win32'?'fox-h3.exe':'fox-h3'));}
 const {measure,measureAll}=require('./lib/latency.cjs');
 const {engineConfig}=require('./lib/settings.cjs');
@@ -41,7 +43,7 @@ async function refreshAccount(id){const data=await accountCoordinator.refresh(id
 function beginLogin(){loginAccountId=null;const http=makeControl(),sink={auth:null,setAuth(auth){if(!auth)return;loginAccountId=store.addAccount(auth,connection==='disconnected');this.auth=auth;}};loginGuardian=new Guardian(http,new Auth(http,sink));return loginGuardian.auth;}
 function completeLogin(result){if(loginAccountId){syncGuardian();if(connection==='disconnected')quota=store.activeAccount?.quota||null;const id=loginAccountId;loginGuardian=null;loginAccountId=null;if(store.activeAccountId!==id)void refreshAccount(id).catch(()=>{});}return result;}
 let macEngine;
-let window,tray,trayPopup,store,guardian,tunnel,pendingTunnel,engine,refreshTimer,busy=false,quitting=false,generation=0;
+let window,tray,trayPopup,store,guardian,tunnel,pendingTunnel,engine,passRenewer,recoveryController,busy=false,quitting=false,generation=0;
 let latencies={},pinging=false;const pingingIds=new Set();
 let servers=[],logs=[],connection='disconnected',startedAt=null,exit=null,quota=null,lastError=null;
 const icon=path.join(__dirname,mac||linux?'../assets/logo-light.png':'../assets/icon.ico');
@@ -100,31 +102,57 @@ async function launchEngine(candidate, epoch) {
   }
   const configPath=path.join(app.getPath('userData'),'tunnel.json');
   fs.writeFileSync(configPath,JSON.stringify(config,null,2));
-  engine=spawn(executable,['run','-c',configPath],{cwd:engineDir(),windowsHide:true,stdio:['ignore','pipe','pipe']});
-  const child=engine;
-  await new Promise((resolve,reject)=>{
-    const timeout=setTimeout(()=>{child.kill();reject(Error('The Windows tunnel engine did not become ready.'));},15000);
-    const output=data=>{
-      const text=data.toString();
-      if(/sing-box started/.test(text)){clearTimeout(timeout);resolve();}
-      if(/FATAL|ERROR/.test(text))log('warn','Windows tunnel engine reported an error. Check Administrator access and your network adapter.');
-    };
-    child.stdout.on('data',output);child.stderr.on('data',output);
-    child.once('error',()=>{clearTimeout(timeout);reject(Error('Unable to start the Windows tunnel engine.'));});
-    child.once('exit',code=>{clearTimeout(timeout);reject(Error(`Windows tunnel engine stopped (${code}).`));if(engine===child){engine=null;if(connection==='connected')fail(Error('The Windows tunnel engine stopped unexpectedly.'));}});
-  });
+  const controller=new WindowsEngine({executable,configPath,cwd:engineDir(),log,onUnexpectedStop:()=>{
+    if(engine===controller&&connection==='connected'){
+      void recoverWindowsEngine();
+    }
+  }});
+  engine=controller;
+  await controller.start();
+  if(!controller.child)throw Error('Windows tunnel engine stopped during startup.');
   if(epoch!==generation)throw Error('Connection cancelled');
   log('info','Windows TUN adapter ready · system traffic routed through Fox VPN');
 }
 async function stopEngine() {
   const controller=macEngine;macEngine=null;if(controller)await controller.stop();
-  const child=engine;engine=null;
-  if(!child)return;
-  await new Promise(resolve=>{const timeout=setTimeout(()=>{child.kill();resolve();},5000);child.once('exit',()=>{clearTimeout(timeout);resolve();});child.kill();});
+  const windowsController=engine;engine=null;
+  if(windowsController)await windowsController.stop();
 }
-async function disconnect({keepSession=false}={}) {
+async function recoverWindowsEngine() {
+  if(recoveryController||quitting)return;
+  const controller=new AbortController();
+  recoveryController=controller;
+  try {
+    for(let attempt=1;attempt<=3;attempt++){
+      if(controller.signal.aborted||quitting)return;
+      log('warn','Windows VPN engine stopped. Reconnecting automatically ('+attempt+'/3).');
+      await disconnect({keepSession:true,preserveRecovery:true});
+      if(controller.signal.aborted||quitting)return;
+      await connect({resumeTraffic:true,automaticRecovery:true});
+      if(controller.signal.aborted||quitting)return;
+      if(connection==='connected'){
+        log('info','Windows VPN connection recovered.');
+        return;
+      }
+      if(attempt<3)await new Promise(resolve=>{
+        const timer=setTimeout(resolve,2000*attempt);
+        controller.signal.addEventListener('abort',()=>{clearTimeout(timer);resolve();},{once:true});
+      });
+    }
+    if(!controller.signal.aborted){
+      lastError='The Windows tunnel engine could not be recovered. Check your network adapter and try connecting again.';
+      log('error',lastError);
+      if(multiAccount&&traffic)traffic.finish();
+      emit();
+    }
+  } finally {
+    if(recoveryController===controller)recoveryController=null;
+  }
+}
+async function disconnect({keepSession=false,preserveRecovery=false}={}) {
+  if(!preserveRecovery){recoveryController?.abort();recoveryController=null;}
   generation++;pendingTunnel?.stop();pendingTunnel=null;
-  clearTimeout(refreshTimer);refreshTimer=null;
+  passRenewer?.stop();passRenewer=null;
   connection='disconnecting';emit();
   observeTraffic();await stopEngine();observeTraffic();tunnel?.stop();tunnel=null;if(multiAccount&&traffic){if(keepSession)traffic.suspended=true;else traffic.finish();}connection='disconnected';startedAt=null;exit=null;
   log('info',`Disconnected · ${osName} routes restored`);
@@ -143,14 +171,20 @@ async function fail(error) {
   lastError=error.message;log('error',error.message);await disconnect();
 }
 function renew(pass) {
-  clearTimeout(refreshTimer);
-  refreshTimer=setTimeout(async()=>{
-    if(connection!=='connected')return;
-    try{const epoch=generation,source=guardian;const fresh=await source.pass();if(connection!=='connected'||epoch!==generation)return;if(multiAccount){store.updateAccount(store.activeAccountId,{quota:quotaFromPass(fresh),status:knownEmpty(quotaFromPass(fresh))?'exhausted':'ready',checkedAt:Date.now()});if(knownEmpty(quotaFromPass(fresh))){await fail(Object.assign(Error('Account allowance exhausted.'),{status:429,quota:quotaFromPass(fresh)}));return;}}tunnel.token=fresh.token;quota={limit:fresh.quotaLimit,remaining:fresh.quotaRemaining,reset:fresh.quotaReset};renew(fresh);log('info','Proxy pass renewed');}
-    catch(e){await fail(Object.assign(Error('Proxy pass renewal failed. Reconnect after checking your account.'),{status:e.status,quota:e.quota}));}
-  },Math.max(30000,Math.min(2147483647,pass.expiresAt-Date.now()-120000)));
+  passRenewer?.stop();
+  const epoch=generation,accountId=store.activeAccountId,source=guardian;
+  const controller=new PassRenewer({getPass:()=>source.pass(),log,
+    applyPass:fresh=>{
+      if(epoch!==generation||connection!=='connected'||store.activeAccountId!==accountId)return;
+      if(multiAccount)store.updateAccount(accountId,{quota:quotaFromPass(fresh),status:'ready',checkedAt:Date.now()});
+      tunnel.token=fresh.token;
+      quota={limit:fresh.quotaLimit,remaining:fresh.quotaRemaining,reset:fresh.quotaReset};emit();
+    },
+    onRejected:error=>{if(epoch===generation&&connection==='connected')return fail(error);}
+  });
+  passRenewer=controller;controller.start(pass);
 }
-async function connect({resumeTraffic=false,prepared=null}={}) {
+async function connect({resumeTraffic=false,prepared=null,automaticRecovery=false}={}) {
   if(connection!=='disconnected')return;
   const epoch=++generation;
   const check=()=>{if(epoch!==generation)throw Error('Connection cancelled');};
@@ -179,7 +213,7 @@ async function connect({resumeTraffic=false,prepared=null}={}) {
     check();
     if(multiAccount)traffic.begin(resumeTraffic);connection='connected';startedAt=multiAccount?traffic.startedAt:Date.now();lastError=null;renew(pass);void refreshAddresses(tunnel,epoch);
     log('info',store.settings.proxyOnly?'Proxy-only mode active · configure your application to use the local SOCKS5 proxy':`Connected · ${osName} system VPN active`);
-  }catch(e){if(epoch===generation){lastError=e.message;log('error',e.message);await disconnect();}}
+  }catch(e){if(epoch===generation){lastError=e.message;log('error',e.message);await disconnect({keepSession:automaticRecovery,preserveRecovery:automaticRecovery});}}
 }
 async function refreshAddresses(active,epoch) {
   if(tunnel!==active||connection!=='connected')return;

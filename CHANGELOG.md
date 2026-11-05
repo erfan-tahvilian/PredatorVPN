@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.0.3 - 2026-11-05
+
+- Improved connection reliability when proxy-pass renewal is temporarily unavailable.
+- Automatic, bounded recovery after unexpected Windows tunnel engine termination.
+- Clearer Windows connection warnings that do not disclose destination traffic.
+
 ## v1.0.2 - 2026-10-31
 
 - Theme-matched dialogs, app pickers and desktop tray surfaces.

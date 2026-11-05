@@ -16,3 +16,5 @@
 
 - Deliver sizing, asset-audit and verification reports in chat; keep any working copies under ignored `.tools`, not in public documentation or release notes. Retain source/license and build instructions.
 - The owner explicitly requests the current follow-up fixes at version `1.0.2`. Keep the original version tag and provide exact corresponding source through a new immutable maintenance source tag when replacing same-version packages.
+
+- On 2026-11-05 the owner explicitly requested the newer version 1.0.3 to address recurrent Windows disconnections. This supersedes the prior 1.0.2 version freeze. Preserve old tags and source. Use the full verified release staging process, and do not remove older downloadable assets before the replacement is complete and public.

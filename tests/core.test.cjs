@@ -184,3 +184,4 @@ require('./h3.test.cjs');
 require('./linux.test.cjs');
 
 require('./tray.test.cjs');
+require('./windows-recovery.test.cjs');

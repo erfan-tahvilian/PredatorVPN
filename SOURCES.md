@@ -2,7 +2,12 @@
 
 Fox VPN is licensed under GPL-3.0-or-later. Release binaries are accompanied by free source access and build instructions.
 
-## Fox VPN v1.0.2
+## Fox VPN v1.0.3
+
+Use the exact GitHub [source ZIP](https://github.com/erfan-tahvilian/FoxVPN/archive/refs/tags/v1.0.3.zip) or [source tar.gz](https://github.com/erfan-tahvilian/FoxVPN/archive/refs/tags/v1.0.3.tar.gz). These contain the application and build files corresponding to the v1.0.3 release. See [BUILDING.md](BUILDING.md). The separately bundled sing-box source is available with the v1.0.3 release assets. Android signing credentials remain private and are not part of the source.
+
+## Previous v1.0.2 source
+
 
 Use GitHub's native [source ZIP](https://github.com/erfan-tahvilian/FoxVPN/archive/refs/tags/v1.0.2-maintenance.2.zip) or [source tar.gz](https://github.com/erfan-tahvilian/FoxVPN/archive/refs/tags/v1.0.2-maintenance.2.tar.gz). These archives contain the tracked application, Android native integration, HTTP/3 helper, assets, dependency lockfiles, build scripts, license notices and GitHub Actions for the immutable maintenance source tag `v1.0.2-maintenance.2`. The app and download version remain 1.0.2; the original release tag is preserved. See [BUILDING.md](BUILDING.md).
 
@@ -10,7 +15,7 @@ The staging workflow compares every exported Git entry against the native GitHub
 
 ## sing-box v1.12.0
 
-The separately bundled desktop executable and Android library use sing-box v1.12.0. Its source is retained as [sing-box-1.12.0-source.tar.gz](https://github.com/erfan-tahvilian/FoxVPN/releases/download/v1.0.2/sing-box-1.12.0-source.tar.gz). The upstream [version tag](https://github.com/SagerNet/sing-box/tree/v1.12.0), [build instructions](https://sing-box.sagernet.org/installation/build-from-source/), Go module requirements and license are included or linked. Android's integration and exact build flags are in this repository's Android workflow. Desktop download scripts pin upstream binary digests; the project does not change the upstream executable.
+The separately bundled desktop executable and Android library use sing-box v1.12.0. Its source is retained as [sing-box-1.12.0-source.tar.gz](https://github.com/erfan-tahvilian/FoxVPN/releases/download/v1.0.3/sing-box-1.12.0-source.tar.gz). The upstream [version tag](https://github.com/SagerNet/sing-box/tree/v1.12.0), [build instructions](https://sing-box.sagernet.org/installation/build-from-source/), Go module requirements and license are included or linked. Android's integration and exact build flags are in this repository's Android workflow. Desktop download scripts pin upstream binary digests; the project does not change the upstream executable.
 
 The archive is approximately 0.66 MiB. It is a separate dependency, not a duplicate of Fox VPN's own source. Retaining a hosted copy provides source access alongside the binaries instead of depending exclusively on an upstream link. GPL section 6(d) permits equivalent source access on another server with clear directions, but the distributor retains responsibility for availability. See the [GPLv3 text](https://www.gnu.org/licenses/gpl.en.html) and [GNU source-access FAQ](https://www.gnu.org/licenses/gpl-faq.en.html#SourceAndBinaryOnDifferentSites).
 
