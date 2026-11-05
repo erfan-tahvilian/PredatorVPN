@@ -81,7 +81,7 @@
     const heading=document.createElement('h3');heading.textContent='About Predator VPN';
     const version=document.createElement('p');version.dataset.appVersion='';version.dataset.versionPrefix='Version ';version.textContent=currentState?.version?'Version '+currentState.version:'';
     const source=document.getElementById('source');source.className='secondary';
-    about.append(heading,version,source);document.getElementById('settings-form').insertBefore(about,document.querySelector('.settings-footer'));
+    about.append(heading,version,source);const footer=document.querySelector('.settings-footer');footer.parentElement.insertBefore(about,footer);
     document.querySelector('.account-story>p').textContent='A private connection, wherever you are.';
     document.getElementById('connect').setAttribute('aria-label','Connect VPN');
     if(currentState)updateSettingsState(currentState);
