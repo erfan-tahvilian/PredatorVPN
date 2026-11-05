@@ -218,6 +218,11 @@ setupSelects();
 document.querySelectorAll('[data-page]').forEach(el=>el.addEventListener('click',()=>navigate(el.dataset.page)));
 for(const id of ['account-shortcut','home-account'])$(id).addEventListener('click',()=>navigate('account'));
 for(const id of ['choose-location','choose-location-arrow'])$(id).addEventListener('click',()=>navigate('locations'));
+$('choose-recommended-home').addEventListener('click',()=> $('recommended').click());
+for(const item of document.querySelectorAll('[data-settings-jump]'))item.addEventListener('click',()=>{
+ const section=document.getElementById(item.dataset.settingsJump);
+ if(section)section.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
+});
 $('ping-selected').addEventListener('click',action(async()=>{const selected=currentState.activeServer||currentState.servers.find(s=>s.id===currentState.settings.serverId);if(selected)await call('ping',selected.id);}));
 $('connect').addEventListener('click',action(async()=>{if(currentState.connection==='disconnected')await window.flushSettings?.();if(!currentState.signedIn){navigate('account');return;}if(currentState.connection==='disconnected'&&!currentState.settings.proxyOnly&&currentState.settings.splitMode==='include'&&!currentState.settings.excludedApps.length){toast('No apps selected. Choose at least one app in Settings > Split tunneling before connecting.');showSplitSettings();return;}await call(currentState.connection==='connected'?'disconnect':currentState.connection==='connecting'?'cancel':'connect');}));
 $('theme-toggle').addEventListener('click',action(async()=>{const theme=document.body.classList.contains('light')?'dark':'light';await call('theme',theme);$('theme').value=theme;syncSelects();}));
