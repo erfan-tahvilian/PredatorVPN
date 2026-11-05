@@ -1,0 +1,155 @@
+/* Predator VPN 2.0 — intentionally phone-first Android interface.
+   Uses native-feeling bottom navigation, thumb-accessible controls, and independent card hierarchy. */
+html,body{width:100%;min-width:0;min-height:100%;overflow-x:hidden}
+body{font-family:Roboto,Inter,"Segoe UI",system-ui,sans-serif;font-size:14px;background:var(--bg);display:block}
+body .workspace{margin:0;width:100%;min-height:100dvh;padding:0}
+header{
+ position:sticky;top:0;z-index:22;height:70px;padding:0 17px;
+ display:flex;align-items:center;justify-content:space-between;
+ background:var(--sidebar);border-bottom:1px solid var(--line);
+ box-shadow:0 5px 18px rgba(0,0,0,.07);
+}
+.mobile-app-brand{display:flex!important;align-items:center;gap:9px;min-width:0;font-size:16px;font-weight:790;letter-spacing:-.4px}
+.mobile-app-brand img{width:34px;height:34px;object-fit:contain;filter:drop-shadow(0 3px 6px rgba(0,0,0,.11))}
+.mobile-app-brand strong span{color:var(--accent)}
+.breadcrumbs{display:none!important}
+.header-actions{gap:8px;max-width:58%;min-width:0;margin-left:auto}
+.header-divider{display:none}
+#theme-toggle{position:static;transform:none;width:42px;height:42px;min-width:42px;border-radius:13px}
+#theme-toggle svg{width:19px;height:19px}
+.account-chip{padding:4px 5px 4px 4px;min-width:0;max-width:130px;min-height:42px;border-radius:24px}
+.account-chip .avatar{flex:0 0 31px;width:31px;height:31px;min-width:31px;min-height:31px}
+.account-chip #account-name{max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
+.sidebar{
+ position:fixed;inset:auto 0 0;width:100%;height:calc(74px + env(safe-area-inset-bottom));
+ padding:6px 8px calc(5px + env(safe-area-inset-bottom));z-index:50;
+ background:var(--sidebar);border:0;border-top:1px solid var(--line);
+ box-shadow:0 -12px 30px rgba(0,0,0,.095);
+}
+.sidebar .brand,.nav-label,.sidebar-bottom{display:none!important}
+nav{height:100%;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px;align-items:stretch}
+.nav-item{
+ display:flex;flex-direction:column;justify-content:center;align-items:center;
+ min-width:0;min-height:55px;padding:7px 2px;gap:5px;
+ border-radius:13px;font-size:10px;line-height:1.1;white-space:nowrap;
+ text-align:center;border:1px solid transparent;box-shadow:none!important;
+}
+.nav-item svg{width:20px;height:20px}
+.nav-item.active{background:var(--accent-surface)!important;color:var(--accent)!important;border-color:var(--accent-hairline)!important}
+.nav-item.active::before{content:none}
+.nav-count{display:none}
+main{padding:20px 16px calc(105px + env(safe-area-inset-bottom));max-width:700px;margin:0 auto}
+.page-heading{margin:0 0 21px}
+.page-heading .eyebrow{font-size:9px;letter-spacing:1.9px;margin-bottom:7px}
+.page-heading h1{font-size:28px;font-weight:760;letter-spacing:-.9px;margin-bottom:8px}
+.page-heading>p{font-size:12px;line-height:1.6}
+.page{animation:none}
+#home.active{display:flex!important;flex-direction:column;gap:13px}
+#home .page-heading{margin:0 0 1px}
+#home .overview-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:13px;width:100%}
+#home .connection-card{
+ min-height:0;padding:17px 17px 0;border-radius:23px;
+ background:radial-gradient(ellipse at 50% 31%,var(--accent-surface),transparent 68%),var(--card)
+}
+#home .card-top{gap:8px}
+#home .pill{padding:7px 9px;font-size:9px}
+#home .status{font-size:10px}
+#home .orbital{height:204px;margin:3px auto 0}
+#home .orbit-1{width:189px;height:189px}
+#home .orbit-2{width:163px;height:163px}
+#home .orbit-3{width:136px;height:136px}
+#home .power-button,#home .power-button.connected,#home .power-button.connecting{
+ width:118px;height:118px;border-width:3px;box-shadow:0 0 0 7px var(--accent-surface),0 0 40px var(--accent-glow);
+}
+#home .power-button svg{width:29px;height:29px}
+#home .power-button::after{font-size:11px}
+#home .connection-card h2{font-size:20px;margin-bottom:6px}
+#home .connection-card>p{font-size:11px;margin-bottom:18px}
+#home .server-selector{padding:12px;gap:7px;border-radius:13px}
+#home .server-selector .selected-location-choice{min-width:0}
+#home .server-selector strong{font-size:12px}
+#home .server-selector em{font-size:10px}
+#home .connection-footer{padding:12px 0}
+#home .right-column{display:grid;grid-template-rows:auto auto;gap:12px}
+#home .network-card{min-height:0;padding:18px;border-radius:21px}
+#home .network-card .card-top h3{font-size:13px}
+#home .globe-visual{display:none}
+.connection-health{padding:15px;margin:15px 0 9px;gap:12px}
+.connection-health strong{font-size:17px}
+.connection-health p{font-size:10px}
+.connection-health .health-emblem{width:40px;height:40px;flex-basis:40px}
+#home .network-card dl>div{padding:10px 0;font-size:11px}
+#home .network-card dd{font-size:11px}
+#home .privacy-card{padding:14px;border-radius:19px}
+#home .privacy-icon{width:38px;height:38px;flex-shrink:0;display:grid;place-items:center}
+#home .privacy-card h3{font-size:12px}
+#home .privacy-card p{font-size:10px}
+#home .allowance-card{margin:0;padding:17px;min-height:0;border-radius:21px;gap:12px}
+#home .allowance-ring{width:59px;height:59px}
+#home .allowance-total{font-size:18px}
+#home .allowance-copy p{font-size:10px}
+#home .allowance-actions{flex-direction:column;gap:5px}
+#home .metrics,#home .metrics.has-total{
+ display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+ gap:0;margin:0;border:1px solid var(--line);border-radius:21px;overflow:hidden;background:var(--card);
+}
+#home .metrics.has-total{grid-template-columns:repeat(2,minmax(0,1fr))}
+#home .metric{padding:15px 6px 12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;text-align:center;min-width:0;border:0;box-shadow:none;border-radius:0}
+#home .metric:not(:last-child){border-right:1px solid var(--line)}
+#home .metric-icon{width:28px;height:28px;display:grid;place-items:center}
+#home .metric strong{font-size:15px;letter-spacing:-.2px}
+#home .metric small{font-size:8px;white-space:normal}
+#home .metric em{font-size:9px}
+#home .recent-activity{padding:15px 14px;border-radius:21px}
+.activity-heading{align-items:flex-start;padding-bottom:12px}
+.activity-heading h3{font-size:12px}
+.activity-heading p{font-size:10px;line-height:1.4}
+.activity-heading button{font-size:10px}
+.recent-row{grid-template-columns:44px 46px minmax(0,1fr);gap:8px;padding:12px 9px;font-size:10px}
+.recent-severity{font-size:8px}
+#home .info-strip{padding:10px 3px 2px;font-size:10px;flex-wrap:wrap}
+#home .info-strip>span:nth-child(2){flex:1;min-width:180px}
+#home .info-strip button{white-space:nowrap}
+.page .toolbar{display:flex;flex-direction:column;align-items:stretch;gap:11px}
+.page .toolbar input{max-width:none;width:100%;min-height:45px}
+.page .toolbar .button-row{display:flex;gap:8px}
+.page .toolbar .button-row button{flex:1;min-width:0}
+#locations .recommended{padding:16px;gap:11px}
+#locations .recommended>span{font-size:11px}
+#locations .server-list{display:grid;grid-template-columns:minmax(0,1fr);gap:9px}
+#locations .server-row{padding:14px 10px;gap:8px;border-radius:14px}
+#locations .server-choice{gap:9px}
+#locations .server-row strong{font-size:12px}
+#locations .server-row small{font-size:10px}
+#locations .server-select,#locations .server-ping{min-width:42px;min-height:42px}
+#account .account-layout{display:block}
+#account .form-card,#account .saved-account{padding:18px;border-radius:19px}
+#account .account-story{display:none}
+#account .saved-account{flex-wrap:wrap}
+#account .saved-account-actions{width:100%;justify-content:flex-end}
+#settings #settings-form{display:flex;flex-direction:column;gap:13px}
+#settings #settings-form>.settings-card{width:100%;padding:19px 16px;border-radius:20px;margin:0}
+#settings .setting-row{min-height:64px;gap:9px}
+#settings .setting-row>.select-control{min-width:140px;width:auto;max-width:60%}
+#settings .field-grid{grid-template-columns:1fr}
+#settings .accent-options{grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
+#settings .accent-choice{min-height:74px;border-radius:12px;padding:9px 2px}
+#settings .accent-choice small{font-size:9px}
+#settings .accent-dot{width:25px;height:25px}
+#settings .settings-footer{width:100%;flex-wrap:wrap}
+#logs .log-row{grid-template-columns:48px 41px minmax(0,1fr);gap:8px;padding:12px 9px;font-size:11px;overflow-wrap:anywhere}
+#logs .log-time{font-size:10px}
+#logs .log-level{font-size:9px}
+.app-footer{display:none}
+#toast{bottom:calc(94px + env(safe-area-inset-bottom));left:16px;right:16px;max-width:none;border-radius:14px}
+button,input,textarea,select{touch-action:manipulation}
+input,textarea{font-size:16px}
+@media(min-width:720px){
+ main{max-width:960px}
+ #home .overview-grid{grid-template-columns:1fr 1fr}
+ #home .right-column{grid-template-rows:auto 1fr}
+ #home .metrics{grid-template-columns:repeat(3,minmax(0,1fr))}
+ #locations .server-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #settings #settings-form{display:grid;grid-template-columns:1fr 1fr}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
