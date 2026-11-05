@@ -19,6 +19,26 @@ app.whenReady().then(async()=>{
     status('Renderer loaded');
     await win.webContents.executeJavaScript(`new Promise(r=>setTimeout(r,250))`);
     assert.equal(await win.webContents.executeJavaScript(`document.getElementById('status-label').textContent`),'Disconnected');
+    const paletteChecks=await win.webContents.executeJavaScript(`(()=>{
+      const initial=currentState,names=['orange','gold','blue','teal','emerald','red','purple','pink','indigo','cyan'];
+      const palette=[];
+      for(const theme of ['dark','light'])for(const accentColor of names){
+        render({...initial,settings:{...initial.settings,theme,accentColor}});
+        palette.push({name:document.body.dataset.accent,theme,
+          power:getComputedStyle(document.getElementById('connect')).borderTopColor,
+          button:getComputedStyle(document.getElementById('login-button')).backgroundColor,
+          token:getComputedStyle(document.body).getPropertyValue('--accent').trim()});
+      }
+      render(initial);return palette;
+    })()`);
+    assert.equal(paletteChecks.length,20);
+    for(const theme of ['light','dark']){
+      const samples=paletteChecks.filter(item=>item.theme===theme);
+      assert.equal(new Set(samples.map(item=>item.name)).size,10,'All accent presets must be selectable');
+      assert.equal(new Set(samples.map(item=>item.token)).size,10,'Each accent must have a distinct design token');
+      assert.equal(new Set(samples.map(item=>item.power)).size,10,'Power control must follow all ten accents');
+      assert.equal(new Set(samples.map(item=>item.button)).size,10,'Primary buttons must follow all ten accents');
+    }
     assert.equal(await win.webContents.executeJavaScript(`document.getElementById('protocol-name').textContent`),'-');
     assert(await win.webContents.executeJavaScript(`document.getElementById('protocol-secure').hidden`));
     await win.webContents.executeJavaScript(`window.protocolBefore=currentState;render({...currentState,connection:'connected',protocol:'h3'})`);
