@@ -37,7 +37,7 @@ class ApplicationCatalog {
       for(const entry of entries){
         if(!entry?.id||!entry.name||!path.isAbsolute(entry.path)||!Array.isArray(entry.processes))continue;
         try{validate({...DEFAULTS,excludedApps:[entry.id]});}catch{continue;}
-        if(['fox vpn.exe','electron.exe','sing-box.exe','fox vpn','fox-vpn','electron','sing-box','fox-h3'].includes(entry.id.toLowerCase()))continue;
+        if(['predator vpn.exe','predator vpn','predator-vpn','fox vpn.exe','electron.exe','sing-box.exe','fox vpn','fox-vpn','electron','sing-box','fox-h3'].includes(entry.id.toLowerCase()))continue;
         const key=process.platform==='win32'?entry.id.toLowerCase():entry.id;
         if(!this.entries.has(key))this.entries.set(key,entry);
       }

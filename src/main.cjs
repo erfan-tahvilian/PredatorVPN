@@ -12,19 +12,12 @@ const {Store}=require('./lib/store.cjs');
 const {TrafficLedger}=require('./lib/traffic.cjs');
 const {AccountCoordinator,knownEmpty,quotaFromPass}=require('./lib/accounts.cjs');
 const {Control,Guardian}=require('./lib/control.cjs');
-const {BrowserOAuth,configForBrowserOAuth}=require('./lib/browser-oauth.cjs');
+const {profileMigration,verifyMigratedProfile,NEW_DIR}=require('./lib/profile-migration.cjs');
 // Chromium uses the operating system's network/proxy stack consistently for
 // account verification, sign-in and token renewal. Do not mix it with Node fetch.
 const {session}=require('electron');
 const {createAccountTransport}=require('./lib/account-transport.cjs');
-let authSessionSequence=0,captchaPrompt=null,browserOAuth=null,browserOAuthConfig=null,browserOAuthStage='idle';
-function loadBrowserOAuthConfig(){
- const file=path.join(app.getPath('userData'),'oauth-client.json');
- if(!fs.existsSync(file))return null;
- // This file holds only a provider-issued public client ID, registered loopback
- // redirect, and approved scopes; never a client secret or OAuth token.
- return configForBrowserOAuth(JSON.parse(fs.readFileSync(file,'utf8')));
-}
+let authSessionSequence=0,captchaPrompt=null;
 function makeControl({interactive=false}={}){
   const transport=createAccountTransport({
     createSession:()=>session.fromPartition('predator-auth-'+(++authSessionSequence)),
@@ -35,12 +28,16 @@ function makeControl({interactive=false}={}){
 const {Auth}=require('./lib/auth.cjs');
 const {CaptchaPrompt}=require('./lib/captcha-prompt.cjs');
 const APP_VERSION=require('../package.json').version;
-// Preserve encrypted settings/accounts across the product display-name migration.
-const defaultUserData=app.getPath('userData');
-// Respect a test/explicitly overridden userData path while still using the
-// existing encrypted-profile directory for ordinary production installations.
-if(path.resolve(defaultUserData)===path.resolve(path.join(app.getPath('appData'),app.getName())))
-  app.setPath('userData',path.join(app.getPath('appData'),'Fox VPN'));
+// Adopt the new product name for all new Electron profile directories.
+// Preserve explicit test/CLI overrides and migrate the legacy profile atomically
+// before Chromium can write to either location. No accounts are decrypted here.
+const configuredUserData=app.getPath('userData');
+const appDataRoot=app.getPath('appData');
+const standardProfile=path.resolve(configuredUserData)===path.resolve(path.join(appDataRoot,app.getName()));
+let profileMove=null;
+if(standardProfile)profileMove=profileMigration(appDataRoot);
+app.setName('Predator VPN');
+if(standardProfile)app.setPath('userData',path.join(appDataRoot,NEW_DIR));
 const {Updates}=require('./lib/updates.cjs');
 const {updateTarget}=require('./lib/update-target.cjs');
 const {ReleaseNotes}=require('./lib/release-notes.cjs');
@@ -77,7 +74,7 @@ function log(level,message) {
   const entry={time:new Date().toISOString(),level,message:String(message).slice(0,1000)};
   logs.push(entry);if(logs.length>1000)logs.shift();emit();
 }
-function state() {observeTraffic();return {browserOAuthAvailable:!!browserOAuthConfig,browserOAuthStage,browserOAuthNotice:browserOAuthConfig?'Browser authorization is configured. Provider registration and FPN access are verified during sign-in.':'Browser sign-in requires a registered OAuth client and an approved FPN scope from the account provider.',...(multiAccount?{accounts:store.publicAccounts(),activeAccountId:store.activeAccountId,accountPreferences:store.accountPreferences,totalTraffic:traffic?.snapshot(),sessionDuration:traffic?.session.duration||0}:{}),version:APP_VERSION,platform:process.platform,settings:store.publicSettings(),signedIn:!!store.auth,email:store.auth?.email || '',servers,latencies,pinging,pingingIds:[...pingingIds],activeServer:connection==='connected'?tunnel?.candidate:null,logs,connection,startedAt,exit,quota,protocol:connection==='connected'?(tunnel?.protocol||'h2'):null,lastError,up:multiAccount?traffic?.session.up||0:tunnel?.up||0,down:multiAccount?traffic?.session.down||0:tunnel?.down||0,systemDark:nativeTheme.shouldUseDarkColors,signinCaptcha:captchaPrompt?.image||null,busy};}
+function state() {observeTraffic();return {...(multiAccount?{accounts:store.publicAccounts(),activeAccountId:store.activeAccountId,accountPreferences:store.accountPreferences,totalTraffic:traffic?.snapshot(),sessionDuration:traffic?.session.duration||0}:{}),version:APP_VERSION,platform:process.platform,settings:store.publicSettings(),signedIn:!!store.auth,email:store.auth?.email || '',servers,latencies,pinging,pingingIds:[...pingingIds],activeServer:connection==='connected'?tunnel?.candidate:null,logs,connection,startedAt,exit,quota,protocol:connection==='connected'?(tunnel?.protocol||'h2'):null,lastError,up:multiAccount?traffic?.session.up||0:tunnel?.up||0,down:multiAccount?traffic?.session.down||0:tunnel?.down||0,systemDark:nativeTheme.shouldUseDarkColors,signinCaptcha:captchaPrompt?.image||null,busy};}
 function emit() {if(quitting)return;if(store&&nativeTheme.themeSource!==store.settings.theme)nativeTheme.themeSource=store.settings.theme;if(window&&!window.isDestroyed())window.webContents.send('fox:state',state());trayPopup?.update();}
 function trayState(){
   const server=tunnel?.candidate;
@@ -290,10 +287,13 @@ else {
   app.on('second-instance',()=>{showWindow();});
   app.whenReady().then(()=>{
     if(mac)Menu.setApplicationMenu(Menu.buildFromTemplate([{label:'Predator VPN',submenu:[{role:'about'},{type:'separator'},{role:'hide'},{role:'hideOthers'},{role:'unhide'},{type:'separator'},{role:'quit'}]},{label:'File',submenu:[{label:'Close Window',accelerator:'Command+W',click:()=>{if(window&&!window.isDestroyed())window.close();}}]},{role:'editMenu'},{role:'windowMenu'}]));
+    // Verify OS-bound encrypted data at the new profile path before opening a
+    // mutable Store. A failed verification cannot silently sign accounts out.
+    if(profileMove)verifyMigratedProfile(profileMove,safeStorage);
+    fs.rmSync(path.join(app.getPath('userData'),'oauth-client.json'),{force:true});
     store=new Store(app.getPath('userData'),safeStorage);
+    if(profileMove&&store.loadError)throw Error('Migrated account data could not be read. No account files were deleted.');
     captchaPrompt=new CaptchaPrompt(()=>emit());
-    try{browserOAuthConfig=loadBrowserOAuthConfig();}
-    catch{browserOAuthConfig=null;log('warn','Invalid provider OAuth registration configuration. Browser sign-in is unavailable.');}
     servers=store.servers;if(multiAccount){traffic=new TrafficLedger(store.traffic,value=>store.setTraffic(value));accountCoordinator=new AccountCoordinator(store,accountGuardian);quota=store.activeAccount?.quota||null;}
     const control=makeControl({interactive:true});guardian=new Guardian(control,new Auth(control,store));
     const updates=new Updates({version:APP_VERSION,target:updateTarget(process.platform,process.arch,app.getPath('exe')),fetch:(...args)=>electronNet.fetch(...args),cacheFile:path.join(app.getPath('userData'),'release-cache.json')});
@@ -307,43 +307,6 @@ else {
     handle('ackReleaseNotes',()=>releaseNotes.acknowledge());
     handle('downloadUpdate',async()=>{const update=await updates.check();if(!update.available)throw Error('No newer update is available.');await shell.openExternal(update.url);});
     handle('login',async({email,password})=>{if(busy)throw Error('An operation is already running.');busy=true;emit();try{return multiAccount?completeLogin(await beginLogin().login(email,password)):await guardian.auth.login(email,password);}finally{busy=false;emit();}});
-    handle('browserLogin',async()=>{
-      if(busy)throw Error('An account operation is already running.');
-      if(!browserOAuthConfig)throw Error('Browser sign-in requires provider-approved OAuth registration. See the registration instructions.');
-      busy=true;browserOAuthStage='starting';emit();
-      try{
-        const transport=createAccountTransport({
-          createSession:()=>session.fromPartition('predator-oauth-token-'+(++authSessionSequence)),
-          systemFetch:(...args)=>electronNet.fetch(...args)
-        });
-        browserOAuth=new BrowserOAuth({
-          config:browserOAuthConfig,openExternal:url=>shell.openExternal(url),fetcher:transport,
-          onProgress:phase=>{browserOAuthStage=phase;emit();}
-        });
-        const token=await browserOAuth.start();
-        browserOAuthStage='checking-entitlement';emit();
-        // Account OAuth success does not automatically grant FPN access.
-        const http=makeControl();
-        try{await http.json('https://vpn.mozilla.org/api/v1/fpn/status',{authorization:'Bearer '+token.access_token});}
-        catch(error){
-          if(error.status===401||error.status===403)
-            throw Error('The provider completed browser sign-in but did not authorize this client for FPN. Request approved FPN scopes from the provider.');
-          throw error;
-        }
-        const profile=(await http.json('https://profile.accounts.firefox.com/v1/profile',{authorization:'Bearer '+token.access_token})).data;
-        const email=profile?.email;
-        if(typeof email!=='string'||!email.includes('@')||email.length>254)
-          throw Error('The provider did not grant the profile scope required to identify the account.');
-        const credentials={...token,email,provider:'fxa-oidc',
-          expiresAt:Date.now()+(Number(token.expires_in)||3600)*1000};
-        store.addAccount(credentials,connection==='disconnected');
-        syncGuardian();if(connection==='disconnected')quota=store.activeAccount?.quota||null;
-        browserOAuthStage='complete';emit();
-        return {needsCode:false};
-      }catch(error){browserOAuthStage='failed';emit();throw error;}
-      finally{browserOAuth=null;busy=false;emit();}
-    });
-    handle('cancelBrowserLogin',()=>{browserOAuth?.cancel();return true;});
     handle('answerCaptcha',answer=>captchaPrompt.submit(answer));
     handle('cancelCaptcha',()=>captchaPrompt.cancel());
     handle('verify',async code=>{if(busy)throw Error('An operation is already running.');busy=true;emit();try{if(multiAccount&&!loginGuardian)throw Error('Start account sign-in again.');return multiAccount?completeLogin(await loginGuardian.auth.verify(code)):await guardian.auth.verify(code);}finally{busy=false;emit();}});
@@ -394,7 +357,7 @@ else {
   });
   app.on('before-quit',event=>{
     event.preventDefault();if(quitting)return;quitting=true;
-    captchaPrompt?.cancel();loginGuardian?.auth.cancel();browserOAuth?.cancel();
+    captchaPrompt?.cancel();loginGuardian?.auth.cancel();
     let finished=false;
     const finish=()=>{if(finished)return;finished=true;clearTimeout(deadline);try{trayPopup?.destroy();}catch{}trayPopup=null;try{if(tray&&!tray.isDestroyed())tray.destroy();}catch{}tray=null;app.exit(0);};
     // A second quit cycle can be cancelled by a window; exit once cleanup has

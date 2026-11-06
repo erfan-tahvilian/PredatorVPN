@@ -440,20 +440,10 @@ body.light input[type="checkbox"].switch:checked::after{background:#fff!importan
 /* Avoid a stale dark thumb color during theme changes, even offscreen. */
 body.light input[type="checkbox"].switch::after{transition:transform .18s ease!important;background:#fff!important}
 
-/* In-app sign-in, no external browser sign-in panel. */
+/* Keep the email/password sign-in layout aligned across themes. */
 #signin-panel .legacy-login-heading{font-size:14px;font-weight:650;margin:19px 0 14px;color:var(--text)}
 
 #signin-panel .captcha-image{display:block;max-width:min(100%,360px);height:auto;max-height:225px;object-fit:contain;margin:12px auto;border:1px solid var(--accent-hairline);border-radius:10px}
 #signin-panel #captcha-form .primary{width:100%}
 #signin-panel #captcha-form .subtle{display:block;margin:12px auto}
 #signin-panel #code-instructions{line-height:1.6;margin-bottom:14px}
-
-/* Provider-authorized browser OAuth: distinct from direct FxA password sign-in. */
-#signin-panel .browser-auth-panel{
- display:flex;flex-direction:column;gap:12px;padding:15px;margin:15px 0 20px;
- border:1px solid var(--accent-hairline);border-radius:14px;background:var(--accent-surface);
-}
-#signin-panel #browser-login{min-height:45px;width:100%;font-weight:680}
-#signin-panel #browser-login:disabled{opacity:.58;cursor:not-allowed}
-#signin-panel #browser-auth-status{font-size:12px;line-height:1.6;margin:0}
-#signin-panel #cancel-browser-login{align-self:center}

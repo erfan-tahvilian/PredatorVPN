@@ -112,13 +112,14 @@ test('structured HTTP 406 is not mistaken for a challenge and is not replayed',a
  assert.equal(attempts,1);
  assert.equal(challengeAttempts,0);
 });
-test('a provider-hosted browser Guardian session is returned unchanged without Firefox-specific token refresh',async()=>{
- const guardianToken='fixture-guardian-access-token';
- const store={auth:{email:'test@example.invalid',provider:'guardian-browser',access_token:guardianToken},setAuth(){throw Error('Browser session must not be overwritten');}};
- const auth=new Auth({async json(){throw Error('Firefox token API is not used for browser Guardian sessions');}},store);
- assert.equal(await auth.token(),guardianToken);
- await assert.rejects(auth.token(true),/Sign in again using email and password/);
- assert.equal(store.auth.access_token,guardianToken);
+test('legacy browser credentials remain encrypted and intact but are not accepted by removed login',async()=>{
+  const guardianToken='fixture-guardian-access-token';
+  const saved={email:'test@example.invalid',provider:'guardian-browser',access_token:guardianToken};
+  const store={auth:saved,setAuth(){throw Error('Stored legacy session must remain untouched');}};
+  const auth=new Auth({async json(){throw Error('No network for removed browser authorization');}},store);
+  await assert.rejects(auth.token(),/legacy browser session/);
+  await assert.rejects(auth.token(true),/legacy browser session/);
+  assert.equal(store.auth,saved);
 });
 test('FxA email-case error retries using provider canonical case',async()=>{
  const {authPW}=require('../src/lib/auth.cjs');
@@ -189,22 +190,13 @@ test('verification failure diagnostics preserve provider boundaries and network 
  assert(!other.message.includes('secret account password'));
 });
 
-test('provider-registered browser OAuth refresh preserves the client ID and rotates tokens',async()=>{
- const start={provider:'fxa-oidc',oauthClientId:'0123456789abcdef',
-   access_token:'fictional-expired-access',refresh_token:'fictional-old-refresh',expiresAt:1,email:'test@example.invalid'};
- const changes=[];let auth=start,requests=0;
- const store={get auth(){return auth;},setAuth(next){changes.push(next);auth=next;}};
- const client=new Auth({async json(url,opts){
-   requests++;
-   assert.equal(url,'https://oauth.accounts.firefox.com/v1/token');
-   const body=JSON.parse(opts.body);
-   assert.deepEqual(body,{client_id:'0123456789abcdef',grant_type:'refresh_token',
-     refresh_token:'fictional-old-refresh'});
-   return {data:{access_token:'fictional-new-access',refresh_token:'fictional-new-refresh',expires_in:3600}};
- }},store);
- assert.equal(await client.token(true),'fictional-new-access');
- assert.equal(requests,1);
- assert.equal(changes.length,1);
- assert.equal(store.auth.email,start.email);
- assert.equal(store.auth.refresh_token,'fictional-new-refresh');
+test('old browser accounts are preserved but cannot trigger discontinued OAuth refresh',async()=>{
+ const saved={provider:'fxa-oidc',oauthClientId:'0123456789abcdef',access_token:'fixture-old-token',
+   refresh_token:'fixture-old-refresh',expiresAt:1,email:'test@example.invalid'};
+ let networkRequests=0;
+ const auth=new Auth({async json(){networkRequests++;throw Error('Unexpected OAuth access');}},
+  {auth:saved,setAuth(){throw Error('Old account must not be discarded');}});
+ await assert.rejects(auth.token(true),/legacy browser session/);
+ assert.equal(networkRequests,0);
+ assert.equal(saved.refresh_token,'fixture-old-refresh');
 });

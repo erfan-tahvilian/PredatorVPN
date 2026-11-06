@@ -81,21 +81,6 @@ $('refresh-allowance').addEventListener('click',()=>refreshAllowance(true));
 $('allowance-account').addEventListener('click',()=>navigate('account'));
 function render(s) {
   currentState=s;applyTheme(s);
-  const browserStage=s.browserOAuthStage||'idle';
-  const activeBrowserStages=new Set(['starting','waiting','callback','exchanging','authorized','checking-entitlement']);
-  const browserMessages={
-    starting:'Preparing secure browser authorization…',
-    waiting:'Complete account verification in your browser. Keep Predator VPN open while the provider redirects back.',
-    callback:'Authorization code returned to Predator VPN.',
-    exchanging:'Exchanging the authorization code securely with the provider…',
-    authorized:'Provider issued an access token. Checking the FPN service entitlement…',
-    'checking-entitlement':'Checking access to the FPN service before saving this account…',
-    failed:'The previous browser sign-in could not be completed. Check the provider error and try again.',
-    complete:'Browser sign-in completed and FPN access confirmed.'
-  };
-  $('browser-login').disabled=!s.browserOAuthAvailable||s.busy;
-  $('cancel-browser-login').hidden=!activeBrowserStages.has(browserStage);
-  $('browser-auth-status').textContent=browserMessages[browserStage]||s.browserOAuthNotice||'Browser OAuth registration is required.';
   renderAllowance(s);updateConnectionHealth(s);renderRecentEvents(s);$('transport-field').hidden=!['win32','darwin','linux','android'].includes(s.platform);document.querySelector('#transport option[value=auto]').textContent='Automatic · Compare HTTP/3 and HTTP/2';$('protocol-name').textContent=s.connection==='connected'?(s.protocol==='h3'?'HTTP/3 over QUIC':'HTTP/2 over TLS'):'-';$('protocol-secure').hidden=s.connection!=='connected';
   if(!initialized){fillSettings(s.settings);initialized=true;}
   syncSelects();
@@ -266,16 +251,6 @@ function configureVerification(method){
   render(currentState);
   if(!isLink)$('code').focus();
 }
-$('browser-login').addEventListener('click',action(async()=>{
-  const result=await call('browserLogin');
-  if(result.needsCode)throw Error('Unexpected provider response during OAuth sign-in.');
-  needsCode=false;addingAccount=false;
-  render(await call('state'));toast('Browser sign-in completed. FPN access is verified.');
-  navigate(hasAccountManager()?'account':'home');
-}));
-$('cancel-browser-login').addEventListener('click',action(async()=>{
-  await call('cancelBrowserLogin');
-}));
 $('login-form').addEventListener('submit',action(async e=>{
   e.preventDefault();
   const email=$('email').value.trim(),password=$('password').value;

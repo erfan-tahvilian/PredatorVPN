@@ -1,4 +1,4 @@
-/* Predator VPN 2.0 — intentionally phone-first Android interface.
+﻿/* Predator VPN 2.0 â€” intentionally phone-first Android interface.
    Uses native-feeling bottom navigation, thumb-accessible controls, and independent card hierarchy. */
 html,body{width:100%;min-width:0;min-height:100%;overflow-x:hidden}
 body{font-family:Roboto,Inter,"Segoe UI",system-ui,sans-serif;font-size:14px;background:var(--bg);display:block}
@@ -257,6 +257,3 @@ body.light input[type=checkbox].switch::after{transition:transform .16s ease!imp
 
 /* Android uses the same in-app account sign-in steps with mobile-first layout. */
 #signin-panel .legacy-login-heading{display:block!important}
-
-/* Native Android OAuth requires its own provider-registered app link. */
-#browser-auth-panel{display:none!important}
