@@ -70,17 +70,47 @@ test('after an accepted email code, a failed OAuth step is retried without resub
   assert.equal(requests.filter(url=>url.endsWith('/oauth/token')).length,2);
   assert.equal(auth.pending,null);
 });
-test('a bare HTTP 406 provider block fails once without inventing a browser challenge or replaying sign-in',async()=>{
-  const {Control}=require('../src/lib/control.cjs');
-  let requests=0,challengeAttempts=0;
-  const control=new Control({transport:async()=>{
-    requests++;return new Response('',{status:406});
-  }});
-  control.challenge=async()=>{challengeAttempts++;throw Error('Should not run');};
-  await assert.rejects(control.json('https://api.accounts.firefox.com/v1/account/login',{method:'POST',body:'{}'}),error=>
-    error.code==='ACCOUNT_PROVIDER_BLOCKED'&&error.status===406&&/provider/i.test(error.message));
-  assert.equal(requests,1,'Provider blocks must not resubmit credentials');
-  assert.equal(challengeAttempts,0,'No challenge means there is nothing to solve');
+test('empty account-API 406 triggers verification on the site host before one retry',async()=>{
+ const {Control}=require('../src/lib/control.cjs');
+ let requests=0,challengeAttempts=0;
+ const control=new Control({transport:async()=>{
+   requests++;
+   return requests===1?new Response('',{status:406}):
+     new Response(JSON.stringify({errno:102,message:'Incorrect password'}),{status:400,headers:{'Content-Type':'application/json'}});
+ }});
+ control.challenge=async()=>{challengeAttempts++;};
+ await assert.rejects(control.json(service,{method:'POST',body:'{}'}),error=>error.status===400&&error.errno===102);
+ assert.equal(requests,2,'A rejected edge request is repeated only after completing provider verification');
+ assert.equal(challengeAttempts,1);
+});
+test('challenge failure does not resubmit a blocked account password',async()=>{
+ const {Control}=require('../src/lib/control.cjs');
+ let requests=0,challengeAttempts=0;
+ const control=new Control({transport:async()=>{requests++;return new Response('',{status:406});}});
+ control.challenge=async()=>{challengeAttempts++;throw Error('Interactive challenge unavailable');};
+ await assert.rejects(control.json(service,{method:'POST',body:'{}'}),error=>error.status===406&&error.code==='ACCOUNT_PROVIDER_CHALLENGE_FAILED');
+ assert.equal(requests,1);
+ assert.equal(challengeAttempts,1);
+});
+test('repeated empty HTTP 406 remains bounded and reports provider rejection',async()=>{
+ const {Control}=require('../src/lib/control.cjs');
+ let requests=0,challengeAttempts=0;
+ const control=new Control({transport:async()=>{requests++;return new Response('',{status:406});}});
+ control.challenge=async()=>{challengeAttempts++;};
+ await assert.rejects(control.json(service,{method:'POST',body:'{}'}),error=>error.code==='ACCOUNT_PROVIDER_BLOCKED'&&error.status===406);
+ assert.equal(requests,3);
+ assert.equal(challengeAttempts,2);
+});
+test('structured HTTP 406 is not mistaken for a challenge and is not replayed',async()=>{
+ const {Control}=require('../src/lib/control.cjs');
+ let attempts=0,challengeAttempts=0;
+ const control=new Control({transport:async()=>{
+   attempts++;return new Response(JSON.stringify({message:'Rejected',errno:903}),{status:406,headers:{'Content-Type':'application/json'}});
+ }});
+ control.challenge=async()=>{challengeAttempts++;};
+ await assert.rejects(control.json(service,{method:'POST',body:'{}'}),error=>error.status===406&&error.errno===903);
+ assert.equal(attempts,1);
+ assert.equal(challengeAttempts,0);
 });
 test('a provider-hosted browser Guardian session is returned unchanged without Firefox-specific token refresh',async()=>{
  const guardianToken='fixture-guardian-access-token';
@@ -89,4 +119,50 @@ test('a provider-hosted browser Guardian session is returned unchanged without F
  assert.equal(await auth.token(),guardianToken);
  await assert.rejects(auth.token(true),/sign in again using your browser/);
  assert.equal(store.auth.access_token,guardianToken);
+});
+test('FxA email-case error retries using provider canonical case',async()=>{
+ const {authPW}=require('../src/lib/auth.cjs');
+ const calls=[],store={auth:null,setAuth(){}};
+ const auth=new Auth({async json(_url,{body}){
+   const data=JSON.parse(body);calls.push(data);
+   if(calls.length===1)throw Object.assign(Error('Incorrect email case'),{errno:120,providerEmail:'Alice@Example.com'});
+   return {data:{sessionToken:'ab'.repeat(32),verified:false}};
+ }},store);
+ const result=await auth.login('alice@example.com','example-password-only');
+ assert.deepEqual(result,{needsCode:true,verificationMethod:'email-2fa'});
+ assert.equal(calls.length,2);
+ assert.equal(calls[1].email,'Alice@Example.com');
+ assert.equal(calls[1].originalLoginEmail,'alice@example.com');
+ assert.equal(calls[1].authPW,authPW('Alice@Example.com','example-password-only'));
+ assert.equal(auth.pending.email,'Alice@Example.com');
+});
+test('FxA unknown or mismatched email-case error never sends a second password',async()=>{
+ let requests=0;const auth=new Auth({async json(){
+   requests++;throw Object.assign(Error('Incorrect email case'),{errno:120,providerEmail:'Different@example.com'});
+ }},{auth:null,setAuth(){}});
+ await assert.rejects(auth.login('test@example.com','test-pass'),/Incorrect email case/);
+ assert.equal(requests,1);
+});
+test('FxA unsupported email-code parameter retries without it only on errno 107',async()=>{
+ const calls=[],auth=new Auth({async json(_url,{body}){
+    const data=JSON.parse(body);calls.push(data);
+    if(calls.length===1)throw Object.assign(Error('Invalid parameter'),{errno:107});
+    return {data:{sessionToken:'ab'.repeat(32),verified:false}};
+ }},{auth:null,setAuth(){}});
+ const result=await auth.login('demo@example.com','test-only');
+ assert(result.needsCode);
+ assert.equal(calls.length,2);
+ assert.equal(calls[0].verificationMethod,'email-2fa');
+ assert(!('verificationMethod' in calls[1]));
+});
+test('email confirmation codes normalize Persian and Arabic digits before provider request',async()=>{
+ let received='';
+ const auth=new Auth({async json(url,{body}){
+   if(url.endsWith('/session/verify_code')){received=JSON.parse(body).code;return {data:{verified:true}};}
+   if(url.endsWith('/oauth/token'))return {data:{access_token:'fixture-access',refresh_token:'fixture-refresh',expires_in:3600}};
+   throw Error('Unexpected request');
+ }},{auth:null,setAuth(){}});
+ auth.pending={session:'ab'.repeat(32),email:'demo@example.com',method:'email-2fa'};
+ await auth.verify('۱۲۳ ٤٥٦\u200c');
+ assert.equal(received,'123456');
 });

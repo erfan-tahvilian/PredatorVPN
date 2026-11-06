@@ -23,20 +23,38 @@ class Auth {
     return (await this.http.json(url, {method:'POST', body:JSON.stringify(data), authorization:session ? hawk('POST', url, session, JSON.stringify(data)) : undefined})).data;
   }
   async login(email, password) {
+    email=String(email||'').replace(/[\s\u200b-\u200f\u2060\ufeff]/g,'');
     if (!email || !password) throw Error('Enter your service account email and password.');
     this.pending = null;
-    let result;
-    try { result = await this.request('/account/login', {email, authPW:authPW(email,password), verificationMethod:'email-2fa'}); }
-    catch (e) { if (e.errno !== 107) throw e; result = await this.request('/account/login', {email, authPW:authPW(email,password)}); }
+    // FxA derives authPW from the account's ORIGINAL letter case. When FxA
+    // reports canonical casing (errno 120), retry with that case and pass
+    // the typed address as originalLoginEmail, as the provider expects.
+    const attempt=async(address,original='')=>{
+      const body={email:address,authPW:authPW(address,password),verificationMethod:'email-2fa'};
+      if(original)body.originalLoginEmail=original;
+      try{return await this.request('/account/login',body);}
+      catch(e){if(e.errno!==107)throw e;delete body.verificationMethod;return this.request('/account/login',body);}
+    };
+    let result,actualEmail=email;
+    try{result=await attempt(email);}
+    catch(e){
+      if(e.errno!==120||!e.providerEmail||e.providerEmail.toLowerCase()!==email.toLowerCase()||e.providerEmail===email)throw e;
+      actualEmail=e.providerEmail;
+      result=await attempt(actualEmail,email);
+    }
     if (!result.sessionToken) throw Error('Sign-in returned no session.');
     const method=result.verificationMethod || 'email-2fa';
-    this.pending = {session:result.sessionToken, email, method};
+    this.pending = {session:result.sessionToken, email:actualEmail, method};
     if (!result.verified || result.sessionVerified===false || result.emailVerified===false || result.verificationMethod) return {needsCode:true,verificationMethod:method};
     return this.complete();
   }
   async verify(code) {
     if (!this.pending) throw Error('Start sign-in again.');
-    code=String(code).trim();
+    // Account emails can contain Persian or Arabic-Indic digits pasted from
+    // messaging apps. The provider accepts ASCII digits without separators.
+    code=String(code).replace(/[۰-۹]/g,ch=>String(ch.charCodeAt(0)-0x6f0))
+      .replace(/[٠-٩]/g,ch=>String(ch.charCodeAt(0)-0x660))
+      .replace(/[\s\u200b-\u200f\u2060\ufeff]/g,'');
     if (!code) throw Error('Enter the verification code.');
     // Once an email/TOTP code is accepted, a later OAuth transport failure
     // must not force us to submit the already-consumed one-time code again.

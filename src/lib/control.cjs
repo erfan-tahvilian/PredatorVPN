@@ -29,23 +29,38 @@ class Control {
   async json(url, {method = 'GET', body, authorization} = {}) {
     const options = {method,body,headers:{'Content-Type':'application/json', ...(authorization ? {Authorization:authorization}: {})}};
     let response = await this.fetch(url, options);
-    for(let attempt=0; response.status===406 && attempt<3; attempt++){
-      const contentType=String(response.headers.get('content-type')||'').toLowerCase();
-      const challengeResponse=await response.text();
-      // Some provider security policies return a bare HTTP 406 block, not
-      // a browser challenge. Do not retry passwords or synthesize a challenge
-      // when the service has not supplied one.
-      if(!contentType.includes('text/html')||!/Client Challenge|\/_fs-ch-/.test(challengeResponse)){
-        const blocked=Error('Sign-in was rejected by the account provider (HTTP 406), before your password could be verified. The provider must authorize a supported browser sign-in for this client.');
-        blocked.code='ACCOUNT_PROVIDER_BLOCKED';blocked.status=406;
-        throw blocked;
+    // Fastly returns an EMPTY HTTP 406 from the account API while hosting its
+    // interactive verification page on accounts.firefox.com. Checking only
+    // the POST response body misses the real challenge entirely.
+    // Never replay non-406 failures or network errors; only retry a confirmed
+    // edge rejection after the provider's challenge has completed.
+    for(let attempt=0; response.status===406 && attempt<2; attempt++){
+      const responseType=String(response.headers.get('content-type')||'').toLowerCase();
+      const blockedBody=await response.text();
+      if(responseType.includes('application/json') && blockedBody.trim()){
+        let data=null;
+        try{data=JSON.parse(blockedBody);}catch{}
+        const error=Error(data?.message||'The account service rejected this request (HTTP 406).');
+        error.status=406;error.errno=data?.errno;
+        throw error;
       }
-      await this.challenge();
+      try{await this.challenge();}
+      catch(cause){
+        const error=Error('The account service requires verification, but its browser challenge could not be completed. Check the account provider page or network and retry.');
+        error.code='ACCOUNT_PROVIDER_CHALLENGE_FAILED';error.status=406;error.cause=cause;
+        throw error;
+      }
       response=await this.fetch(url,options);
+    }
+    if(response.status===406){
+      await response.arrayBuffer();
+      const error=Error('The account service still rejects sign-in after successful verification (HTTP 406). Try again later or contact the provider.');
+      error.code='ACCOUNT_PROVIDER_BLOCKED';error.status=406;
+      throw error;
     }
     const raw = await response.text();
     let data; try { data = JSON.parse(raw || '{}'); } catch { throw Error(`The service returned an invalid response (HTTP ${response.status}).`); }
-    if (!response.ok) { const e = Error(data.message || `Service request failed (HTTP ${response.status}).`); e.status = response.status; e.errno = data.errno; e.quota={limit:response.headers.get('x-quota-limit'),remaining:response.headers.get('x-quota-remaining'),reset:response.headers.get('x-quota-reset')}; throw e; }
+    if (!response.ok) { const e = Error(data.message || `Service request failed (HTTP ${response.status}).`); e.status = response.status; e.errno = data.errno; if(typeof data.email==='string'&&data.email.length<320)e.providerEmail=data.email; e.quota={limit:response.headers.get('x-quota-limit'),remaining:response.headers.get('x-quota-remaining'),reset:response.headers.get('x-quota-reset')}; throw e; }
     return {data, headers:response.headers};
   }
   async challenge() {
