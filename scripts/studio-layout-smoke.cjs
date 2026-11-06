@@ -53,8 +53,8 @@ async function desktop(){
   const pingStates=await inspect(w,`(()=>{
     const source=currentState,selected=source.servers[0];
     if(!selected)throw Error('Latency fixture requires location');
-    const values=[75,240,480];const records=[];
-    for(const theme of ['dark','light'])for(const accentColor of ['orange','gold','blue','pink'])
+    const values=[75,149,150,240,349,350,480];const records=[];
+    for(const theme of ['dark','light'])for(const accentColor of ['orange','gold','blue','teal','emerald','red','purple','pink','indigo','cyan'])
       for(const ms of values){
         render({...source,settings:{...source.settings,theme,accentColor,serverId:selected.id},
           latencies:{[selected.id]:{ms,measuredAt:Date.now()}}});
@@ -69,7 +69,7 @@ async function desktop(){
       }
     render(source);return records;
   })()`);
-  assert.equal(pingStates.length,24);
+  assert.equal(pingStates.length,140);
   for(const p of pingStates){
     assert.equal(p.text,p.ms+' ms','Overview must display selected-location latency');
     assert.notEqual(p.display,'none','Compact desktop overview must show latency');
@@ -77,8 +77,9 @@ async function desktop(){
     assert(p.className.includes(p.ms<150?'fast':p.ms<350?'moderate':'slow'));
     assert.notEqual(p.home,'none');
   }
-  for(const ms of [75,240,480])assert.equal(new Set(pingStates.filter(p=>p.ms===ms).map(p=>p.color)).size,1,
+  for(const ms of [75,149,150,240,349,350,480])assert.equal(new Set(pingStates.filter(p=>p.ms===ms).map(p=>p.color)).size,1,
     'Latency color must be semantic and independent of theme and accent');
+  for(const [ms,expectedColor] of [[75,'rgb(34, 197, 94)'],[149,'rgb(34, 197, 94)'],[150,'rgb(234, 179, 8)'],[240,'rgb(234, 179, 8)'],[349,'rgb(234, 179, 8)'],[350,'rgb(239, 68, 68)'],[480,'rgb(239, 68, 68)']])assert.equal(pingStates.find(p=>p.ms===ms).color,expectedColor,'Use standard green, amber and red for every ping bucket');
   assert.equal(new Set([75,240,480].map(ms=>pingStates.find(p=>p.ms===ms).color)).size,3,
     'Fast, moderate and slow latency values must have distinct semantic colors');
   console.log('PASS selected-location ping badge: visible at 1024px and fixed fast/moderate/slow colors across light/dark and accents');
