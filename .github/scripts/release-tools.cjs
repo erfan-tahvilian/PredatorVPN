@@ -25,12 +25,13 @@ function archivedNotes(body){
   const notice='Installers for older versions are no longer distributed. Download the [latest release](https://github.com/erfan-tahvilian/PredatorVPN/releases/latest).';
   const notes=lines.join('\n').trim();return notes+(notes.includes(notice)?'\n':'\n\n'+notice+'\n');
 }
+// Preserve historical release assets, notes and Git tags for rollback.
+// This is especially important while v2.0.0 has a documented account-login issue.
 function archiveRelease(repo,release,temporary,invoke=gh){
   assert(Number.isSafeInteger(release.id)&&release.id>0);assert(!release.draft);
-  const body=archivedNotes(release.body);
-  if(body!==release.body){const file=path.join(temporary,`archive-${release.id}.json`);fs.writeFileSync(file,JSON.stringify({body}));invoke('api','--method','PATCH',`repos/${repo}/releases/${release.id}`,'--input',file);}
-  for(const asset of release.assets){assert(Number.isSafeInteger(asset.id)&&asset.id>0);invoke('api','--method','DELETE',`repos/${repo}/releases/assets/${asset.id}`);}
+  return {preserved:true,tag:release.tag_name};
 }
+
 function gh(...args){return execFileSync('gh',args,{encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();}
 function api(endpoint){return JSON.parse(gh('api',endpoint));}
 // GitHub can omit an unpublished draft from the tag endpoint until its tag
@@ -78,7 +79,7 @@ async function main(){
   validateRelease(latest,version);
   const releases=api(`repos/${repo}/releases?per_page=100`),old=olderTags(releases,version);
   for(const oldTag of old)archiveRelease(repo,releases.find(r=>r.tag_name===oldTag),temporary);
-  console.log(`Published and verified ${tag}; retired downloads from ${old.length} older releases. Release notes, git tags and source history were retained.`);
+  console.log(`Published and verified ${tag}; historical releases and download assets were retained.`);
 }
 if(require.main===module)main().catch(error=>{console.error(error.message);process.exitCode=1;});
 module.exports={binaries,validateRelease,olderTags,archivedNotes,archiveRelease,pollRelease};

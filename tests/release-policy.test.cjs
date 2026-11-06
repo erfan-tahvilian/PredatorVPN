@@ -31,13 +31,11 @@ test('release publication requires every supported binary and rejects temporary 
 test('release cleanup selects only older versioned releases and preserves newer releases',()=>{
   assert.deepEqual(olderTags([{tag_name:'v1.0.0'},{tag_name:'v1.0.1'},{tag_name:'v1.0.2'},{tag_name:'v2.0.0'},{tag_name:'development'}],'1.0.1'),['v1.0.0']);
 });
-test('older release notes survive asset retirement without stale download links',()=>{
-  const temporary=fs.mkdtempSync(path.join(os.tmpdir(),'fox-archive-')),calls=[];
-  const body='# Predator VPN v1.0.0\n\n- Account sign-in improvements.\n\n## Downloads\n\n[Old APK](https://example.test/old.apk)\n\n## Installation\n\nAndroid 8 or later.\n';
-  archiveRelease('erfan-tahvilian/PredatorVPN',{id:17,draft:false,body,assets:[{id:31},{id:32}]},temporary,(...args)=>calls.push(args));
-  const archived=JSON.parse(fs.readFileSync(calls[0].at(-1),'utf8')).body;
-  assert(archived.includes('Account sign-in improvements.'));assert(archived.includes('Android 8 or later.'));assert(!archived.includes('old.apk'));assert(archived.includes('/releases/latest'));
-  assert.equal(archivedNotes(archived),archived);
-  assert.deepEqual(calls.slice(1),[['api','--method','DELETE','repos/erfan-tahvilian/PredatorVPN/releases/assets/31'],['api','--method','DELETE','repos/erfan-tahvilian/PredatorVPN/releases/assets/32']]);
-  assert.deepEqual(olderTags([{tag_name:'v1.0.0',draft:true}],'1.0.1'),[]);
+test('older releases retain their notes and all downloadable assets during a newer publication',()=>{
+  const temp=fs.mkdtempSync(path.join(os.tmpdir(),'predator-rollback-')),calls=[];
+  const old={id:17,tag_name:'v1.0.3',draft:false,body:'# Predator VPN v1.0.3',assets:[{id:31},{id:32}]};
+  const outcome=archiveRelease('erfan-tahvilian/PredatorVPN',old,temp,(...args)=>calls.push(args));
+  assert.deepEqual(outcome,{preserved:true,tag:'v1.0.3'});
+  assert.deepEqual(calls,[],'Do not change old download assets or notes');
+  assert.equal(old.assets.length,2);
 });

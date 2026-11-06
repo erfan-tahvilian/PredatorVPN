@@ -8,6 +8,16 @@
         "linux",
         "android"
       ],
+      "title": "Known limitation: account sign-in may fail",
+      "description": "The external account provider may reject new sign-ins with HTTP 406 before password verification. Browser sign-in has been removed. Existing saved account data is preserved."
+    },
+    {
+      "platforms": [
+        "win32",
+        "darwin",
+        "linux",
+        "android"
+      ],
       "title": "A redesigned Predator VPN",
       "description": "Purpose-built desktop and phone interfaces with clearer connection, account, location, and diagnostics controls."
     },
