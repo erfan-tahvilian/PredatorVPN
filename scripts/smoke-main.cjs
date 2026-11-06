@@ -28,7 +28,11 @@ async function run(){
     assert(fs.existsSync('test-results/main-profile/vault.bin'));
     const reject=await win.webContents.executeJavaScript(`window.fox.call('settings',{socksPort:0})`);assert.equal(reject.ok,false);
     const noAuth=await win.webContents.executeJavaScript(`window.fox.call('account')`);assert.equal(noAuth.ok,false);
-    const removedBrowserAction=await win.webContents.executeJavaScript(`(()=>{try{window.fox.call('cancelBrowserLogin');return false;}catch(error){return /Unsupported action/.test(error.message);}})()`);assert(removedBrowserAction,'Unsupported browser-login IPC must not be accessible');
+    const browserWithoutRegistration=await win.webContents.executeJavaScript(`window.fox.call('browserLogin')`);
+    assert.equal(browserWithoutRegistration.ok,false,'An unregistered OAuth client must never launch a browser or accept a login');
+    assert.match(browserWithoutRegistration.error,/provider-approved OAuth registration/);
+    const cancelBrowser=await win.webContents.executeJavaScript(`window.fox.call('cancelBrowserLogin')`);
+    assert(cancelBrowser.ok,'Browser OAuth cancellation must remain available over the sandboxed IPC');
     const unknown=await win.webContents.executeJavaScript(`window.fox.call('openLink','not-allowed')`);assert.equal(unknown.ok,false);
     fs.writeFileSync('test-results/main-smoke-status.txt','PASS: real main process, sandboxed preload IPC, OS-encrypted vault, settings rejection, signed-out behavior and URL allowlist');
     console.log('Main-process smoke checks passed.');

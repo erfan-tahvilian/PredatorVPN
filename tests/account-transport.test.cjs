@@ -188,3 +188,23 @@ test('verification failure diagnostics preserve provider boundaries and network 
  assert.equal(other.code,'ACCOUNT_PROVIDER_CHALLENGE_FAILED');
  assert(!other.message.includes('secret account password'));
 });
+
+test('provider-registered browser OAuth refresh preserves the client ID and rotates tokens',async()=>{
+ const start={provider:'fxa-oidc',oauthClientId:'0123456789abcdef',
+   access_token:'fictional-expired-access',refresh_token:'fictional-old-refresh',expiresAt:1,email:'test@example.invalid'};
+ const changes=[];let auth=start,requests=0;
+ const store={get auth(){return auth;},setAuth(next){changes.push(next);auth=next;}};
+ const client=new Auth({async json(url,opts){
+   requests++;
+   assert.equal(url,'https://oauth.accounts.firefox.com/v1/token');
+   const body=JSON.parse(opts.body);
+   assert.deepEqual(body,{client_id:'0123456789abcdef',grant_type:'refresh_token',
+     refresh_token:'fictional-old-refresh'});
+   return {data:{access_token:'fictional-new-access',refresh_token:'fictional-new-refresh',expires_in:3600}};
+ }},store);
+ assert.equal(await client.token(true),'fictional-new-access');
+ assert.equal(requests,1);
+ assert.equal(changes.length,1);
+ assert.equal(store.auth.email,start.email);
+ assert.equal(store.auth.refresh_token,'fictional-new-refresh');
+});
