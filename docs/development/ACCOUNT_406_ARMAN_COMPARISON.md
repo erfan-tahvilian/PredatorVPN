@@ -173,3 +173,59 @@ Mozilla's independent RP documentation requires registered credentials and
 redirect URIs. The initial HTTP 406 or provider challenge refusal therefore
 remains an external integration constraint pending a real authorized test.
 No public release or stable tag is changed by this work.
+
+## Provider-hosted Browser Sign-in: registered-client implementation
+
+**Status:** Implementation preview, not a verified production login. This
+workflow deliberately does not claim that the original HTTP 406 is resolved.
+
+Arman's browser mode injects a Firefox WebChannel bridge into a WebView,
+selects the `fx_desktop_v3` Firefox Sync context, advertises a Firefox
+User-Agent, accepts an `fxaccounts:login` session token from the page,
+waits for verification, and exchanges the session using Firefox's
+native client identity. That approach depends on Firefox-specific
+integration; mimicking its browser identity or reusing its OAuth
+client registration is not an authorized alternative for Predator.
+
+The Windows owner-preview implements the supported equivalent:
+- Provider-hosted login in a sandboxed and isolated Electron window.
+- Authorization Code + PKCE S256, independent state and nonce.
+- Exact registered HTTPS redirect validation and OAuth state verification.
+- Token exchange performed only in the Electron main process.
+- Provider profile lookup and FPN pass validation **before** an account is
+  marked as signed in or written to the encrypted vault.
+- Independent registered OAuth client identity retained for token refresh.
+- Fifteen-minute timeout, explicit cancellation, bounded navigation, denied
+  new windows and no renderer access to tokens or credentials.
+
+### Required provider integration
+
+Mozilla's 2026 integration guide says that clients must be provisioned by
+the Mozilla Accounts/FxA team. Provider authorization of the VPN scope is
+also needed; a generic profile-only login is insufficient. Without those
+credentials, the Browser Sign-in button explicitly reports that the
+integration is not configured rather than imitating Firefox or reporting a
+successful login.
+
+After Mozilla authorizes a separate OAuth public client for Predator VPN,
+the Windows-only local configuration may be placed at:
+
+`%APPDATA%\Predator VPN\mozilla-client-registration.json`
+
+Example keys (not working credentials):
+
+```json
+{"clientId":"<registered independent public OAuth client ID>",
+ "redirectUri":"https://<registered-host>/<registered-callback>"}
+```
+
+**Do not paste sample values, Firefox-native identifiers, passwords,
+refresh tokens or OAuth client secrets into this file.** The redirect URI
+must exactly match the provider's registration. This is not a mechanism
+for self-registration or bypassing provider policy.
+
+Reference: https://mozilla.github.io/ecosystem-platform/relying-parties/tutorials/integration-with-fxa
+
+Test coverage uses mock OAuth responses. A real account with a valid
+third-party registration, scope grant and FPN entitlement is still required
+for integration acceptance. The current release/tag remain unchanged.

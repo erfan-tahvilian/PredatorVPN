@@ -120,7 +120,7 @@ app.whenReady().then(async()=>{
     }
     await win.webContents.executeJavaScript(`navigate('account');render(currentState)`);
     assert(await win.webContents.executeJavaScript(`!document.getElementById('browser-signin')`),'Legacy non-FPN browser login must remain removed');
-    assert(await win.webContents.executeJavaScript(`!document.getElementById('browser-login')&&!document.getElementById('browser-auth-panel')`),'Browser OAuth UI must be removed completely');
+    assert(await win.webContents.executeJavaScript(`!!document.getElementById('browser-login')&&!document.getElementById('browser-auth-panel')`),'Registered-provider browser sign-in must be available without restoring the abandoned legacy panel');
     assert(await win.webContents.executeJavaScript(`!document.getElementById('login-form').hidden`),'FxA email/password sign-in is the supported account flow');
     await win.webContents.executeJavaScript(`configureVerification('unblock-code')`);
     assert(await win.webContents.executeJavaScript(`/unblock code/i.test(document.getElementById('code-instructions').textContent)&&!document.getElementById('code-form').hidden`),'Unblock code must be collected in the in-app form');

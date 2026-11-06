@@ -28,8 +28,10 @@ async function run(){
     assert(fs.existsSync('test-results/main-profile/vault.bin'));
     const reject=await win.webContents.executeJavaScript(`window.fox.call('settings',{socksPort:0})`);assert.equal(reject.ok,false);
     const noAuth=await win.webContents.executeJavaScript(`window.fox.call('account')`);assert.equal(noAuth.ok,false);
-    const browserRemoved=await win.webContents.executeJavaScript(`(()=>{try{window.fox.call('browserLogin');return false;}catch(error){return /Unsupported action/.test(error.message);}})()`);
-    assert(browserRemoved,'The removed browser-login IPC action must not be callable');
+    const browserStatus=await win.webContents.executeJavaScript(`window.fox.call('browserLogin')`);
+    assert.equal(browserStatus.ok,false,'Missing registered-provider credentials must fail closed');
+    assert(/OAuth registration|registered provider/.test(browserStatus.error),'Missing registration must be reported clearly');
+    assert.equal(BrowserWindow.getAllWindows().length,1,'No provider window should launch without an approved client');
     const unknown=await win.webContents.executeJavaScript(`window.fox.call('openLink','not-allowed')`);assert.equal(unknown.ok,false);
     fs.writeFileSync('test-results/main-smoke-status.txt','PASS: real main process, sandboxed preload IPC, OS-encrypted vault, settings rejection, signed-out behavior and URL allowlist');
     console.log('Main-process smoke checks passed.');

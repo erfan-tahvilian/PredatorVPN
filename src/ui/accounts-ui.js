@@ -10,7 +10,7 @@ function renderAccountManager(s){
   $('signin-panel').hidden=!addingAccount&&s.accounts.length>0;$('signedin-panel').hidden=true;
   document.querySelector('#account .page-heading h1').textContent='Your service accounts.';
   document.querySelector('#account .page-heading>p').textContent='One place for your accounts, connection preference and automatic switching.';
-  $('add-account').disabled=s.busy;$('cancel-add-account').disabled=s.busy;$('account-auto-switch').checked=s.accountPreferences?.autoSwitch!==false;$('account-auto-switch').disabled=s.busy;
+  $('browser-login').disabled=s.busy;$('add-account').disabled=s.busy;$('cancel-add-account').disabled=s.busy;$('account-auto-switch').checked=s.accountPreferences?.autoSwitch!==false;$('account-auto-switch').disabled=s.busy;
   const summaries=s.accounts.filter(a=>a.status!=='sign-in-required').map(a=>allowanceSummary(a.quota)),known=summaries.filter(a=>a.kind==='limited'),unlimited=summaries.some(a=>a.kind==='unlimited');
   $('allowance-pool').hidden=s.accounts.length<2;
   $('allowance-pool').textContent=unlimited?'An unlimited allowance is available across your saved accounts.':known.length?`${bytes(known.reduce((sum,a)=>sum+a.remaining,0))} remaining across ${known.length} of ${s.accounts.length} saved accounts`:'Additional account allowances have not been checked yet.';

@@ -191,8 +191,19 @@ class Auth {
  async refresh(auth){
   if(!auth.refresh_token){this.store.setAuth(null);throw Error('Your session expired. Sign in again.');}
   let renewed;
-  try{renewed=await this.request('/oauth/token',{client_id:CLIENT,grant_type:'refresh_token',
-    refresh_token:auth.refresh_token,scope:SCOPE});}
+  try{
+   if(auth.provider==='mozilla-registered-oidc'){
+    if(!/^[0-9a-f]{16,64}$/i.test(auth.oauthClientId||'')||auth.oauthClientId===CLIENT)
+      throw Error('The registered OAuth client identity is missing.');
+    renewed=(await this.http.json('https://oauth.accounts.firefox.com/v1/token',{
+     method:'POST',body:JSON.stringify({client_id:auth.oauthClientId,grant_type:'refresh_token',
+       refresh_token:auth.refresh_token})
+    })).data;
+   }else{
+    renewed=await this.request('/oauth/token',{client_id:CLIENT,grant_type:'refresh_token',
+      refresh_token:auth.refresh_token,scope:SCOPE});
+   }
+  }
   catch(err){if([400,401,403].includes(err.status)&&this.store.auth===auth)this.store.setAuth(null);throw err;}
   if(!renewed.access_token)throw Error('Token refresh returned no access token.');
   if(this.store.auth!==auth)throw Error('Account changed while refreshing the session.');

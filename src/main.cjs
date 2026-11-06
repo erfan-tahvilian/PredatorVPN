@@ -26,6 +26,7 @@ function makeControl({interactive=false}={}){
   return new Control({transport,captchaSolver:interactive?image=>captchaPrompt.ask(image):null});
 }
 const {Auth}=require('./lib/auth.cjs');
+const {readProviderRegistration,createAuthorization,redirectResult,signInNavigationAllowed,exchangeAuthorization,readAuthorizedProfile}=require('./lib/provider-browser-auth.cjs');
 const {CaptchaPrompt}=require('./lib/captcha-prompt.cjs');
 const APP_VERSION=require('../package.json').version;
 // Adopt the new product name for all new Electron profile directories.
@@ -57,13 +58,78 @@ const applications=new ApplicationCatalog(app);
 const mac=process.platform==='darwin',linux=process.platform==='linux';
 const osName=mac?'macOS':linux?'Linux':'Windows';
 const multiAccount=true;
-let accountCoordinator,traffic,loginGuardian,loginAccountId,switchingAccount=false,trafficSaveWarning=false;const accountGuardians=new Map();
+let accountCoordinator,traffic,loginGuardian,loginAccountId,switchingAccount=false,trafficSaveWarning=false;
+let providerBrowserWindow=null,providerBrowserAttempt=0;const accountGuardians=new Map();
 function accountGuardian(id){if(!accountGuardians.has(id)){const http=makeControl();accountGuardians.set(id,new Guardian(http,new Auth(http,store.accountStore(id))));}return accountGuardians.get(id);}
 function syncGuardian(){if(multiAccount&&store.activeAccountId)guardian=accountGuardian(store.activeAccountId);}
 function observeTraffic(){if(multiAccount&&traffic&&tunnel)traffic.observe(tunnel.up,tunnel.down);}
 async function refreshAccount(id){const data=await accountCoordinator.refresh(id);if(store.activeAccountId===id)quota=store.activeAccount?.quota||null;emit();return data;}
 function beginLogin(){loginAccountId=null;const http=makeControl({interactive:true}),sink={auth:null,setAuth(auth){if(!auth)return;loginAccountId=store.addAccount(auth,connection==='disconnected');this.auth=auth;}};loginGuardian=new Guardian(http,new Auth(http,sink));return loginGuardian.auth;}
 function completeLogin(result){if(loginAccountId){syncGuardian();if(connection==='disconnected')quota=store.activeAccount?.quota||null;const id=loginAccountId;loginGuardian=null;loginAccountId=null;if(store.activeAccountId!==id)void refreshAccount(id).catch(()=>{});}return result;}
+
+// Provider-hosted login requires a separately registered OAuth application.
+// Firefox's native client ID/WebChannel are intentionally not reused.
+async function signInViaProviderBrowser(){
+  if(busy||providerBrowserWindow)throw Error('Another account operation is already running.');
+  const registration=readProviderRegistration(path.join(app.getPath('userData'),'mozilla-client-registration.json'));
+  if(!registration)throw Error('Browser sign-in requires Predator VPN OAuth registration with the account provider. No registered provider client is configured; using Firefox credentials or imitating its browser is not supported.');
+  const attempt=++providerBrowserAttempt,flow=createAuthorization(registration);
+  busy=true;emit();
+  try{
+    const code=await new Promise((resolve,reject)=>{
+      let settled=false;
+      const popup=new BrowserWindow({
+        parent:window,modal:true,width:560,height:760,minWidth:460,minHeight:550,
+        show:true,title:'Provider sign-in - Predator VPN',autoHideMenuBar:true,
+        webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,
+          webSecurity:true,partition:'predator-provider-login-'+attempt+'-'+require('node:crypto').randomBytes(8).toString('hex')}
+      });
+      providerBrowserWindow=popup;
+      const timer=setTimeout(()=>finish(Error('Browser sign-in timed out. Start again.')),15*60*1000);
+      timer.unref?.();
+      function finish(error,result){
+        if(settled)return;
+        settled=true;clearTimeout(timer);
+        if(providerBrowserWindow===popup)providerBrowserWindow=null;
+        if(!popup.isDestroyed())popup.close();
+        if(error)reject(error);else resolve(result);
+      }
+      function navigation(event,url){
+        try{
+          const code=redirectResult(url,registration,flow);
+          if(code){event.preventDefault();finish(null,code);return;}
+          if(!signInNavigationAllowed(url,registration)){
+            event.preventDefault();
+            finish(Error('The provider sign-in attempted to leave the approved identity-provider domains.'));
+          }
+        }catch(error){event.preventDefault();finish(error);}
+      }
+      popup.webContents.on('will-redirect',navigation);
+      popup.webContents.on('will-navigate',navigation);
+      popup.webContents.setWindowOpenHandler(()=>({action:'deny'}));
+      popup.on('closed',()=>finish(Error('Browser sign-in was cancelled.')));
+      popup.webContents.on('did-fail-load',(_event,errorCode,_description,_url,isMainFrame)=>{
+        if(isMainFrame&&errorCode!==-3)finish(Error('The provider sign-in page could not be loaded.'));
+      });
+      popup.loadURL(flow.url).catch(()=>finish(Error('The provider sign-in page could not be loaded.')));
+    });
+    if(providerBrowserAttempt!==attempt)throw Error('Browser sign-in was cancelled.');
+    const token=await exchangeAuthorization((...args)=>electronNet.fetch(...args),registration,flow,code);
+    if(providerBrowserAttempt!==attempt)throw Error('Browser sign-in was cancelled.');
+    const email=await readAuthorizedProfile((...args)=>electronNet.fetch(...args),token.access_token);
+    if(providerBrowserAttempt!==attempt)throw Error('Browser sign-in was cancelled.');
+    // Account is not considered logged in until an actual FPN pass is issued.
+    const entitlement=new Guardian(makeControl(),{token:async()=>token.access_token});
+    await entitlement.pass();
+    if(providerBrowserAttempt!==attempt)throw Error('Browser sign-in was cancelled.');
+    const id=store.addAccount({...token,email,provider:'mozilla-registered-oidc',oauthClientId:registration.clientId,expiresAt:Date.now()+(token.expires_in||3600)*1000},connection==='disconnected');
+    syncGuardian();
+    if(connection==='disconnected')quota=store.activeAccount?.quota||null;
+    emit();
+    if(store.activeAccountId!==id)void refreshAccount(id).catch(()=>{});
+    return {needsCode:false};
+  }finally{busy=false;emit();}
+}
 let macEngine;
 let window,tray,trayPopup,store,guardian,tunnel,pendingTunnel,engine,passRenewer,recoveryController,busy=false,quitting=false,generation=0;
 let latencies={},pinging=false;const pingingIds=new Set();
@@ -306,6 +372,7 @@ else {
     handle('releaseNotes',()=>releaseNotes.read());
     handle('ackReleaseNotes',()=>releaseNotes.acknowledge());
     handle('downloadUpdate',async()=>{const update=await updates.check();if(!update.available)throw Error('No newer update is available.');await shell.openExternal(update.url);});
+    handle('browserLogin',signInViaProviderBrowser);
     handle('login',async({email,password})=>{if(busy)throw Error('An operation is already running.');busy=true;emit();try{return multiAccount?completeLogin(await beginLogin().login(email,password)):await guardian.auth.login(email,password);}finally{busy=false;emit();}});
     handle('answerCaptcha',answer=>captchaPrompt.submit(answer));
     handle('cancelCaptcha',()=>captchaPrompt.cancel());
@@ -331,7 +398,7 @@ else {
     });
     handle('account',()=>multiAccount?refreshAccount(store.activeAccountId):guardian.account());
     if(multiAccount){
-      handle('cancelAccountLogin',()=>{captchaPrompt?.cancel();loginGuardian?.auth.cancel();loginGuardian=null;loginAccountId=null;});
+      handle('cancelAccountLogin',()=>{captchaPrompt?.cancel();loginGuardian?.auth.cancel();loginGuardian=null;loginAccountId=null;if(providerBrowserWindow&&!providerBrowserWindow.isDestroyed()){providerBrowserAttempt++;providerBrowserWindow.close();}});
       handle('accountPreferences',auto=>{store.setAccountPreferences(auto);emit();});
       handle('selectAccount',async id=>{if(busy)throw Error('Wait for the current operation.');const chosen=store.accounts.find(a=>a.id===id);if(!chosen?.auth)throw Error('Sign in to this account again.');busy=true;emit();try{const reconnect=connection==='connected';if(connection!=='disconnected')await disconnect();store.selectAccount(id);syncGuardian();quota=store.activeAccount?.quota||null;if(reconnect)await connect();}finally{busy=false;emit();}});
       handle('removeAccount',async id=>{if(busy)throw Error('Wait for the current operation.');if(id===store.activeAccountId&&connection!=='disconnected')throw Error('Disconnect before removing the active account.');store.removeAccount(id);accountGuardians.delete(id);syncGuardian();quota=store.activeAccount?.quota||null;emit();});
