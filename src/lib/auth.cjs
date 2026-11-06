@@ -57,6 +57,10 @@ class Auth {
   async token(force = false) {
     const auth = this.store.auth;
     if (!auth) throw Error('Sign in to your service account first.');
+    if(auth.provider==='guardian-browser'){
+      if(force)throw Error('The provider session was rejected. Please sign in again using your browser.');
+      return auth.access_token;
+    }
     if (!force && Date.now()+60000 < auth.expiresAt) return auth.access_token;
     if(this.refreshing)return this.refreshing;
     const pending=this.refresh(auth);this.refreshing=pending;

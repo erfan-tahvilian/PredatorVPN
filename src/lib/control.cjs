@@ -29,7 +29,20 @@ class Control {
   async json(url, {method = 'GET', body, authorization} = {}) {
     const options = {method,body,headers:{'Content-Type':'application/json', ...(authorization ? {Authorization:authorization}: {})}};
     let response = await this.fetch(url, options);
-    for(let attempt=0; response.status === 406 && attempt<3; attempt++) { await response.arrayBuffer(); await this.challenge(); response = await this.fetch(url, options); }
+    for(let attempt=0; response.status===406 && attempt<3; attempt++){
+      const contentType=String(response.headers.get('content-type')||'').toLowerCase();
+      const challengeResponse=await response.text();
+      // Some provider security policies return a bare HTTP 406 block, not
+      // a browser challenge. Do not retry passwords or synthesize a challenge
+      // when the service has not supplied one.
+      if(!contentType.includes('text/html')||!/Client Challenge|\/_fs-ch-/.test(challengeResponse)){
+        const blocked=Error('Sign-in was rejected by the account provider (HTTP 406), before your password could be verified. The provider must authorize a supported browser sign-in for this client.');
+        blocked.code='ACCOUNT_PROVIDER_BLOCKED';blocked.status=406;
+        throw blocked;
+      }
+      await this.challenge();
+      response=await this.fetch(url,options);
+    }
     const raw = await response.text();
     let data; try { data = JSON.parse(raw || '{}'); } catch { throw Error(`The service returned an invalid response (HTTP ${response.status}).`); }
     if (!response.ok) { const e = Error(data.message || `Service request failed (HTTP ${response.status}).`); e.status = response.status; e.errno = data.errno; e.quota={limit:response.headers.get('x-quota-limit'),remaining:response.headers.get('x-quota-remaining'),reset:response.headers.get('x-quota-reset')}; throw e; }

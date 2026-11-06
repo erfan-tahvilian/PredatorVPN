@@ -70,3 +70,23 @@ test('after an accepted email code, a failed OAuth step is retried without resub
   assert.equal(requests.filter(url=>url.endsWith('/oauth/token')).length,2);
   assert.equal(auth.pending,null);
 });
+test('a bare HTTP 406 provider block fails once without inventing a browser challenge or replaying sign-in',async()=>{
+  const {Control}=require('../src/lib/control.cjs');
+  let requests=0,challengeAttempts=0;
+  const control=new Control({transport:async()=>{
+    requests++;return new Response('',{status:406});
+  }});
+  control.challenge=async()=>{challengeAttempts++;throw Error('Should not run');};
+  await assert.rejects(control.json('https://api.accounts.firefox.com/v1/account/login',{method:'POST',body:'{}'}),error=>
+    error.code==='ACCOUNT_PROVIDER_BLOCKED'&&error.status===406&&/provider/i.test(error.message));
+  assert.equal(requests,1,'Provider blocks must not resubmit credentials');
+  assert.equal(challengeAttempts,0,'No challenge means there is nothing to solve');
+});
+test('a provider-hosted browser Guardian session is returned unchanged without Firefox-specific token refresh',async()=>{
+ const guardianToken='fixture-guardian-access-token';
+ const store={auth:{email:'test@example.invalid',provider:'guardian-browser',access_token:guardianToken},setAuth(){throw Error('Browser session must not be overwritten');}};
+ const auth=new Auth({async json(){throw Error('Firefox token API is not used for browser Guardian sessions');}},store);
+ assert.equal(await auth.token(),guardianToken);
+ await assert.rejects(auth.token(true),/sign in again using your browser/);
+ assert.equal(store.auth.access_token,guardianToken);
+});
