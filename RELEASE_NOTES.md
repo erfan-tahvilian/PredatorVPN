@@ -11,6 +11,8 @@ An independent VPN client for Windows, macOS, Linux and Android, built on third-
 - **Refined proxy-pass resilience:** Temporary CONNECT authentication rejection triggers a single-flight pass refresh and retries the request without immediately closing the VPN.
 - **Predator VPN identity:** New name, supplied light and dark logos, and a dedicated Android Quick Settings icon without changing Android package identity or signing keys.
 - **Personalization:** Ten accent colors including default Orange and Gold; a separate mobile-first layout refinement for Android.
+- **Location diagnostics:** The selected location's measured latency is shown in Overview, with standard green, amber and red latency colors that remain consistent across light/dark themes and all accent palettes.
+- **Input behavior:** Disabled buttons and switches use the normal cursor rather than an artificial loading cursor; enabled controls remain visibly interactive.
 
 This release preserves HTTPS-verified server selection, split tunneling, existing account storage and application preferences. UDP availability for HTTP/3 depends on the current network.
 
