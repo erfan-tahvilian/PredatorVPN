@@ -13,3 +13,8 @@ button.primary:hover:not(:disabled){background:var(--accent-surface);border-colo
 button:hover,button:focus-visible{background:var(--accent-surface);outline-color:var(--accent-hairline)}
 button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media(prefers-reduced-motion:reduce){body.popup-open main{animation:none!important}}
+
+/* v2 tray motion: native-window opacity only. No transform or size animation.
+   Prevent moving/scaling content inside a transparent Windows tray popup. */
+body.popup-open main,body.popup-open.anchor-top main{animation:none!important;transform:none!important}
+main{transform:none!important;animation:none!important}
