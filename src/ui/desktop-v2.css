@@ -442,3 +442,8 @@ body.light input[type="checkbox"].switch::after{transition:transform .18s ease!i
 
 /* In-app sign-in, no external browser sign-in panel. */
 #signin-panel .legacy-login-heading{font-size:14px;font-weight:650;margin:19px 0 14px;color:var(--text)}
+
+#signin-panel .captcha-image{display:block;max-width:min(100%,360px);height:auto;max-height:225px;object-fit:contain;margin:12px auto;border:1px solid var(--accent-hairline);border-radius:10px}
+#signin-panel #captcha-form .primary{width:100%}
+#signin-panel #captcha-form .subtle{display:block;margin:12px auto}
+#signin-panel #code-instructions{line-height:1.6;margin-bottom:14px}

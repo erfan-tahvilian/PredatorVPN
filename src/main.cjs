@@ -16,15 +16,16 @@ const {Control,Guardian}=require('./lib/control.cjs');
 // account verification, sign-in and token renewal. Do not mix it with Node fetch.
 const {session}=require('electron');
 const {createAccountTransport}=require('./lib/account-transport.cjs');
-let authSessionSequence=0;
-function makeControl(){
+let authSessionSequence=0,captchaPrompt=null;
+function makeControl({interactive=false}={}){
   const transport=createAccountTransport({
     createSession:()=>session.fromPartition('predator-auth-'+(++authSessionSequence)),
     systemFetch:(...args)=>electronNet.fetch(...args)
   });
-  return new Control({transport});
+  return new Control({transport,captchaSolver:interactive?image=>captchaPrompt.ask(image):null});
 }
 const {Auth}=require('./lib/auth.cjs');
+const {CaptchaPrompt}=require('./lib/captcha-prompt.cjs');
 const APP_VERSION=require('../package.json').version;
 // Preserve encrypted settings/accounts across the product display-name migration.
 const defaultUserData=app.getPath('userData');
@@ -56,7 +57,7 @@ function accountGuardian(id){if(!accountGuardians.has(id)){const http=makeContro
 function syncGuardian(){if(multiAccount&&store.activeAccountId)guardian=accountGuardian(store.activeAccountId);}
 function observeTraffic(){if(multiAccount&&traffic&&tunnel)traffic.observe(tunnel.up,tunnel.down);}
 async function refreshAccount(id){const data=await accountCoordinator.refresh(id);if(store.activeAccountId===id)quota=store.activeAccount?.quota||null;emit();return data;}
-function beginLogin(){loginAccountId=null;const http=makeControl(),sink={auth:null,setAuth(auth){if(!auth)return;loginAccountId=store.addAccount(auth,connection==='disconnected');this.auth=auth;}};loginGuardian=new Guardian(http,new Auth(http,sink));return loginGuardian.auth;}
+function beginLogin(){loginAccountId=null;const http=makeControl({interactive:true}),sink={auth:null,setAuth(auth){if(!auth)return;loginAccountId=store.addAccount(auth,connection==='disconnected');this.auth=auth;}};loginGuardian=new Guardian(http,new Auth(http,sink));return loginGuardian.auth;}
 function completeLogin(result){if(loginAccountId){syncGuardian();if(connection==='disconnected')quota=store.activeAccount?.quota||null;const id=loginAccountId;loginGuardian=null;loginAccountId=null;if(store.activeAccountId!==id)void refreshAccount(id).catch(()=>{});}return result;}
 let macEngine;
 let window,tray,trayPopup,store,guardian,tunnel,pendingTunnel,engine,passRenewer,recoveryController,busy=false,quitting=false,generation=0;
@@ -68,7 +69,7 @@ function log(level,message) {
   const entry={time:new Date().toISOString(),level,message:String(message).slice(0,1000)};
   logs.push(entry);if(logs.length>1000)logs.shift();emit();
 }
-function state() {observeTraffic();return {...(multiAccount?{accounts:store.publicAccounts(),activeAccountId:store.activeAccountId,accountPreferences:store.accountPreferences,totalTraffic:traffic?.snapshot(),sessionDuration:traffic?.session.duration||0}:{}),version:APP_VERSION,platform:process.platform,settings:store.publicSettings(),signedIn:!!store.auth,email:store.auth?.email || '',servers,latencies,pinging,pingingIds:[...pingingIds],activeServer:connection==='connected'?tunnel?.candidate:null,logs,connection,startedAt,exit,quota,protocol:connection==='connected'?(tunnel?.protocol||'h2'):null,lastError,up:multiAccount?traffic?.session.up||0:tunnel?.up||0,down:multiAccount?traffic?.session.down||0:tunnel?.down||0,systemDark:nativeTheme.shouldUseDarkColors,busy};}
+function state() {observeTraffic();return {...(multiAccount?{accounts:store.publicAccounts(),activeAccountId:store.activeAccountId,accountPreferences:store.accountPreferences,totalTraffic:traffic?.snapshot(),sessionDuration:traffic?.session.duration||0}:{}),version:APP_VERSION,platform:process.platform,settings:store.publicSettings(),signedIn:!!store.auth,email:store.auth?.email || '',servers,latencies,pinging,pingingIds:[...pingingIds],activeServer:connection==='connected'?tunnel?.candidate:null,logs,connection,startedAt,exit,quota,protocol:connection==='connected'?(tunnel?.protocol||'h2'):null,lastError,up:multiAccount?traffic?.session.up||0:tunnel?.up||0,down:multiAccount?traffic?.session.down||0:tunnel?.down||0,systemDark:nativeTheme.shouldUseDarkColors,signinCaptcha:captchaPrompt?.image||null,busy};}
 function emit() {if(quitting)return;if(store&&nativeTheme.themeSource!==store.settings.theme)nativeTheme.themeSource=store.settings.theme;if(window&&!window.isDestroyed())window.webContents.send('fox:state',state());trayPopup?.update();}
 function trayState(){
   const server=tunnel?.candidate;
@@ -281,8 +282,8 @@ else {
   app.on('second-instance',()=>{showWindow();});
   app.whenReady().then(()=>{
     if(mac)Menu.setApplicationMenu(Menu.buildFromTemplate([{label:'Predator VPN',submenu:[{role:'about'},{type:'separator'},{role:'hide'},{role:'hideOthers'},{role:'unhide'},{type:'separator'},{role:'quit'}]},{label:'File',submenu:[{label:'Close Window',accelerator:'Command+W',click:()=>{if(window&&!window.isDestroyed())window.close();}}]},{role:'editMenu'},{role:'windowMenu'}]));
-    store=new Store(app.getPath('userData'),safeStorage);servers=store.servers;if(multiAccount){traffic=new TrafficLedger(store.traffic,value=>store.setTraffic(value));accountCoordinator=new AccountCoordinator(store,accountGuardian);quota=store.activeAccount?.quota||null;}
-    const control=makeControl();guardian=new Guardian(control,new Auth(control,store));
+    store=new Store(app.getPath('userData'),safeStorage);captchaPrompt=new CaptchaPrompt(()=>emit());servers=store.servers;if(multiAccount){traffic=new TrafficLedger(store.traffic,value=>store.setTraffic(value));accountCoordinator=new AccountCoordinator(store,accountGuardian);quota=store.activeAccount?.quota||null;}
+    const control=makeControl({interactive:true});guardian=new Guardian(control,new Auth(control,store));
     const updates=new Updates({version:APP_VERSION,target:updateTarget(process.platform,process.arch,app.getPath('exe')),fetch:(...args)=>electronNet.fetch(...args),cacheFile:path.join(app.getPath('userData'),'release-cache.json')});
     syncGuardian();createWindow();tray=new Tray(mac||linux?nativeImage.createFromPath(icon).resize({width:22,height:22}):icon);tray.setToolTip('Predator VPN');
     trayPopup=new TrayPopup({state:trayState,command:trayCommand,bounds:()=>{const bounds=tray.getBounds();if(mac)return bounds;const point=screen.getCursorScreenPoint();return point.x>=bounds.x-8&&point.x<=bounds.x+bounds.width+8&&point.y>=bounds.y-8&&point.y<=bounds.y+bounds.height+8?bounds:{...point,width:0,height:0};}});
@@ -294,6 +295,8 @@ else {
     handle('ackReleaseNotes',()=>releaseNotes.acknowledge());
     handle('downloadUpdate',async()=>{const update=await updates.check();if(!update.available)throw Error('No newer update is available.');await shell.openExternal(update.url);});
     handle('login',async({email,password})=>{if(busy)throw Error('An operation is already running.');busy=true;emit();try{return multiAccount?completeLogin(await beginLogin().login(email,password)):await guardian.auth.login(email,password);}finally{busy=false;emit();}});
+    handle('answerCaptcha',answer=>captchaPrompt.submit(answer));
+    handle('cancelCaptcha',()=>captchaPrompt.cancel());
     handle('verify',async code=>{if(busy)throw Error('An operation is already running.');busy=true;emit();try{if(multiAccount&&!loginGuardian)throw Error('Start account sign-in again.');return multiAccount?completeLogin(await loginGuardian.auth.verify(code)):await guardian.auth.verify(code);}finally{busy=false;emit();}});
     handle('logout',async()=>{if(busy)throw Error('Wait for the current operation to finish.');await disconnect();if(multiAccount){if(store.activeAccountId)store.removeAccount(store.activeAccountId);syncGuardian();}else{store.setAuth(null);guardian.auth.pending=null;}quota=multiAccount?store.activeAccount?.quota||null:null;emit();});
     handle('servers',refreshServers);
@@ -316,7 +319,7 @@ else {
     });
     handle('account',()=>multiAccount?refreshAccount(store.activeAccountId):guardian.account());
     if(multiAccount){
-      handle('cancelAccountLogin',()=>{if(loginGuardian)loginGuardian.auth.pending=null;loginGuardian=null;loginAccountId=null;});
+      handle('cancelAccountLogin',()=>{captchaPrompt?.cancel();loginGuardian?.auth.cancel();loginGuardian=null;loginAccountId=null;});
       handle('accountPreferences',auto=>{store.setAccountPreferences(auto);emit();});
       handle('selectAccount',async id=>{if(busy)throw Error('Wait for the current operation.');const chosen=store.accounts.find(a=>a.id===id);if(!chosen?.auth)throw Error('Sign in to this account again.');busy=true;emit();try{const reconnect=connection==='connected';if(connection!=='disconnected')await disconnect();store.selectAccount(id);syncGuardian();quota=store.activeAccount?.quota||null;if(reconnect)await connect();}finally{busy=false;emit();}});
       handle('removeAccount',async id=>{if(busy)throw Error('Wait for the current operation.');if(id===store.activeAccountId&&connection!=='disconnected')throw Error('Disconnect before removing the active account.');store.removeAccount(id);accountGuardians.delete(id);syncGuardian();quota=store.activeAccount?.quota||null;emit();});
@@ -342,6 +345,7 @@ else {
   });
   app.on('before-quit',event=>{
     event.preventDefault();if(quitting)return;quitting=true;
+    captchaPrompt?.cancel();loginGuardian?.auth.cancel();
     let finished=false;
     const finish=()=>{if(finished)return;finished=true;clearTimeout(deadline);try{trayPopup?.destroy();}catch{}trayPopup=null;try{if(tray&&!tray.isDestroyed())tray.destroy();}catch{}tray=null;app.exit(0);};
     // A second quit cycle can be cancelled by a window; exit once cleanup has

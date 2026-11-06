@@ -52,10 +52,9 @@ owner acceptance testing.
   when the API explicitly returns errno 107.
 - Normalize Persian/Arabic digits and invisible separators in manually
   entered verification codes.
-- Hide the unsuitable hosted browser-login option for this FPN flow;
-  it uses a different product's authentication endpoint and had
-  caused an unproductive browser-callback wait. Preserve the direct
-  existing-account FxA flow.
+- Completely remove the incompatible hosted browser-login flow, its local
+  callback server, public renderer and IPC channels, and outdated screenshot.
+  Preserve the in-app account sign-in and existing encrypted account records.
 - Preserve all user credentials and active VPN tunnel state.
 
 ## Regression and boundaries
@@ -70,3 +69,28 @@ owner acceptance testing.
 
 Historical reference to a provider's account API in code and developer
 documentation is a technical integration detail, not Predator branding.
+
+## In-app sign-in parity work
+
+The account UI supports email and password, provider-confirmed email code,
+TOTP, legacy email confirmation link, provider 'unusual sign-in' unblock
+code (errno 125), canonical account email casing (errno 120), and a bounded
+human-solved image CAPTCHA when the provider actually supplies one.
+All verification prompts are presented in Predator VPN, not in an external
+browser. Access and refresh tokens remain OS-encrypted; the password is never
+written to disk and an unblock-code pending password is kept only in memory
+for up to 15 minutes. Completed sign-in attempts destroy the short-lived
+provider session on a best-effort basis. Already-consumed OTPs are not
+replayed after network or token issuance errors.
+
+This is independent implementation of the supported interaction stages
+described in the Arman documentation, not an unrestricted clone. Arman's
+browser/TLS impersonation, automatic storage of account passwords, and
+device identity impersonation are not adopted.
+
+**Verification status:** tests use fixtures and synthetic accounts. A
+successful authorized real-world sign-in, account entitlement, and stable
+VPN traffic still require user acceptance testing. A provider-side
+anti-abuse decision, unsupported OAuth client, denied access scope or
+unavailable challenge cannot be remedied by rewriting the renderer.
+Do not claim such conditions are solved unless the provider accepts them.

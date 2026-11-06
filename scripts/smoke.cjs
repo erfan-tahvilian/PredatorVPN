@@ -121,6 +121,16 @@ app.whenReady().then(async()=>{
     await win.webContents.executeJavaScript(`navigate('account');render(currentState)`);
     assert(await win.webContents.executeJavaScript(`!document.getElementById('browser-signin')`),'Browser login form must be fully removed');
     assert(await win.webContents.executeJavaScript(`!document.getElementById('login-form').hidden`),'FxA email/password sign-in is the supported account flow');
+    await win.webContents.executeJavaScript(`configureVerification('unblock-code')`);
+    assert(await win.webContents.executeJavaScript(`/unblock code/i.test(document.getElementById('code-instructions').textContent)&&!document.getElementById('code-form').hidden`),'Unblock code must be collected in the in-app form');
+    await win.webContents.executeJavaScript(`configureVerification('totp-2fa')`);
+    assert(await win.webContents.executeJavaScript(`/authenticator/i.test(document.getElementById('code-instructions').textContent)`),'TOTP must use the same in-app verifier');
+    await win.webContents.executeJavaScript(`configureVerification('email')`);
+    assert(await win.webContents.executeJavaScript(`document.getElementById('code-label').hidden&&document.getElementById('verify-button').textContent.includes('confirmed')`),'Email-link legacy fallback must not request a nonexistent code');
+    await win.webContents.executeJavaScript(`needsCode=false;const original=currentState;render({...original,signinCaptcha:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/hFsAAAAASUVORK5CYII='});window.originalLoginState=original;`);
+    assert(await win.webContents.executeJavaScript(`!document.getElementById('captcha-form').hidden&&document.getElementById('login-form').hidden`),'Human CAPTCHA must appear in-app without an external browser');
+    await win.webContents.executeJavaScript(`render(window.originalLoginState)`);
+
     await win.webContents.executeJavaScript(`document.getElementById('email').value='fixture@example.invalid';document.getElementById('password').value='fixture-test-only';document.getElementById('login-button').click();new Promise(r=>setTimeout(r,180))`);
     assert.equal(await win.webContents.executeJavaScript(`currentState.signedIn`),true,'The visible email/password form must invoke the account IPC action');
     assert.equal(await win.webContents.executeJavaScript(`document.getElementById('password').value`),'','Sign-in password must be cleared immediately');

@@ -115,7 +115,12 @@ function render(s) {
   $('account-name').textContent=s.signedIn?s.email.split('@')[0]:'Sign in';
   document.querySelector('#account-shortcut .avatar').textContent=s.signedIn?(Array.from((s.email||'').trim())[0]?.toUpperCase()||'?'):'P';
   $('signin-panel').hidden=s.signedIn;$('signedin-panel').hidden=!s.signedIn;$('signedin-email').textContent=s.email;
-  $('login-form').hidden=needsCode;$('code-form').hidden=!needsCode;
+  const captchaActive=!!s.signinCaptcha;
+   $('login-form').hidden=needsCode||captchaActive;
+   $('code-form').hidden=!needsCode||captchaActive;
+   $('captcha-form').hidden=!captchaActive;
+   if(captchaActive&&$('captcha-image').getAttribute('src')!==s.signinCaptcha)$('captcha-image').src=s.signinCaptcha;
+   if(!captchaActive)$('captcha-image').removeAttribute('src');
   $('login-button').disabled=s.busy;renderAccountManager(s);
   $('home-info').textContent=s.lastError||(s.signedIn?(s.quota?.remaining?`${bytes(s.quota.remaining)} remaining in your current service allowance.`:'Your service account is ready. Choose a location and connect.'):'Sign in with your service account to get started.');
   $('settings-notice').textContent=s.connection==='disconnected'?'Credentials are encrypted on this device.':'Disconnect before saving network preferences.';
@@ -235,9 +240,46 @@ $('server-search').addEventListener('input',renderServers);
 $('server-sort').addEventListener('change',renderServers);
 $('recommended').addEventListener('click',action(async()=>{await call('select','REC');navigate('home');}));
 $('verify-exit').addEventListener('click',action(async()=>{const result=await call('exit');toast(`Exit verified · ${result.ip} · ${result.country}`);}));
-$('login-form').addEventListener('submit',action(async e=>{e.preventDefault();const email=$('email').value.trim(),password=$('password').value;$('password').value='';const result=await call('login',{email,password});needsCode=result.needsCode;if(!needsCode&&hasAccountManager())addingAccount=false;render(await call('state'));if(needsCode){const totp=result.verificationMethod==='totp-2fa';$('code').placeholder=totp?'Code from your authenticator app':'Code from your email';$('code').value='';$('code').focus();toast(totp?'Enter the code from your authenticator app.':'Enter the verification code sent to your service account email.');}else{toast('Signed in successfully.');navigate(hasAccountManager()?'account':'home');}}));
-$('code-form').addEventListener('submit',action(async e=>{e.preventDefault();await call('verify',$('code').value.trim());$('code').value='';needsCode=false;addingAccount=false;render(await call('state'));toast('Your account is ready.');navigate(hasAccountManager()?'account':'home');}));
-$('restart-login').addEventListener('click',()=>{needsCode=false;render(currentState);});
+function configureVerification(method){
+  needsCode=true;
+  const isUnblock=method==='unblock-code',isTotp=method==='totp-2fa',isLink=method==='email';
+  $('code-label').hidden=isLink;
+  $('code').required=!isLink;$('code').disabled=isLink;$('code').value='';
+  $('code').placeholder=isUnblock?'Unblock code from email':isTotp?'Code from authenticator app':'Code from email';
+  $('code-instructions').textContent=isUnblock?'The account provider flagged this sign-in and emailed an unblock code. Enter that code to continue.':isTotp?'Enter the current code from your authenticator app.':isLink?'Open the confirmation link emailed by the provider, then return here.':'Enter the verification code sent to your email.';
+  $('verify-button').textContent=isLink?'I confirmed my email':'Verify and continue';
+  render(currentState);
+  if(!isLink)$('code').focus();
+}
+$('login-form').addEventListener('submit',action(async e=>{
+  e.preventDefault();
+  const email=$('email').value.trim(),password=$('password').value;
+  $('password').value='';
+  const result=await call('login',{email,password});
+  if(result.needsCode){configureVerification(result.verificationMethod);return;}
+  needsCode=false;addingAccount=false;render(await call('state'));
+  toast('Your account is ready.');navigate(hasAccountManager()?'account':'home');
+}));
+$('code-form').addEventListener('submit',action(async e=>{
+  e.preventDefault();
+  const result=await call('verify',$('code').value);
+  $('code').value='';
+  if(result.needsCode){configureVerification(result.verificationMethod);return;}
+  needsCode=false;addingAccount=false;render(await call('state'));
+  toast('Your account is ready.');navigate(hasAccountManager()?'account':'home');
+}));
+$('captcha-form').addEventListener('submit',action(async e=>{
+  e.preventDefault();
+  await call('answerCaptcha',$('captcha-answer').value);
+  $('captcha-answer').value='';
+}));
+$('cancel-captcha').addEventListener('click',action(async()=>{
+  await call('cancelCaptcha');$('captcha-answer').value='';
+}));
+$('restart-login').addEventListener('click',action(async()=>{
+  if(hasAccountManager())await call('cancelAccountLogin');
+  needsCode=false;$('code').value='';render(currentState);
+}));
 $('logout').addEventListener('click',action(async()=>{await call('logout');needsCode=false;$('account-stats').textContent='Refresh to view your account details and data allowance.';toast('Signed out.');}));
 function accountInfo(data) {
   allowanceData={limit:data.quotaLimit!=null&&String(data.quotaLimit).trim()!==''?data.quotaLimit:data.maxBytes,remaining:data.quotaRemaining,reset:data.quotaReset??allowanceData?.reset,unlimited:data.limited_bandwidth===false};
