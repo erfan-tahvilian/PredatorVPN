@@ -12,7 +12,7 @@ function solvePow(base, hash) {
   throw Error('Unable to complete the server proof-of-work challenge.');
 }
 class Control {
-  constructor({transport = (...args)=>fetch(...args)} = {}) { this.cookies = new Map(); this.transport=transport; }
+  constructor({transport = (...args)=>fetch(...args),captchaSolver=null} = {}) { this.cookies = new Map(); this.transport=transport;this.captchaSolver=captchaSolver; }
   async fetch(url, options = {}) {
     const u = new URL(url);
     const cookies = [...this.cookies.values()].filter(c => u.hostname === c.domain || u.hostname.endsWith('.'+c.domain)).map(c => c.pair).join('; ');
@@ -46,7 +46,7 @@ class Control {
       }
       try{await this.challenge();}
       catch(cause){
-        const error=Error('The account service requires verification, but its browser challenge could not be completed. Check the account provider page or network and retry.');
+        const error=Error('The account provider verification could not be completed. Check your network or the verification message and retry.');
         error.code='ACCOUNT_PROVIDER_CHALLENGE_FAILED';error.status=406;error.cause=cause;
         throw error;
       }
@@ -68,7 +68,7 @@ class Control {
     this.verifying = (async()=>{
       // A previous clearance can hide the challenge page even when the API
       // rejects that clearance. Keep the main session while verifying afresh.
-      const solver = new Control({transport:this.transport});
+      const solver = new Control({transport:this.transport,captchaSolver:this.captchaSolver});
       await solver.solveChallenge();
       for (const [key,cookie] of solver.cookies) this.cookies.set(key,cookie);
     })();
@@ -93,7 +93,12 @@ class Control {
             const r = await this.fetch(`${root}/pat?token=${encodeURIComponent(token)}`, {method:'POST', headers:{...headers,Origin:base,'Content-Type':'application/json'}});
             answers.push({ty:'pat', auth:[400,401].includes(r.status) ? '' : (await r.json()).auth});
           } else if(c.ty==='clientmetrics') answers.push({ty:'clientmetrics', webdriver:false, bot_detection_result:{bot_detected:false,bot_kind:null},browser_metrics:{client_data:'{}',error_trace:null},detector_results:{},v:2});
-          else throw Error('The service requires an interactive challenge. Try signing in again later.');
+          else if(c.ty==='captcha') {
+            if(!this.captchaSolver)throw Error('The account provider requires a human CAPTCHA response. Sign in again from the account screen.');
+            const image=c.data?.image_b64;
+            const answer=await this.captchaSolver(image);
+            answers.push({ty:'captcha',answer});
+          } else throw Error('The service requires an unsupported verification step.');
         }
         const r = await this.fetch(root+'/fst-post-back', {method:'POST', headers:{...headers,Origin:base,'Content-Type':'application/json'},body:JSON.stringify({token,data:answers})});
         if(!r.ok) throw Error('Service verification failed.');

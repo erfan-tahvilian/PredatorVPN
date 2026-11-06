@@ -117,7 +117,7 @@ test('a provider-hosted browser Guardian session is returned unchanged without F
  const store={auth:{email:'test@example.invalid',provider:'guardian-browser',access_token:guardianToken},setAuth(){throw Error('Browser session must not be overwritten');}};
  const auth=new Auth({async json(){throw Error('Firefox token API is not used for browser Guardian sessions');}},store);
  assert.equal(await auth.token(),guardianToken);
- await assert.rejects(auth.token(true),/sign in again using your browser/);
+ await assert.rejects(auth.token(true),/Sign in again using email and password/);
  assert.equal(store.auth.access_token,guardianToken);
 });
 test('FxA email-case error retries using provider canonical case',async()=>{
