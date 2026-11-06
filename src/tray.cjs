@@ -3,7 +3,7 @@
 const {BrowserWindow,ipcMain,screen}=require('electron');
 const path=require('node:path');
 function bindTrayActions(tray,popup,open,onError,platform=process.platform){
-  const menu=()=>popup.show().catch(onError);
+  const menu=()=>popup.toggle().catch(onError);
   const show=()=>{popup.hide();open();};
   tray.on('right-click',menu);
   tray.on('click',event=>{if(platform==='darwin'&&event?.ctrlKey){menu();return;}if(event?.button!==undefined&&event.button!==0)return;show();});
@@ -18,6 +18,16 @@ class TrayPopup {
       if(!['open','toggle','quit','dismiss'].includes(action))throw Error('Unsupported tray action');
       this.hide();if(action!=='dismiss')await this.command(action);
     });
+  }
+  toggle() {
+    // A tray right-click can blur the popup before its native right-click event
+    // is delivered. That click should close it, not reopen it.
+    if(this.window&&!this.window.isDestroyed()&&this.window.isVisible()){
+      this.hide('toggle');return Promise.resolve();
+    }
+    if(this.showing){this.hide('toggle');return Promise.resolve();}
+    if(this.lastHideReason==='blur'&&Date.now()-this.lastBlurAt<450)return Promise.resolve();
+    return this.show();
   }
   show() {
     // Idempotent right-click: never hide/re-open an already visible context menu.
@@ -36,7 +46,7 @@ class TrayPopup {
       this.window=new BrowserWindow({width:306,height:244,show:false,frame:false,transparent:true,resizable:false,movable:false,alwaysOnTop:true,skipTaskbar:true,hasShadow:true,roundedCorners:true,webPreferences:{preload:path.join(__dirname,'tray-preload.cjs'),sandbox:true,nodeIntegration:false,contextIsolation:true,backgroundThrottling:false}});
       this.window.webContents.setWindowOpenHandler(()=>({action:'deny'}));
       this.window.webContents.on('will-navigate',event=>event.preventDefault());
-      this.window.on('blur',()=>this.hide());
+      this.window.on('blur',()=>{if(this.window?.isVisible())this.hide('blur');});
       this.ready=this.window.loadFile(path.join(__dirname,'ui/tray.html'));
     }
     await this.ready;
@@ -55,7 +65,13 @@ class TrayPopup {
     this.window.show();this.window.focus();
   }
   update(){if(this.window&&!this.window.isDestroyed())this.window.webContents.send('fox:tray-state',this.state());}
-  hide(){this.epoch=(this.epoch||0)+1;if(this.window&&!this.window.isDestroyed())this.window.hide();}
+  hide(reason='manual'){
+    const visible=!!(this.window&&!this.window.isDestroyed()&&this.window.isVisible());
+    if(reason==='blur'&&visible)this.lastBlurAt=Date.now();
+    this.lastHideReason=reason;
+    this.epoch=(this.epoch||0)+1;
+    if(this.window&&!this.window.isDestroyed())this.window.hide();
+  }
   destroy(){this.epoch=(this.epoch||0)+1;ipcMain.removeHandler('fox:tray');if(this.window&&!this.window.isDestroyed())this.window.destroy();this.window=null;}
 }
 module.exports={TrayPopup,bindTrayActions};

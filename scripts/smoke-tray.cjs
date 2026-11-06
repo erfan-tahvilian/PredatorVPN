@@ -18,7 +18,13 @@ app.whenReady().then(async()=>{
     const intermediate=[];popup.window.on('resize',()=>{if(popup.window.isVisible())intermediate.push(popup.window.getBounds());});
     const previousEpoch=popup.epoch;
     await popup.show();assert.equal(popup.epoch,previousEpoch,'Right-click on an open tray must not reopen or replay its animation');
-    assert.equal(intermediate.length,0,'Repeated click must not resize or flicker the menu');
+    assert.equal(intermediate.length,0,'Repeated show must not resize or flicker the menu');
+    await popup.toggle();assert.equal(popup.window.isVisible(),false,'Second native right-click must close menu');
+    await popup.toggle();assert.equal(popup.window.isVisible(),true,'Third native right-click must reopen menu');
+    popup.hide('blur');
+    await popup.toggle();assert.equal(popup.window.isVisible(),false,'Right-click after popup blur must not reopen the dismissed menu');
+    popup.lastBlurAt-=1000;
+    await popup.toggle();assert.equal(popup.window.isVisible(),true,'Later right-click must open normally after blur suppression expires');
     const js=code=>popup.window.webContents.executeJavaScript(code);
     assert.equal(await js(`document.getElementById('toggle-label').textContent`),'Connect');
     assert.equal(await js(`document.body.dataset.accent`),'gold');
