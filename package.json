@@ -66,6 +66,7 @@
       ]
     },
     "nsis": {
+      "perMachine": true,
       "installerLanguages": [
         "en_US"
       ],
