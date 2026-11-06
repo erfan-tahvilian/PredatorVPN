@@ -26,7 +26,8 @@ function makeControl({interactive=false}={}){
   return new Control({transport,captchaSolver:interactive?image=>captchaPrompt.ask(image):null});
 }
 const {Auth}=require('./lib/auth.cjs');
-const {readProviderRegistration,createAuthorization,redirectResult,signInNavigationAllowed,exchangeAuthorization,readAuthorizedProfile}=require('./lib/provider-browser-auth.cjs');
+const {readProviderRegistration,createAuthorization,redirectResult,signInNavigationAllowed}=require('./lib/provider-browser-auth.cjs');
+const {completeBrowserOAuth}=require('./lib/oauth-browser-completion.cjs');
 const {CaptchaPrompt}=require('./lib/captcha-prompt.cjs');
 const APP_VERSION=require('../package.json').version;
 // Adopt the new product name for all new Electron profile directories.
@@ -114,15 +115,15 @@ async function signInViaProviderBrowser(){
       popup.loadURL(flow.url).catch(()=>finish(Error('The provider sign-in page could not be loaded.')));
     });
     if(providerBrowserAttempt!==attempt)throw Error('Browser sign-in was cancelled.');
-    const token=await exchangeAuthorization((...args)=>electronNet.fetch(...args),registration,flow,code);
-    if(providerBrowserAttempt!==attempt)throw Error('Browser sign-in was cancelled.');
-    const email=await readAuthorizedProfile((...args)=>electronNet.fetch(...args),token.access_token);
-    if(providerBrowserAttempt!==attempt)throw Error('Browser sign-in was cancelled.');
-    // Account is not considered logged in until an actual FPN pass is issued.
-    const entitlement=new Guardian(makeControl(),{token:async()=>token.access_token});
-    await entitlement.pass();
-    if(providerBrowserAttempt!==attempt)throw Error('Browser sign-in was cancelled.');
-    const id=store.addAccount({...token,email,provider:'mozilla-registered-oidc',oauthClientId:registration.clientId,expiresAt:Date.now()+(token.expires_in||3600)*1000},connection==='disconnected');
+    const id=await completeBrowserOAuth({
+      fetcher:(...args)=>electronNet.fetch(...args),registration,flow,code,
+      active:()=>providerBrowserAttempt===attempt,
+      authorizeVpn:async accessToken=>{
+        const entitlement=new Guardian(makeControl(),{token:async()=>accessToken});
+        await entitlement.pass();
+      },
+      saveAccount:account=>store.addAccount(account,connection==='disconnected')
+    });
     syncGuardian();
     if(connection==='disconnected')quota=store.activeAccount?.quota||null;
     emit();
