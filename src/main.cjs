@@ -72,7 +72,7 @@ function completeLogin(result){if(loginAccountId){syncGuardian();if(connection==
 async function signInViaProviderBrowser(){
   if(busy||providerBrowserWindow)throw Error('Another account operation is already running.');
   const registration=readProviderRegistration(path.join(app.getPath('userData'),'mozilla-client-registration.json'));
-  if(!registration)throw Error('Browser sign-in requires Predator VPN OAuth registration with the account provider. No registered provider client is configured; using Firefox credentials or imitating its browser is not supported.');
+  if(!registration)throw Error('Browser sign-in is not configured: Mozilla requires a separately registered OAuth client ID and HTTPS callback for Predator VPN. The public Firefox Desktop client ID is for Firefox native WebChannel sign-in, not an independent app registration. Select Browser sign-in requirements for the provider instructions.');
   const attempt=++providerBrowserAttempt,flow=createAuthorization(registration);
   busy=true;emit();
   try{
@@ -417,7 +417,7 @@ else {
     handle('exit',async()=>{if(connection!=='connected')throw Error('Connect before verifying your connection.');const active=tunnel,epoch=generation;const result=await active.exit(store.settings.serverId==='REC'?null:active.candidate.code);if(tunnel!==active||epoch!==generation)throw Error('Connection changed while checking.');exit=result;emit();void refreshAddresses(active,epoch);return result;});
     handle('clearLogs',()=>{logs=[];emit();});
     handle('exportLogs',async()=>{const result=await dialog.showSaveDialog(window,{defaultPath:'PredatorVPN-diagnostics.txt',filters:[{name:'Text files',extensions:['txt']}]});if(!result.canceled)fs.writeFileSync(result.filePath,logs.map(l=>`${l.time} [${l.level}] ${l.message}`).join('\n'));});
-    handle('openLink',id=>{const urls={source:'https://github.com/erfan-tahvilian/PredatorVPN',license:'https://github.com/erfan-tahvilian/PredatorVPN/blob/main/LICENSE'};if(!urls[id])throw Error('Unknown link');return shell.openExternal(urls[id]);});
+    handle('openLink',id=>{const urls={source:'https://github.com/erfan-tahvilian/PredatorVPN',license:'https://github.com/erfan-tahvilian/PredatorVPN/blob/main/LICENSE',providerLoginHelp:'https://mozilla.github.io/ecosystem-platform/relying-parties/tutorials/integration-with-fxa'};if(!urls[id])throw Error('Unknown link');return shell.openExternal(urls[id]);});
     nativeTheme.on('updated',emit);setInterval(()=>{if(multiAccount&&traffic){observeTraffic();try{traffic.checkpoint();trafficSaveWarning=false;}catch{if(!trafficSaveWarning){logs.push({time:new Date().toISOString(),level:'warn',message:'Traffic statistics could not be saved.'});trafficSaveWarning=true;}}}emit();},1000).unref();
     if(store.loadError)log('warn',store.loadError);
     refreshServers().catch(()=>log('warn','Locations could not be refreshed. Saved locations remain available; try Refresh again later.'));

@@ -30,7 +30,8 @@ async function run(){
     const noAuth=await win.webContents.executeJavaScript(`window.fox.call('account')`);assert.equal(noAuth.ok,false);
     const browserStatus=await win.webContents.executeJavaScript(`window.fox.call('browserLogin')`);
     assert.equal(browserStatus.ok,false,'Missing registered-provider credentials must fail closed');
-    assert(/OAuth registration|registered provider/.test(browserStatus.error),'Missing registration must be reported clearly');
+    assert(/registered OAuth client ID|OAuth registration/.test(browserStatus.error),'Missing registration must be reported clearly');
+    assert(/Firefox Desktop client ID/.test(browserStatus.error),'Native client identifiers must not be represented as independently registered clients');
     assert.equal(BrowserWindow.getAllWindows().length,1,'No provider window should launch without an approved client');
     const unknown=await win.webContents.executeJavaScript(`window.fox.call('openLink','not-allowed')`);assert.equal(unknown.ok,false);
     fs.writeFileSync('test-results/main-smoke-status.txt','PASS: real main process, sandboxed preload IPC, OS-encrypted vault, settings rejection, signed-out behavior and URL allowlist');
