@@ -70,3 +70,11 @@ In addition to a provider-issued client ID, the provider must authorize the VPN-
 7. Windows and Android authenticate independently with correctly registered redirects for their platforms.
 
 Never put user passwords, session keys, bearer tokens, or OAuth authorization codes into issue reports or public logs.
+
+## Follow-up: browser did not return after hosted sign-in (November 6, 2026)
+
+The owner's browser appeared to complete a sign-in but Predator VPN received no callback. This does not establish that the Mozilla VPN hosted flow can authenticate an FPN proxy account. The callback handoff is now instrumented separately from the final entitlement check.
+
+The local callback receiver previously bound to IPv4 `127.0.0.1` only and rejected `localhost` or IPv6 `[::1]` Host values. The revised listener binds **both IPv4 127.0.0.1 and IPv6 ::1** on a single ephemeral port when supported, accepts either loopback Host value, and rejects non-loopback origins, unrecognized paths and invalid codes. The callback page does not expose the code. Upon receipt the desktop window is brought forward and displays the actual stage of sign-in. The UI reports waiting, code received, provider verification and entitlement checking; when no callback arrives within eight minutes, it shows an explicit timeout instead of silently hanging.
+
+The tests use only synthetic authorization codes and tokens. They pass for localhost/loopback callbacks, PKCE verification, cancellation and timeout; **real provider completion and FPN entitlement remain unverified**. Do not claim login is fixed by the new callback path alone. If provider-side policy, account type or authorization redirect prevents a code from being returned, the supported remedy requires provider cooperation or a correctly registered client.

@@ -80,7 +80,25 @@ async function refreshAllowance(announce){
 $('refresh-allowance').addEventListener('click',()=>refreshAllowance(true));
 $('allowance-account').addEventListener('click',()=>navigate('account'));
 function render(s) {
-  currentState=s;applyTheme(s);if($('browser-signin'))$('browser-signin').hidden=s.platform==='android';renderAllowance(s);updateConnectionHealth(s);renderRecentEvents(s);$('transport-field').hidden=!['win32','darwin','linux','android'].includes(s.platform);document.querySelector('#transport option[value=auto]').textContent='Automatic · Compare HTTP/3 and HTTP/2';$('protocol-name').textContent=s.connection==='connected'?(s.protocol==='h3'?'HTTP/3 over QUIC':'HTTP/2 over TLS'):'-';$('protocol-secure').hidden=s.connection!=='connected';
+  currentState=s;applyTheme(s);
+  if($('browser-signin'))$('browser-signin').hidden=s.platform==='android';
+  const authStatus=$('browser-login-status');
+  if(authStatus){
+    const messages={
+      'browser-opening':'Opening the provider sign-in page in your browser…',
+      'waiting-for-callback':'Waiting for the provider to return authorization to Predator VPN. Keep this window open; complete sign-in in the browser.',
+      'callback-received':'Authorization returned. Verifying it with the provider…',
+      'verifying-code':'Checking the provider authorization code…',
+      'provider-authorized':'Provider accepted your sign-in. Checking VPN service access…',
+      'checking-entitlement':'Checking whether this account can use the supported proxy service…',
+      'timeout':'No authorization callback arrived from the browser. Check the provider page, then retry.',
+      'failed':'Browser authorization was not completed. Review the displayed error and retry.',
+      'cancelled':'Browser sign-in cancelled. Your existing account remains unchanged.'
+    };
+    authStatus.hidden=!messages[s.browserAuthProgress];
+    authStatus.textContent=messages[s.browserAuthProgress]||'';
+  }
+  renderAllowance(s);updateConnectionHealth(s);renderRecentEvents(s);$('transport-field').hidden=!['win32','darwin','linux','android'].includes(s.platform);document.querySelector('#transport option[value=auto]').textContent='Automatic · Compare HTTP/3 and HTTP/2';$('protocol-name').textContent=s.connection==='connected'?(s.protocol==='h3'?'HTTP/3 over QUIC':'HTTP/2 over TLS'):'-';$('protocol-secure').hidden=s.connection!=='connected';
   if(!initialized){fillSettings(s.settings);initialized=true;}
   syncSelects();
   const connected=s.connection==='connected', transitional=['connecting','disconnecting'].includes(s.connection);

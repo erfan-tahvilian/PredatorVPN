@@ -121,6 +121,13 @@ app.whenReady().then(async()=>{
     await win.webContents.executeJavaScript(`navigate('account');document.getElementById('browser-login').click();new Promise(r=>setTimeout(r,180))`);
     assert.equal(await win.webContents.executeJavaScript(`currentState.signedIn`),true,'Browser sign-in button must invoke the provider-auth IPC action');
     assert.equal(await win.webContents.executeJavaScript(`document.getElementById('browser-login').disabled`),false,'Browser sign-in control must recover after login');
+    await win.webContents.executeJavaScript(`render({...currentState,browserAuthProgress:'waiting-for-callback'})`);
+    assert(await win.webContents.executeJavaScript(`!document.getElementById('browser-login-status').hidden && /Waiting for the provider/.test(document.getElementById('browser-login-status').textContent)`),'The app must show an actionable waiting state while browser authorization is pending');
+    await win.webContents.executeJavaScript(`render({...currentState,browserAuthProgress:'callback-received'})`);
+    assert(await win.webContents.executeJavaScript(`/Authorization returned/.test(document.getElementById('browser-login-status').textContent)`),'Callback success must be visible in the desktop app');
+    await win.webContents.executeJavaScript(`render({...currentState,browserAuthProgress:'timeout'})`);
+    assert(await win.webContents.executeJavaScript(`/No authorization callback/.test(document.getElementById('browser-login-status').textContent)`),'Missing callbacks must be explained rather than leaving the user waiting indefinitely');
+    await win.webContents.executeJavaScript(`render({...currentState,browserAuthProgress:'idle'})`);
     await win.webContents.executeJavaScript(`document.querySelector('[data-page="locations"]').click(); document.querySelector('.server-choice').click(); new Promise(r=>setTimeout(r,100))`);
     await win.webContents.executeJavaScript(`window.fox.call('login',{});new Promise(r=>setTimeout(r,100))`);
     assert.equal(await win.webContents.executeJavaScript(`document.querySelector('.avatar').textContent`),'A');

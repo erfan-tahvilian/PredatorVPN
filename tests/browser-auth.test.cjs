@@ -54,3 +54,44 @@ test('browser sign-in rejects incomplete provider responses and never stores the
  await assert.rejects(auth.start(),/valid account session/);
  assert.equal(auth.pending,null);
 });
+
+test('callback host is accepted only on real loopback interfaces and intended localhost authorities',()=>{
+ const {isLocalCallback}=require('../src/lib/browser-auth.cjs');
+ const req=(ip,host,method='GET')=>({socket:{remoteAddress:ip},headers:{host},method});
+ assert(isLocalCallback(req('127.0.0.1','127.0.0.1:41234'),41234));
+ assert(isLocalCallback(req('127.0.0.1','localhost:41234'),41234));
+ assert(isLocalCallback(req('::1','[::1]:41234'),41234));
+ assert(isLocalCallback(req('::ffff:127.0.0.1','localhost:41234'),41234));
+ assert(!isLocalCallback(req('192.168.1.5','localhost:41234'),41234));
+ assert(!isLocalCallback(req('127.0.0.1','evil.example:41234'),41234));
+ assert(!isLocalCallback(req('127.0.0.1','localhost:41235'),41234));
+ assert(!isLocalCallback(req('127.0.0.1','localhost:41234','POST'),41234));
+});
+test('browser authorization reports each step and accepts localhost redirects',async()=>{
+ const stages=[];
+ const auth=new BrowserAuth({
+   onProgress:stage=>stages.push(stage),
+   openExternal:async value=>{
+     const port=Number(new URL(value).searchParams.get('port'));
+     const target='http://localhost:'+port+'/?code=valid-local-browser-code';
+     const response=await fetch(target);
+     assert.equal(response.status,200);
+   },
+   fetcher:async()=>
+     new Response(JSON.stringify({token:'valid-fixture-access-token',user:{email:'local@example.invalid'}}),{status:200})
+ });
+ await auth.start();
+ assert(stages.includes('waiting-for-callback'));
+ assert(stages.includes('callback-received'));
+ assert(stages.includes('verifying-code'));
+ assert(stages.includes('provider-authorized'));
+ assert(stages.indexOf('callback-received')>stages.indexOf('waiting-for-callback'));
+});
+test('missing browser callback times out clearly and cleans up the listener',async()=>{
+ let stages=[];
+ const auth=new BrowserAuth({timeoutMs:90,onProgress:stage=>stages.push(stage),
+   openExternal:async()=>{},fetcher:async()=>{throw Error('No callback should be exchanged');}});
+ await assert.rejects(auth.start(),/did not return a sign-in code/);
+ assert.equal(auth.pending,null);
+ assert(stages.includes('timeout'));
+});
