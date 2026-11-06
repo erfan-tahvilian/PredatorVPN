@@ -7,6 +7,7 @@ const PREFIX='identity.mozilla.com/picl/v1/';
 const CLIENT='5882386c6d801776'; // Legacy compatibility with existing accounts
 const SCOPE='profile https://identity.mozilla.com/apps/vpn';
 const UNBLOCK_TTL=15*60*1000;
+const SESSION_TOKEN_HEX=/^[a-f0-9]{64}$/i;
 function hkdf(input,info,length){return Buffer.from(crypto.hkdfSync('sha256',input,Buffer.alloc(32),info,length));}
 function authPW(email,password){
  return hkdf(crypto.pbkdf2Sync(password,PREFIX+'quickStretch:'+email,1000,32,'sha256'),PREFIX+'authPW',32).toString('hex');
@@ -33,6 +34,18 @@ class Auth {
   const url='https://api.accounts.firefox.com/v1'+path;
   const body=JSON.stringify(data);
   return (await this.http.json(url,{method:'POST',body,authorization:session?hawk('POST',url,session,body):undefined})).data;
+ }
+ async sessionVerified(sessionToken){
+  // Mozilla Accounts introduced prefixed Bearer tokens for authenticated
+  // routes; unlike legacy Hawk, no request signing or nonce is required.
+  // This call never exposes the short-lived session token to the renderer.
+  if(!SESSION_TOKEN_HEX.test(sessionToken||''))throw Error('The account provider returned an invalid session token.');
+  const url='https://api.accounts.firefox.com/v1/recovery_email/status';
+  const response=await this.http.json(url,{
+   method:'GET',authorization:'Bearer fxs_'+sessionToken
+  });
+  if(typeof response?.data?.verified!=='boolean')throw Error('The account provider returned an unexpected verification status.');
+  return response.data.verified;
  }
  async loginAttempt(email,password,originalEmail='',unblockCode=''){
   const fields={email,authPW:authPW(email,password),verificationMethod:'email-2fa'};
@@ -96,7 +109,11 @@ class Auth {
    }
    return this.startVerifiedSession(response,pending.email);
   }
-  if(pending.method==='email'){ // legacy email confirmation link
+  if(pending.method==='email'){ // confirmation link must be verified server-side
+   if(!await this.sessionVerified(pending.session)){
+    return {needsCode:true,verificationMethod:'email'};
+   }
+   pending.verified=true;
    return this.complete();
   }
   const code=normalizeCode(value);

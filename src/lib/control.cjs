@@ -61,7 +61,7 @@ class Control {
     return response;
   }
   async json(url, {method = 'GET', body, authorization} = {}) {
-    const options = {method,body,headers:{'Content-Type':'application/json', ...(authorization ? {Authorization:authorization}: {})}};
+    const options = {method,body,headers:{...(body===undefined?{}:{'Content-Type':'application/json'}), ...(authorization ? {Authorization:authorization}: {})}};
     let response = await this.fetch(url, options);
     // Fastly returns an EMPTY HTTP 406 from the account API while hosting its
     // interactive verification page on accounts.firefox.com. Checking only

@@ -124,3 +124,25 @@ the FPN service without HTTP 406. An external provider refusal or
 unsupported third-party client may require provider authorization.
 Do not report authentication as fixed on the basis of read-only
 network probes or successful fixture tests alone.
+
+## Session verification compatibility improvement (Windows preview, November 6)
+
+After comparing with Arman's session verification sequence, the client now
+checks `/v1/recovery_email/status` before exchanging a legacy email-link
+session for an OAuth token. The request uses Mozilla Accounts' documented
+prefixed Bearer session authentication (`fxs_`) and carries no request body.
+A response must explicitly contain `verified: true`; any other response
+leaves the account sign-in pending without discarding existing credentials.
+
+Automated coverage includes: still-unverified sessions, verified sessions,
+invalid tokens, malformed server responses and omitted Content-Type on GET.
+There are **no** credentials or tokens in diagnostics.
+
+**Not resolved:** the initial HTTP 406 account-login rejection. This patch
+cannot make an unregistered independent client a Firefox-native client; it
+does not replay WebChannel session tokens or automate the provider's anti-bot
+challenge. The user must validate any actual sign-in before a broader release.
+
+Official references:
+- https://mozilla.github.io/ecosystem-platform/reference/authentication-schemes
+- https://mozilla.github.io/ecosystem-platform/reference/tokens
