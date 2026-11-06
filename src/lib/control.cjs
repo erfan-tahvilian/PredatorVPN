@@ -5,6 +5,40 @@ const {parseChallengeInit} = require('./service-challenge.cjs');
 const UA = 'MozillaVPN/2.35.0 (sys:linux; iap:true)';
 const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 const ALPHABET = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+// Translate only locally classified provider verification failures. Never return
+// raw third-party challenge contents, cookies, tokens or URLs to the renderer.
+function describeVerificationFailure(cause) {
+  const stage=cause?.verificationStage;
+  const status=cause?.verificationStatus;
+  if(stage==='challenge-script' && Number.isInteger(status)) {
+    return {
+      code:'ACCOUNT_VERIFICATION_SCRIPT_REJECTED',
+      message:'The account provider refused its verification script (HTTP '+status+'). The account site is reachable, but the provider did not accept this verification session. Re-entering your password will not resolve this; try again later or contact the account provider.'
+    };
+  }
+  if(stage==='challenge-response' && Number.isInteger(status)) {
+    return {
+      code:'ACCOUNT_VERIFICATION_RESPONSE_REJECTED',
+      message:'The account provider rejected the verification response (HTTP '+status+'). No further password attempts were made. Please retry later or contact the account provider.'
+    };
+  }
+  if(stage==='challenge-discovery') {
+    return {
+      code:'ACCOUNT_VERIFICATION_UNAVAILABLE',
+      message:'The account provider did not offer a usable verification page. The login request was blocked by the provider (HTTP 406), before credentials could be checked.'
+    };
+  }
+  if(cause?.code==='ACCOUNT_NETWORK_INTERRUPTED' || cause?.name==='TimeoutError' || cause?.name==='AbortError') {
+    return {
+      code:'ACCOUNT_VERIFICATION_NETWORK_ERROR',
+      message:'The account provider verification request was interrupted or timed out. Please check the network connection and retry once.'
+    };
+  }
+  return {
+    code:'ACCOUNT_PROVIDER_CHALLENGE_FAILED',
+    message:'The account provider could not complete its verification step. This may be a provider policy or unsupported verification method; no password retry was attempted.'
+  };
+}
 function solvePow(base, hash) {
   for (const a of ALPHABET) for (const b of ALPHABET) {
     if (crypto.createHash('sha256').update(base+a+b).digest('hex') === hash) return a+b;
@@ -46,8 +80,9 @@ class Control {
       }
       try{await this.challenge();}
       catch(cause){
-        const error=Error('The account provider verification could not be completed. Check your network or the verification message and retry.');
-        error.code='ACCOUNT_PROVIDER_CHALLENGE_FAILED';error.status=406;error.cause=cause;
+        const detail=describeVerificationFailure(cause);
+        const error=Error(detail.message);
+        error.code=detail.code;error.status=406;error.cause=cause;
         throw error;
       }
       response=await this.fetch(url,options);
@@ -82,7 +117,7 @@ class Control {
       if (!prefix || !page.includes('Client Challenge')) continue;
       const root = base+prefix;
       const scriptResponse = await this.fetch(root+'/script.js?reload=true', {headers});
-      if (!scriptResponse.ok) { await scriptResponse.arrayBuffer(); throw Error(`Service verification could not load (HTTP ${scriptResponse.status}). Try again.`); }
+      if (!scriptResponse.ok) { await scriptResponse.arrayBuffer(); const error=Error(`Service verification could not load (HTTP ${scriptResponse.status}). Try again.`);error.verificationStage='challenge-script';error.verificationStatus=scriptResponse.status;throw error; }
       const script = await scriptResponse.text();
       let {challenges,token} = parseChallengeInit(script,prefix);
       for(let round=0; round<3; round++) {
@@ -101,14 +136,14 @@ class Control {
           } else throw Error('The service requires an unsupported verification step.');
         }
         const r = await this.fetch(root+'/fst-post-back', {method:'POST', headers:{...headers,Origin:base,'Content-Type':'application/json'},body:JSON.stringify({token,data:answers})});
-        if(!r.ok) throw Error('Service verification failed.');
+        if(!r.ok) {const error=Error('Service verification failed.');error.verificationStage='challenge-response';error.verificationStatus=r.status;throw error;}
         const data = await r.json();
         if(data.status==='success') return;
         challenges=data.ch; token=data.tok;
         if(!Array.isArray(challenges) || !token) throw Error('Service verification did not complete.');
       }
     }
-    throw Error('Could not complete service verification. Try again later.');
+    const error=Error('Provider verification page unavailable');error.verificationStage='challenge-discovery';throw error;
   }
 }
 function candidates(records) {
@@ -146,4 +181,4 @@ class Guardian {
     return data;
   }
 }
-module.exports = {Control, Guardian, candidates, solvePow};
+module.exports = {Control, Guardian, candidates, solvePow, describeVerificationFailure};

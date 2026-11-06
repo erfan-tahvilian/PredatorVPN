@@ -94,3 +94,33 @@ VPN traffic still require user acceptance testing. A provider-side
 anti-abuse decision, unsupported OAuth client, denied access scope or
 unavailable challenge cannot be remedied by rewriting the renderer.
 Do not claim such conditions are solved unless the provider accepts them.
+
+## November 6 follow-up: exact provider verification failure classification
+
+The owner still receives the generic account-provider verification message,
+despite in-app CAPTCHA, unblock code and email/TOTP support.
+
+Credential-free, **GET-only** diagnostics on BlackPredator showed:
+- \`api.accounts.firefox.com/\`: HTTP 200, JSON response.
+- \`accounts.firefox.com/\`: HTTP 200, a challenge page is offered.
+- Fetching its verification \`script.js?reload=true\` from the same
+  Node Control cookie jar (one cookie, never logged): HTTP **400**,
+  empty response. This does **not** prove the installed Chromium
+  transport fails identically and cannot identify the policy reason.
+- No user credentials, session tokens, challenge tokens, cookies,
+  CAPTCHA answers or private account data were used or stored.
+
+The prior code threw one generic message for all \`challenge()\` errors,
+concealing both the failing stage and HTTP status. The updated code
+classifies known locally generated errors, including rejected verification
+script, rejected challenge response, unavailable provider challenge,
+and interrupted network requests, without propagating remote bodies
+or sensitive values to the UI. No new anti-bot circumvention or
+credential replay logic was introduced.
+
+**Acceptance criterion still outstanding:** a real account must pass
+provider verification, receive authorized OAuth tokens, and access
+the FPN service without HTTP 406. An external provider refusal or
+unsupported third-party client may require provider authorization.
+Do not report authentication as fixed on the basis of read-only
+network probes or successful fixture tests alone.

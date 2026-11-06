@@ -166,3 +166,25 @@ test('email confirmation codes normalize Persian and Arabic digits before provid
  await auth.verify('۱۲۳ ٤٥٦\u200c');
  assert.equal(received,'123456');
 });
+
+test('provider HTTP 400 verification-script rejection is classified without leaking its response',async()=>{
+ const {Control,describeVerificationFailure}=require('../src/lib/control.cjs');
+ const detail=describeVerificationFailure({verificationStage:'challenge-script',verificationStatus:400,message:'secret-value'});
+ assert.equal(detail.code,'ACCOUNT_VERIFICATION_SCRIPT_REJECTED');
+ assert.match(detail.message,/HTTP 400/);
+ assert(!detail.message.includes('secret-value'));
+ const control=new Control({transport:async()=>new Response('',{status:406})});
+ control.challenge=async()=>{const e=Error('opaque-provider-response');e.verificationStage='challenge-script';e.verificationStatus=400;throw e;};
+ await assert.rejects(control.json('https://api.accounts.firefox.com/v1/account/login',{method:'POST',body:'{}'}),
+   error=>error.code==='ACCOUNT_VERIFICATION_SCRIPT_REJECTED'&&error.status===406
+     &&error.message.includes('HTTP 400')&&!error.message.includes('opaque-provider-response'));
+});
+test('verification failure diagnostics preserve provider boundaries and network errors',()=>{
+ const {describeVerificationFailure}=require('../src/lib/control.cjs');
+ assert.equal(describeVerificationFailure({verificationStage:'challenge-response',verificationStatus:403}).code,'ACCOUNT_VERIFICATION_RESPONSE_REJECTED');
+ assert.equal(describeVerificationFailure({verificationStage:'challenge-discovery'}).code,'ACCOUNT_VERIFICATION_UNAVAILABLE');
+ assert.equal(describeVerificationFailure({code:'ACCOUNT_NETWORK_INTERRUPTED'}).code,'ACCOUNT_VERIFICATION_NETWORK_ERROR');
+ const other=describeVerificationFailure({message:'secret account password'});
+ assert.equal(other.code,'ACCOUNT_PROVIDER_CHALLENGE_FAILED');
+ assert(!other.message.includes('secret account password'));
+});
