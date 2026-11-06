@@ -257,3 +257,17 @@ body.light input[type=checkbox].switch::after{transition:transform .16s ease!imp
 
 /* Android uses the same in-app account sign-in steps with mobile-first layout. */
 #signin-panel .legacy-login-heading{display:block!important}
+
+/* Readable latency without squeezing the mobile location name or tap targets.
+   On compact phones the latency status lives beneath the location actions. */
+@media(max-width:600px){
+  #home .destination-panel .server-selector{
+    display:grid;grid-template-columns:minmax(0,1fr) 42px 42px;
+    grid-template-rows:auto auto;column-gap:8px;row-gap:6px;
+    align-items:center;
+  }
+  #home .destination-panel .selected-location-choice{grid-column:1/-1;grid-row:1;min-width:0}
+  #home .destination-panel .server-ping{grid-column:2;grid-row:2}
+  #home .destination-panel .server-select{grid-column:3;grid-row:2}
+  #home .destination-panel .latency{grid-column:1;grid-row:2;justify-self:start;margin:0;min-width:62px}
+}

@@ -362,7 +362,7 @@ input[type=checkbox].switch:focus-visible{outline:2px solid var(--accent);outlin
  #home .network-card{padding:18px 18px 15px}
  #home .right-column{gap:11px}
  .destination-panel{padding:15px}
- .destination-panel .latency{display:none}
+ .destination-panel .latency{display:inline-flex;align-items:center;justify-content:center;min-width:62px}
  .settings-layout{grid-template-columns:145px minmax(0,1fr);gap:13px}
  .settings-sections{grid-template-columns:minmax(0,1fr)}
  #settings .settings-card,#settings #settings-appearance,#settings #split-tunneling,#settings #settings-license{grid-column:1/-1}

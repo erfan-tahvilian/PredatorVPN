@@ -69,3 +69,21 @@ main{padding:20px 16px 25px}
 .accent-choice{padding:9px 3px;min-height:70px}
 .accent-choice small{font-size:9px}
 #toast{bottom:calc(88px + env(safe-area-inset-bottom))}
+
+/* Keep the full selected location readable on compact Android widths.
+   The latency and actions share a second row rather than squashing the name. */
+@media(max-width:600px){
+  .server-selector .selected-location-choice{grid-column:1/-1;grid-row:1;min-width:0}
+  .server-selector #selected-latency{grid-column:1;grid-row:2;justify-self:start;margin:0}
+  .server-selector #ping-selected{grid-column:2;grid-row:2}
+  .server-selector #choose-location-arrow{grid-column:3;grid-row:2}
+}
+
+/* Explicitly beat desktop grid/flex selectors in the compact Android WebView. */
+@media(max-width:600px){
+ #home .destination-panel .server-selector{display:grid;grid-template-columns:minmax(0,1fr) 40px 32px;grid-template-rows:auto auto;column-gap:7px;row-gap:8px}
+ #home .destination-panel .server-selector .selected-location-choice{grid-column:1/-1;grid-row:1;min-width:0}
+ #home .destination-panel .server-selector #selected-latency{grid-column:1;grid-row:2;justify-self:start;margin:0}
+ #home .destination-panel .server-selector #ping-selected{grid-column:2;grid-row:2}
+ #home .destination-panel .server-selector #choose-location-arrow{grid-column:3;grid-row:2}
+}

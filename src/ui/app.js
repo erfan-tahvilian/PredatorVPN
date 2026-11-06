@@ -38,7 +38,7 @@ function locationLabel(server) {return [server?.country,locationCity(server)].fi
 function renderLatency(element,server,s) {
   const result=server?s.latencies?.[server.id]:null;
   const pending=server&&!result&&(s.pinging||(s.pingingIds||[]).includes(server.id));
-  element.className='latency';element.textContent=pending?'Checking…':result?(result.ms==null?(result.reason==='timeout'?'Timed out':'Unreachable'):`${result.ms} ms`):'- ms';
+  element.className='latency';element.setAttribute('aria-live','polite');element.textContent=pending?'Checking…':result?(result.ms==null?(result.reason==='timeout'?'Timed out':'Unreachable'):`${result.ms} ms`):'- ms';
   if(!pending&&result?.ms!=null)element.classList.add(result.ms<150?'fast':result.ms<350?'moderate':'slow');
   element.title=result?.ms==null&&result?.reason==='timeout'?(result.phase==='setup'?'The VPN transport did not connect before the timeout.':'The HTTPS delay check timed out through this location.'):'Real delay: HTTPS response through the authenticated VPN tunnel';
 }

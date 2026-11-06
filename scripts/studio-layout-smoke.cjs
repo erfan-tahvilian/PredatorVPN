@@ -48,6 +48,39 @@ async function desktop(){
   const compact=await inspect(w,"(()=>{const b=document.querySelector('.settings-sections').getBoundingClientRect(),items=[...document.querySelectorAll('#settings .accent-choice')].map(e=>e.getBoundingClientRect());return {overflow:items.some(r=>r.right>b.right+2||r.left<b.left-2),gap:items[1].left-items[0].right,all:items.length}})()");
   assert(!compact.overflow,'Compact settings must keep all color tiles in bounds');
   assert(compact.gap>=8,'Compact settings accent gaps must remain visible');
+  await inspect(w,"document.querySelector('[data-page=home]').click()");
+  const pingStates=await inspect(w,`(()=>{
+    const source=currentState,selected=source.servers[0];
+    if(!selected)throw Error('Latency fixture requires location');
+    const values=[75,240,480];const records=[];
+    for(const theme of ['dark','light'])for(const accentColor of ['orange','gold','blue','pink'])
+      for(const ms of values){
+        render({...source,settings:{...source.settings,theme,accentColor,serverId:selected.id},
+          latencies:{[selected.id]:{ms,measuredAt:Date.now()}}});
+        const badge=document.querySelector('#selected-latency');
+        const ping=document.querySelector('#ping-selected');
+        const loc=document.querySelector('#choose-location');
+        const rect=badge.getBoundingClientRect(),icon=ping.getBoundingClientRect();
+        const css=getComputedStyle(badge);
+        records.push({theme,accentColor,ms,text:badge.textContent,color:css.color,display:css.display,
+          visible:rect.width>=40&&rect.height>=12,overlap:rect.right>icon.left+1,
+          className:badge.className,home:getComputedStyle(document.querySelector('#home')).display});
+      }
+    render(source);return records;
+  })()`);
+  assert.equal(pingStates.length,24);
+  for(const p of pingStates){
+    assert.equal(p.text,p.ms+' ms','Overview must display selected-location latency');
+    assert.notEqual(p.display,'none','Compact desktop overview must show latency');
+    assert(p.visible&&!p.overlap,'Latency label and ping control must fit without overlap');
+    assert(p.className.includes(p.ms<150?'fast':p.ms<350?'moderate':'slow'));
+    assert.notEqual(p.home,'none');
+  }
+  for(const ms of [75,240,480])assert.equal(new Set(pingStates.filter(p=>p.ms===ms).map(p=>p.color)).size,1,
+    'Latency color must be semantic and independent of theme and accent');
+  assert.equal(new Set([75,240,480].map(ms=>pingStates.find(p=>p.ms===ms).color)).size,3,
+    'Fast, moderate and slow latency values must have distinct semantic colors');
+  console.log('PASS selected-location ping badge: visible at 1024px and fixed fast/moderate/slow colors across light/dark and accents');
   assert.deepEqual(errors,[],'Renderer must not emit console errors');
   console.log('PASS desktop studio layout: structural modules, gutters, settings navigation, palette, switches and 1024px responsive state');
  }finally{w.destroy();}
