@@ -81,7 +81,9 @@ $('refresh-allowance').addEventListener('click',()=>refreshAllowance(true));
 $('allowance-account').addEventListener('click',()=>navigate('account'));
 function render(s) {
   currentState=s;applyTheme(s);
-  if($('browser-signin'))$('browser-signin').hidden=s.platform==='android';
+  // The upstream hosted browser callback cannot authorize this proxy service.
+  // Do not offer a flow that cannot finish for these accounts; use verified FxA sign-in.
+  if($('browser-signin'))$('browser-signin').hidden=true;
   const authStatus=$('browser-login-status');
   if(authStatus){
     const messages={
