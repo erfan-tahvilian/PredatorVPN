@@ -260,7 +260,7 @@ input[type=checkbox].switch::after{
 }
 input[type=checkbox].switch:checked{border-color:var(--accent)!important;background:var(--accent)!important}
 input[type=checkbox].switch:checked::after{transform:translateX(20px);background:var(--on-accent)}
-input[type=checkbox].switch:disabled{cursor:not-allowed;opacity:.5}
+input[type=checkbox].switch:disabled{cursor:default;opacity:.5}
 input[type=checkbox].switch:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 20px}
 .field-grid label{min-width:0}

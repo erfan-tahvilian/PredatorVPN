@@ -16,6 +16,36 @@ async function desktop(){
  try{
   await w.loadFile(path.join(root,'src/ui/index.html'));await wait(300);
   const hierarchy=await inspect(w,"(()=>{const h=document.querySelector('#home'),c=h.querySelector('.connection-card'),choice=h.querySelector('.server-selector'),dest=h.querySelector('.destination-grid'),ins=h.querySelector('.insights-grid');const d=[...dest.children].map(e=>e.getBoundingClientRect()),i=[...ins.children].map(e=>e.getBoundingClientRect());return {inside:!c.contains(choice),dest:dest.children.length,ins:ins.children.length,distance:d[1].left-d[0].right,insightGap:i[1].left-i[0].right,overflow:document.documentElement.scrollWidth>innerWidth+2}})()");
+  const disabledCursorStates=await inspect(w,`(()=>{
+    const variants=['','primary','secondary','icon-button','power-button'],out=[];
+    const node=document.createElement('div');node.style.cssText='position:absolute;left:-10000px;top:0';
+    document.body.append(node);
+    const originalLight=document.body.classList.contains('light'),originalAccent=document.body.dataset.accent;
+    try{
+      for(const theme of ['dark','light'])for(const accent of ['orange','gold','blue','teal','emerald','red','purple','pink','indigo','cyan']){
+        document.body.classList.toggle('light',theme==='light');document.body.dataset.accent=accent;
+        for(const variant of variants){
+          const button=document.createElement('button');button.className=variant;
+          button.disabled=true;button.textContent='Disabled sample';node.append(button);
+          out.push({theme,accent,variant,kind:'disabled',cursor:getComputedStyle(button).cursor});
+          button.disabled=false;
+          out.push({theme,accent,variant,kind:'enabled',cursor:getComputedStyle(button).cursor});
+          button.setAttribute('aria-disabled','true');
+          out.push({theme,accent,variant,kind:'aria-disabled',cursor:getComputedStyle(button).cursor});
+          button.remove();
+        }
+        const toggle=document.createElement('input');toggle.type='checkbox';toggle.className='switch';toggle.disabled=true;node.append(toggle);
+        out.push({theme,accent,variant:'switch',kind:'disabled',cursor:getComputedStyle(toggle).cursor});toggle.remove();
+      }
+    }finally{
+      document.body.classList.toggle('light',originalLight);if(originalAccent===undefined)delete document.body.dataset.accent;else document.body.dataset.accent=originalAccent;
+      node.remove();
+    }
+    return out;
+  })()`);
+  for(const entry of disabledCursorStates)assert.equal(entry.cursor,entry.kind==='enabled'?'pointer':'default',
+    'Disabled controls use ordinary cursor across desktop themes and accents: '+JSON.stringify(entry));
+  console.log('PASS disabled buttons, ARIA-disabled actions and switches: normal cursor in all desktop themes and accents');
   assert(hierarchy.inside,'Server selector must live in a separate destination module');
   assert.equal(hierarchy.dest,2);assert.equal(hierarchy.ins,2);
   assert(hierarchy.distance>=11,'Desktop destination panels need distinct gutters');
