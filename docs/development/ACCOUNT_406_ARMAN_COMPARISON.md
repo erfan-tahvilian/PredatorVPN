@@ -229,3 +229,30 @@ Reference: https://mozilla.github.io/ecosystem-platform/relying-parties/tutorial
 Test coverage uses mock OAuth responses. A real account with a valid
 third-party registration, scope grant and FPN entitlement is still required
 for integration acceptance. The current release/tag remain unchanged.
+
+## WebChannel protocol review (2026-11-06)
+
+Current Mozilla documentation distinguishes two independent messages:
+- Legacy `fx_desktop_v3` uses `fxaccounts:login` and returns a session token.
+- Current `oauth_webchannel_v1` uses `fxaccounts:oauth_login` and returns
+  an authorization **code** and `state`. The native Firefox Desktop OAuth
+  client ID in that documentation is `5882386c6d801776`.
+
+Added `src/lib/fxa-webchannel-protocol.cjs` as a standalone,
+side-effect-free decoder. It rejects invalid origins, malformed payloads,
+wrong OAuth state and unexpected redirect values. It distinguishes
+provider session tokens from actual OAuth authorization codes; no account
+is stored on receipt of a message. Its three unit tests are included in
+the standard suite.
+
+**Integration status:** Protocol decoder only; not wired to BrowserWindow
+or the live login pipeline. It does not change the Browser Sign-in
+registration requirement, make a client appear to be Firefox, bypass
+anti-bot HTTP 406, or establish provider authorization. The installed
+Windows binary is unchanged until owner acceptance.
+The complete test suite passed (134/134), and a repeated smoke run
+passed after one timing-sensitive Tray Popup failure.
+
+Official sources:
+- https://mozilla.github.io/ecosystem-platform/fxa-sitemap/entry-modes
+- https://mozilla.github.io/ecosystem-platform/reference/webchannels
