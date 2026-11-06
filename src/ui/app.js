@@ -80,7 +80,7 @@ async function refreshAllowance(announce){
 $('refresh-allowance').addEventListener('click',()=>refreshAllowance(true));
 $('allowance-account').addEventListener('click',()=>navigate('account'));
 function render(s) {
-  currentState=s;applyTheme(s);renderAllowance(s);updateConnectionHealth(s);renderRecentEvents(s);$('transport-field').hidden=!['win32','darwin','linux','android'].includes(s.platform);document.querySelector('#transport option[value=auto]').textContent='Automatic · Compare HTTP/3 and HTTP/2';$('protocol-name').textContent=s.connection==='connected'?(s.protocol==='h3'?'HTTP/3 over QUIC':'HTTP/2 over TLS'):'-';$('protocol-secure').hidden=s.connection!=='connected';
+  currentState=s;applyTheme(s);if($('browser-signin'))$('browser-signin').hidden=s.platform==='android';renderAllowance(s);updateConnectionHealth(s);renderRecentEvents(s);$('transport-field').hidden=!['win32','darwin','linux','android'].includes(s.platform);document.querySelector('#transport option[value=auto]').textContent='Automatic · Compare HTTP/3 and HTTP/2';$('protocol-name').textContent=s.connection==='connected'?(s.protocol==='h3'?'HTTP/3 over QUIC':'HTTP/2 over TLS'):'-';$('protocol-secure').hidden=s.connection!=='connected';
   if(!initialized){fillSettings(s.settings);initialized=true;}
   syncSelects();
   const connected=s.connection==='connected', transitional=['connecting','disconnecting'].includes(s.connection);
@@ -234,6 +234,19 @@ $('server-search').addEventListener('input',renderServers);
 $('server-sort').addEventListener('change',renderServers);
 $('recommended').addEventListener('click',action(async()=>{await call('select','REC');navigate('home');}));
 $('verify-exit').addEventListener('click',action(async()=>{const result=await call('exit');toast(`Exit verified · ${result.ip} · ${result.country}`);}));
+$('browser-login').addEventListener('click',action(async()=>{
+ const button=$('browser-login'),cancel=$('cancel-browser-login');
+ button.disabled=true;cancel.hidden=false;
+ toast('Complete the provider sign-in in your browser. Return here afterward.');
+ try{
+  await call('browserLogin');
+  needsCode=false;addingAccount=false;
+  render(await call('state'));
+  toast('Your account is ready.');
+  navigate(hasAccountManager()?'account':'home');
+ }finally{button.disabled=false;cancel.hidden=true;}
+}));
+$('cancel-browser-login').addEventListener('click',action(async()=>{await call('cancelBrowserLogin');}));
 $('login-form').addEventListener('submit',action(async e=>{e.preventDefault();const email=$('email').value.trim(),password=$('password').value;$('password').value='';const result=await call('login',{email,password});needsCode=result.needsCode;if(!needsCode&&hasAccountManager())addingAccount=false;render(await call('state'));if(needsCode){const totp=result.verificationMethod==='totp-2fa';$('code').placeholder=totp?'Code from your authenticator app':'Code from your email';$('code').value='';$('code').focus();toast(totp?'Enter the code from your authenticator app.':'Enter the verification code sent to your service account email.');}else{toast('Signed in successfully.');navigate(hasAccountManager()?'account':'home');}}));
 $('code-form').addEventListener('submit',action(async e=>{e.preventDefault();await call('verify',$('code').value.trim());$('code').value='';needsCode=false;addingAccount=false;render(await call('state'));toast('Your account is ready.');navigate(hasAccountManager()?'account':'home');}));
 $('restart-login').addEventListener('click',()=>{needsCode=false;render(currentState);});

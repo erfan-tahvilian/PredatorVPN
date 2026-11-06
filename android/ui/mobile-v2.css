@@ -254,3 +254,6 @@ body.light input[type=checkbox].switch:checked{background:var(--accent);border-c
 
 /* Keep light-theme thumb white immediately, including for offscreen toggles. */
 body.light input[type=checkbox].switch::after{transition:transform .16s ease!important;background:#fff!important}
+
+/* Desktop loopback OAuth cannot be used inside an Android WebView. */
+#browser-signin,#signin-panel .legacy-login-heading{display:none!important}

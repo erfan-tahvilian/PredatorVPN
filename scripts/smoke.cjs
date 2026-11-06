@@ -118,6 +118,9 @@ app.whenReady().then(async()=>{
       }
       fs.writeFileSync(`test-results/${page}.png`,(await win.webContents.capturePage()).toPNG());
     }
+    await win.webContents.executeJavaScript(`navigate('account');document.getElementById('browser-login').click();new Promise(r=>setTimeout(r,180))`);
+    assert.equal(await win.webContents.executeJavaScript(`currentState.signedIn`),true,'Browser sign-in button must invoke the provider-auth IPC action');
+    assert.equal(await win.webContents.executeJavaScript(`document.getElementById('browser-login').disabled`),false,'Browser sign-in control must recover after login');
     await win.webContents.executeJavaScript(`document.querySelector('[data-page="locations"]').click(); document.querySelector('.server-choice').click(); new Promise(r=>setTimeout(r,100))`);
     await win.webContents.executeJavaScript(`window.fox.call('login',{});new Promise(r=>setTimeout(r,100))`);
     assert.equal(await win.webContents.executeJavaScript(`document.querySelector('.avatar').textContent`),'A');

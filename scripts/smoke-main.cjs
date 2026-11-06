@@ -28,6 +28,7 @@ async function run(){
     assert(fs.existsSync('test-results/main-profile/vault.bin'));
     const reject=await win.webContents.executeJavaScript(`window.fox.call('settings',{socksPort:0})`);assert.equal(reject.ok,false);
     const noAuth=await win.webContents.executeJavaScript(`window.fox.call('account')`);assert.equal(noAuth.ok,false);
+    const cancelProvider=await win.webContents.executeJavaScript(`window.fox.call('cancelBrowserLogin')`);assert(cancelProvider.ok,'Provider browser cancellation must be in the preload IPC allowlist');
     const unknown=await win.webContents.executeJavaScript(`window.fox.call('openLink','not-allowed')`);assert.equal(unknown.ok,false);
     fs.writeFileSync('test-results/main-smoke-status.txt','PASS: real main process, sandboxed preload IPC, OS-encrypted vault, settings rejection, signed-out behavior and URL allowlist');
     console.log('Main-process smoke checks passed.');
