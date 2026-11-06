@@ -27,8 +27,17 @@ function normalizeCode(value){
 }
 function normalizeEmail(value){return String(value||'').replace(/[\s\u200b-\u200f\u2060\ufeff]/g,'');}
 class Auth {
- constructor(http,store){this.http=http;this.store=store;this.pending=null;this.unblockTimer=null;}
- cancel(){this.clearTimer();this.pending=null;}
+ constructor(http,store){this.http=http;this.store=store;this.pending=null;this.unblockTimer=null;this.generation=0;this.activeLogin=null;this.activeVerify=null;}
+ cancel(){
+  this.generation++;
+  this.clearTimer();
+  const session=this.pending?.session;
+  this.pending=null;
+  this.activeLogin=null;
+  this.activeVerify=null;
+  // Best-effort cleanup: cancelled sessions must never become saved accounts.
+  if(session)void this.request('/session/destroy',{},session).catch(()=>{});
+ }
  clearTimer(){if(this.unblockTimer)clearTimeout(this.unblockTimer);this.unblockTimer=null;}
  async request(path,data,session){
   const url='https://api.accounts.firefox.com/v1'+path;
@@ -47,13 +56,14 @@ class Auth {
   if(typeof response?.data?.verified!=='boolean')throw Error('The account provider returned an unexpected verification status.');
   return response.data.verified;
  }
- async loginAttempt(email,password,originalEmail='',unblockCode=''){
+ async loginAttempt(email,password,originalEmail='',unblockCode='',generation=this.generation){
   const fields={email,authPW:authPW(email,password),verificationMethod:'email-2fa'};
   if(originalEmail)fields.originalLoginEmail=originalEmail;
   if(unblockCode)fields.unblockCode=unblockCode;
   try{return await this.request('/account/login',fields);}
   catch(error){
    if(error.errno!==107)throw error;
+   if(this.generation!==generation)throw Error('The account sign-in was cancelled.');
    delete fields.verificationMethod;
    return this.request('/account/login',fields);
   }
@@ -61,31 +71,44 @@ class Auth {
  async login(email,password){
   email=normalizeEmail(email);
   if(!email||!password)throw Error('Enter your service account email and password.');
+  if(this.activeLogin!==null||this.activeVerify!==null)throw Error('An account sign-in is already in progress.');
   this.cancel();
-  let actualEmail=email,originalEmail='',response,error;
-  try{response=await this.loginAttempt(email,password);}
-  catch(err){error=err;}
-  if(error?.errno===120&&typeof error.providerEmail==='string'
-       &&error.providerEmail.toLowerCase()===email.toLowerCase()&&error.providerEmail!==email){
-   actualEmail=error.providerEmail;originalEmail=email;error=null;
-   try{response=await this.loginAttempt(actualEmail,password,originalEmail);}catch(err){error=err;}
+  const generation=this.generation;
+  this.activeLogin=generation;
+  const ensureActive=()=>{if(this.generation!==generation)throw Error('The account sign-in was cancelled.');};
+  try{
+   let actualEmail=email,originalEmail='',response,error;
+   try{response=await this.loginAttempt(email,password,'','',generation);}
+   catch(err){error=err;}
+   ensureActive();
+   if(error?.errno===120&&typeof error.providerEmail==='string'
+        &&error.providerEmail.toLowerCase()===email.toLowerCase()&&error.providerEmail!==email){
+    actualEmail=error.providerEmail;originalEmail=email;error=null;
+    try{response=await this.loginAttempt(actualEmail,password,originalEmail,'',generation);}catch(err){error=err;}
+    ensureActive();
+   }
+   if(error?.errno===125){
+    await this.request('/account/login/send_unblock_code',{email:actualEmail});
+    ensureActive();
+    this.pending={method:'unblock-code',email:actualEmail,originalEmail,password,attempts:0,
+       expiresAt:Date.now()+UNBLOCK_TTL};
+    this.unblockTimer=setTimeout(()=>this.cancel(),UNBLOCK_TTL);
+    this.unblockTimer.unref?.();
+    return {needsCode:true,verificationMethod:'unblock-code'};
+   }
+   if(error)throw error;
+   return await this.startVerifiedSession(response,actualEmail);
+  }finally{
+   if(this.activeLogin===generation)this.activeLogin=null;
   }
-  if(error?.errno===125){
-   await this.request('/account/login/send_unblock_code',{email:actualEmail});
-   this.pending={method:'unblock-code',email:actualEmail,originalEmail,password,attempts:0,
-      expiresAt:Date.now()+UNBLOCK_TTL};
-   this.unblockTimer=setTimeout(()=>this.cancel(),UNBLOCK_TTL);
-   this.unblockTimer.unref?.();
-   return {needsCode:true,verificationMethod:'unblock-code'};
-  }
-  if(error)throw error;
-  return this.startVerifiedSession(response,actualEmail);
  }
  async startVerifiedSession(response,email){
-  if(!response?.sessionToken)throw Error('The account provider did not return a sign-in session.');
+  if(!SESSION_TOKEN_HEX.test(response?.sessionToken||''))throw Error('The account provider did not return a valid sign-in session.');
   this.clearTimer();
   const method=response.verificationMethod||(response.verified===false?'email-2fa':'none');
-  this.pending={session:response.sessionToken,email,method,verified:false};
+  this.pending={session:response.sessionToken,email,method,verified:false,expiresAt:Date.now()+UNBLOCK_TTL};
+  this.unblockTimer=setTimeout(()=>this.cancel(),UNBLOCK_TTL);
+  this.unblockTimer.unref?.();
   if(response.verified===false||response.sessionVerified===false||
       response.emailVerified===false||(response.verified!==true&&response.verificationMethod)){
    return {needsCode:true,verificationMethod:method};
@@ -95,44 +118,59 @@ class Auth {
  async verify(value){
   if(!this.pending)throw Error('Start account sign-in again.');
   const pending=this.pending;
-  if(pending.method==='unblock-code'){
-   if(Date.now()>=pending.expiresAt){this.cancel();throw Error('The unblock code expired. Start sign-in again.');}
-   if(pending.attempts>=5) {this.cancel();throw Error('Too many incorrect unblock codes. Start sign-in again.');}
-   const code=normalizeCode(value).toUpperCase();
-   if(!code||code.length>32)throw Error('Enter the unblock code from the provider email.');
-   pending.attempts++;
-   let response;
-   try{response=await this.loginAttempt(pending.email,pending.password,pending.originalEmail,code);}
-   catch(err){
-    if(err.errno===125||err.errno===127)throw Error('The unblock code was not accepted. Check the latest email and try again.');
-    throw err;
+  if(this.activeVerify===pending)throw Error('Account verification is already in progress.');
+  this.activeVerify=pending;
+  const ensurePending=()=>{if(this.pending!==pending)throw Error('The account sign-in was cancelled.');};
+  try{
+   if(pending.expiresAt&&Date.now()>=pending.expiresAt){
+    this.cancel();throw Error('The verification session expired. Start sign-in again.');
    }
-   return this.startVerifiedSession(response,pending.email);
-  }
-  if(pending.method==='email'){ // confirmation link must be verified server-side
-   if(!await this.sessionVerified(pending.session)){
-    return {needsCode:true,verificationMethod:'email'};
+   if(pending.method==='unblock-code'){
+    if(pending.attempts>=5){this.cancel();throw Error('Too many incorrect unblock codes. Start sign-in again.');}
+    const code=normalizeCode(value).toUpperCase();
+    if(!code||code.length>32)throw Error('Enter the unblock code from the provider email.');
+    pending.attempts++;
+    let response,error;
+    try{response=await this.loginAttempt(pending.email,pending.password,pending.originalEmail,code);}
+    catch(err){error=err;}
+    ensurePending();
+    if(error?.errno===125||error?.errno===127)throw Error('The unblock code was not accepted. Check the latest email and try again.');
+    if(error)throw error;
+    return await this.startVerifiedSession(response,pending.email);
    }
-   pending.verified=true;
-   return this.complete();
+   if(pending.method==='email'){ // confirmation link must be verified server-side
+    const verified=await this.sessionVerified(pending.session);
+    ensurePending();
+    if(!verified)return {needsCode:true,verificationMethod:'email'};
+    pending.verified=true;
+    return await this.complete();
+   }
+   const code=normalizeCode(value);
+   if(!code||code.length>32)throw Error('Enter the email or authenticator verification code.');
+   if(!pending.verified){
+    const totp=pending.method==='totp-2fa';
+    const response=await this.request(totp?'/session/verify/totp':'/session/verify_code',{code},pending.session);
+    ensurePending();
+    if(totp&&response?.success===false)throw Error('The authenticator code was not accepted.');
+    pending.verified=true; // never submit the already-consumed code twice
+   }
+   return await this.complete();
+  }finally{
+   if(this.activeVerify===pending)this.activeVerify=null;
   }
-  const code=normalizeCode(value);
-  if(!code||code.length>32)throw Error('Enter the email or authenticator verification code.');
-  if(!pending.verified){
-   const totp=pending.method==='totp-2fa';
-   const response=await this.request(totp?'/session/verify/totp':'/session/verify_code',{code},pending.session);
-   if(totp&&response?.success===false)throw Error('The authenticator code was not accepted.');
-   pending.verified=true; // never submit the already-consumed code twice
-  }
-  return this.complete();
  }
  async complete(){
-  if(!this.pending?.session)throw Error('Start account sign-in again.');
-  const session=this.pending.session;
+  const pending=this.pending;
+  if(!pending?.session)throw Error('Start account sign-in again.');
+  const session=pending.session;
   const token=await this.request('/oauth/token',{client_id:CLIENT,grant_type:'fxa-credentials',
     scope:SCOPE,access_type:'offline'},session);
+  // A late response from a cancelled, timed-out or replaced sign-in must
+  // never create an account or be attributed to another pending email.
+  if(this.pending!==pending)throw Error('The account sign-in was cancelled.');
   if(!token?.access_token)throw Error('The account provider did not return an access token.');
-  this.store.setAuth({...token,email:this.pending.email,expiresAt:Date.now()+(token.expires_in||86400)*1000});
+  this.store.setAuth({...token,email:pending.email,expiresAt:Date.now()+(token.expires_in||86400)*1000});
+  this.pending=null;
   this.cancel();
   // A completed sign-in no longer needs the short-lived FxA session.
   try{await this.request('/session/destroy',{},session);}catch{/* OAuth credentials are already stored. */}

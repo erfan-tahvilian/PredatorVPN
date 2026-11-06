@@ -146,3 +146,30 @@ challenge. The user must validate any actual sign-in before a broader release.
 Official references:
 - https://mozilla.github.io/ecosystem-platform/reference/authentication-schemes
 - https://mozilla.github.io/ecosystem-platform/reference/tokens
+
+## Cancel/timeout session isolation (Windows owner-preview follow-up)
+
+A separate review of the existing Electron authentication lifecycle revealed
+that a delayed login, verification, or OAuth response could outlive a
+`cancelAccountLogin` event. A late OAuth response could otherwise attempt
+to save credentials after the owner cancelled the account flow.
+
+The Windows implementation now uses a generation check for password login,
+locks each pending verification while its network and token exchange is in
+flight, and checks pending-session identity before persisting any account.
+An expired verification session is rejected, and discarded sessions receive
+best-effort session-destroy calls. The existing encrypted account vault,
+in-app email/TOTP flow, and installed-app migration remain unchanged.
+
+Added deterministic regression tests for late login response after Cancel,
+late OAuth response during account replacement, overlapping verification,
+and expired sessions. These tests are local fixtures, **not** proof that
+Mozilla will authenticate Predator or grant an FPN entitlement.
+
+The Arman browser sign-in uses Firefox-specific WebChannel behavior,
+a Firefox user-agent identity and client identifiers. Those are not
+transplanted into Predator without an approved Mozilla OAuth registration.
+Mozilla's independent RP documentation requires registered credentials and
+redirect URIs. The initial HTTP 406 or provider challenge refusal therefore
+remains an external integration constraint pending a real authorized test.
+No public release or stable tag is changed by this work.
