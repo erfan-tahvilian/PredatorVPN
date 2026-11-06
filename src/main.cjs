@@ -12,7 +12,6 @@ const {Store}=require('./lib/store.cjs');
 const {TrafficLedger}=require('./lib/traffic.cjs');
 const {AccountCoordinator,knownEmpty,quotaFromPass}=require('./lib/accounts.cjs');
 const {Control,Guardian}=require('./lib/control.cjs');
-const {BrowserAuth}=require('./lib/browser-auth.cjs');
 // Chromium uses the operating system's network/proxy stack consistently for
 // account verification, sign-in and token renewal. Do not mix it with Node fetch.
 const {session}=require('electron');
@@ -60,7 +59,7 @@ async function refreshAccount(id){const data=await accountCoordinator.refresh(id
 function beginLogin(){loginAccountId=null;const http=makeControl(),sink={auth:null,setAuth(auth){if(!auth)return;loginAccountId=store.addAccount(auth,connection==='disconnected');this.auth=auth;}};loginGuardian=new Guardian(http,new Auth(http,sink));return loginGuardian.auth;}
 function completeLogin(result){if(loginAccountId){syncGuardian();if(connection==='disconnected')quota=store.activeAccount?.quota||null;const id=loginAccountId;loginGuardian=null;loginAccountId=null;if(store.activeAccountId!==id)void refreshAccount(id).catch(()=>{});}return result;}
 let macEngine;
-let window,tray,trayPopup,store,guardian,tunnel,pendingTunnel,engine,passRenewer,recoveryController,browserAuth,browserAuthProgress='idle',busy=false,quitting=false,generation=0;
+let window,tray,trayPopup,store,guardian,tunnel,pendingTunnel,engine,passRenewer,recoveryController,busy=false,quitting=false,generation=0;
 let latencies={},pinging=false;const pingingIds=new Set();
 let servers=[],logs=[],connection='disconnected',startedAt=null,exit=null,quota=null,lastError=null;
 const icon=path.join(__dirname,mac||linux?'../assets/logo-light.png':'../assets/icon.ico');
@@ -69,7 +68,7 @@ function log(level,message) {
   const entry={time:new Date().toISOString(),level,message:String(message).slice(0,1000)};
   logs.push(entry);if(logs.length>1000)logs.shift();emit();
 }
-function state() {observeTraffic();return {...(multiAccount?{accounts:store.publicAccounts(),activeAccountId:store.activeAccountId,accountPreferences:store.accountPreferences,totalTraffic:traffic?.snapshot(),sessionDuration:traffic?.session.duration||0}:{}),version:APP_VERSION,platform:process.platform,settings:store.publicSettings(),signedIn:!!store.auth,email:store.auth?.email || '',servers,latencies,pinging,pingingIds:[...pingingIds],activeServer:connection==='connected'?tunnel?.candidate:null,logs,connection,startedAt,exit,quota,protocol:connection==='connected'?(tunnel?.protocol||'h2'):null,lastError,up:multiAccount?traffic?.session.up||0:tunnel?.up||0,down:multiAccount?traffic?.session.down||0:tunnel?.down||0,systemDark:nativeTheme.shouldUseDarkColors,browserAuthProgress,busy};}
+function state() {observeTraffic();return {...(multiAccount?{accounts:store.publicAccounts(),activeAccountId:store.activeAccountId,accountPreferences:store.accountPreferences,totalTraffic:traffic?.snapshot(),sessionDuration:traffic?.session.duration||0}:{}),version:APP_VERSION,platform:process.platform,settings:store.publicSettings(),signedIn:!!store.auth,email:store.auth?.email || '',servers,latencies,pinging,pingingIds:[...pingingIds],activeServer:connection==='connected'?tunnel?.candidate:null,logs,connection,startedAt,exit,quota,protocol:connection==='connected'?(tunnel?.protocol||'h2'):null,lastError,up:multiAccount?traffic?.session.up||0:tunnel?.up||0,down:multiAccount?traffic?.session.down||0:tunnel?.down||0,systemDark:nativeTheme.shouldUseDarkColors,busy};}
 function emit() {if(quitting)return;if(store&&nativeTheme.themeSource!==store.settings.theme)nativeTheme.themeSource=store.settings.theme;if(window&&!window.isDestroyed())window.webContents.send('fox:state',state());trayPopup?.update();}
 function trayState(){
   const server=tunnel?.candidate;
@@ -295,45 +294,6 @@ else {
     handle('ackReleaseNotes',()=>releaseNotes.acknowledge());
     handle('downloadUpdate',async()=>{const update=await updates.check();if(!update.available)throw Error('No newer update is available.');await shell.openExternal(update.url);});
     handle('login',async({email,password})=>{if(busy)throw Error('An operation is already running.');busy=true;emit();try{return multiAccount?completeLogin(await beginLogin().login(email,password)):await guardian.auth.login(email,password);}finally{busy=false;emit();}});
-    handle('browserLogin',async()=>{
-      if(!browserAuth)browserAuth=new BrowserAuth({
-        openExternal:url=>shell.openExternal(url),
-        fetcher:(...args)=>electronNet.fetch(...args),
-        onProgress:stage=>{
-          browserAuthProgress=stage;
-          if(stage==='callback-received'&&window&&!window.isDestroyed()){
-            if(window.isMinimized())window.restore();
-            window.show();window.focus();
-          }
-          emit();
-        }
-      });
-      let result;
-      try{result=await browserAuth.start();}
-      catch(error){browserAuthProgress=error.code==='BROWSER_CALLBACK_TIMEOUT'?'timeout':/cancelled/i.test(error.message)?'cancelled':'failed';emit();throw error;}
-      browserAuthProgress='checking-entitlement';emit();
-      // Guardian's VPN browser login must also be accepted by the *FPN*
-      // proxy service before the account is committed to encrypted storage.
-      try{
-        await makeControl().json('https://vpn.mozilla.org/api/v1/fpn/status',{
-          authorization:'Bearer '+result.token
-        });
-      }catch(error){
-        browserAuthProgress='failed';emit();
-        if([401,403].includes(error.status))
-          throw Error('Browser sign-in succeeded, but the provider has not authorized this account for the proxy service. The existing account has not been changed.');
-        throw error;
-      }
-      const credentials={email:result.email,access_token:result.token,provider:'guardian-browser'};
-      const id=store.addAccount(credentials,connection==='disconnected');
-      browserAuthProgress='complete';
-      syncGuardian();
-      if(connection==='disconnected')quota=store.activeAccount?.quota||null;
-      else void refreshAccount(id).catch(()=>{});
-      emit();
-      return {needsCode:false};
-    });
-    handle('cancelBrowserLogin',()=>{browserAuth?.cancel();browserAuthProgress='cancelled';emit();return true;});
     handle('verify',async code=>{if(busy)throw Error('An operation is already running.');busy=true;emit();try{if(multiAccount&&!loginGuardian)throw Error('Start account sign-in again.');return multiAccount?completeLogin(await loginGuardian.auth.verify(code)):await guardian.auth.verify(code);}finally{busy=false;emit();}});
     handle('logout',async()=>{if(busy)throw Error('Wait for the current operation to finish.');await disconnect();if(multiAccount){if(store.activeAccountId)store.removeAccount(store.activeAccountId);syncGuardian();}else{store.setAuth(null);guardian.auth.pending=null;}quota=multiAccount?store.activeAccount?.quota||null:null;emit();});
     handle('servers',refreshServers);
@@ -382,7 +342,6 @@ else {
   });
   app.on('before-quit',event=>{
     event.preventDefault();if(quitting)return;quitting=true;
-    try{browserAuth?.cancel();}catch{}
     let finished=false;
     const finish=()=>{if(finished)return;finished=true;clearTimeout(deadline);try{trayPopup?.destroy();}catch{}trayPopup=null;try{if(tray&&!tray.isDestroyed())tray.destroy();}catch{}tray=null;app.exit(0);};
     // A second quit cycle can be cancelled by a window; exit once cleanup has

@@ -440,11 +440,5 @@ body.light input[type="checkbox"].switch:checked::after{background:#fff!importan
 /* Avoid a stale dark thumb color during theme changes, even offscreen. */
 body.light input[type="checkbox"].switch::after{transition:transform .18s ease!important;background:#fff!important}
 
-/* Provider-hosted desktop sign-in: no credential input in the app. */
-#signin-panel .browser-signin{margin:20px 0 15px;padding:16px;border:1px solid var(--accent-hairline);border-radius:14px;background:var(--accent-surface)}
-#signin-panel .browser-signin .primary{width:100%;font-size:12px;font-weight:700;min-height:46px}
-#signin-panel .browser-signin .muted{margin:10px 0 0;font-size:10px;line-height:1.55}
-#signin-panel .browser-signin .subtle{display:block;margin:10px auto 0;text-align:center;color:var(--accent)}
-#signin-panel .browser-signin .subtle[hidden]{display:none}
-#signin-panel .legacy-login-heading{font-size:11px;letter-spacing:.1px;font-weight:650;margin:20px 0 6px;color:var(--muted)}
-#signin-panel .browser-signin .primary:disabled{opacity:.7}
+/* In-app sign-in, no external browser sign-in panel. */
+#signin-panel .legacy-login-heading{font-size:14px;font-weight:650;margin:19px 0 14px;color:var(--text)}

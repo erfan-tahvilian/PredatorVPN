@@ -119,7 +119,7 @@ app.whenReady().then(async()=>{
       fs.writeFileSync(`test-results/${page}.png`,(await win.webContents.capturePage()).toPNG());
     }
     await win.webContents.executeJavaScript(`navigate('account');render(currentState)`);
-    assert(await win.webContents.executeJavaScript(`document.getElementById('browser-signin').hidden`),'Unsupported Mozilla VPN browser login must not be offered for FPN accounts');
+    assert(await win.webContents.executeJavaScript(`!document.getElementById('browser-signin')`),'Browser login form must be fully removed');
     assert(await win.webContents.executeJavaScript(`!document.getElementById('login-form').hidden`),'FxA email/password sign-in is the supported account flow');
     await win.webContents.executeJavaScript(`document.getElementById('email').value='fixture@example.invalid';document.getElementById('password').value='fixture-test-only';document.getElementById('login-button').click();new Promise(r=>setTimeout(r,180))`);
     assert.equal(await win.webContents.executeJavaScript(`currentState.signedIn`),true,'The visible email/password form must invoke the account IPC action');

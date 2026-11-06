@@ -81,25 +81,6 @@ $('refresh-allowance').addEventListener('click',()=>refreshAllowance(true));
 $('allowance-account').addEventListener('click',()=>navigate('account'));
 function render(s) {
   currentState=s;applyTheme(s);
-  // The upstream hosted browser callback cannot authorize this proxy service.
-  // Do not offer a flow that cannot finish for these accounts; use verified FxA sign-in.
-  if($('browser-signin'))$('browser-signin').hidden=true;
-  const authStatus=$('browser-login-status');
-  if(authStatus){
-    const messages={
-      'browser-opening':'Opening the provider sign-in page in your browser…',
-      'waiting-for-callback':'Waiting for the provider to return authorization to Predator VPN. Keep this window open; complete sign-in in the browser.',
-      'callback-received':'Authorization returned. Verifying it with the provider…',
-      'verifying-code':'Checking the provider authorization code…',
-      'provider-authorized':'Provider accepted your sign-in. Checking VPN service access…',
-      'checking-entitlement':'Checking whether this account can use the supported proxy service…',
-      'timeout':'No authorization callback arrived from the browser. Check the provider page, then retry.',
-      'failed':'Browser authorization was not completed. Review the displayed error and retry.',
-      'cancelled':'Browser sign-in cancelled. Your existing account remains unchanged.'
-    };
-    authStatus.hidden=!messages[s.browserAuthProgress];
-    authStatus.textContent=messages[s.browserAuthProgress]||'';
-  }
   renderAllowance(s);updateConnectionHealth(s);renderRecentEvents(s);$('transport-field').hidden=!['win32','darwin','linux','android'].includes(s.platform);document.querySelector('#transport option[value=auto]').textContent='Automatic · Compare HTTP/3 and HTTP/2';$('protocol-name').textContent=s.connection==='connected'?(s.protocol==='h3'?'HTTP/3 over QUIC':'HTTP/2 over TLS'):'-';$('protocol-secure').hidden=s.connection!=='connected';
   if(!initialized){fillSettings(s.settings);initialized=true;}
   syncSelects();
@@ -254,19 +235,6 @@ $('server-search').addEventListener('input',renderServers);
 $('server-sort').addEventListener('change',renderServers);
 $('recommended').addEventListener('click',action(async()=>{await call('select','REC');navigate('home');}));
 $('verify-exit').addEventListener('click',action(async()=>{const result=await call('exit');toast(`Exit verified · ${result.ip} · ${result.country}`);}));
-$('browser-login').addEventListener('click',action(async()=>{
- const button=$('browser-login'),cancel=$('cancel-browser-login');
- button.disabled=true;cancel.hidden=false;
- toast('Complete the provider sign-in in your browser. Return here afterward.');
- try{
-  await call('browserLogin');
-  needsCode=false;addingAccount=false;
-  render(await call('state'));
-  toast('Your account is ready.');
-  navigate(hasAccountManager()?'account':'home');
- }finally{button.disabled=false;cancel.hidden=true;}
-}));
-$('cancel-browser-login').addEventListener('click',action(async()=>{await call('cancelBrowserLogin');}));
 $('login-form').addEventListener('submit',action(async e=>{e.preventDefault();const email=$('email').value.trim(),password=$('password').value;$('password').value='';const result=await call('login',{email,password});needsCode=result.needsCode;if(!needsCode&&hasAccountManager())addingAccount=false;render(await call('state'));if(needsCode){const totp=result.verificationMethod==='totp-2fa';$('code').placeholder=totp?'Code from your authenticator app':'Code from your email';$('code').value='';$('code').focus();toast(totp?'Enter the code from your authenticator app.':'Enter the verification code sent to your service account email.');}else{toast('Signed in successfully.');navigate(hasAccountManager()?'account':'home');}}));
 $('code-form').addEventListener('submit',action(async e=>{e.preventDefault();await call('verify',$('code').value.trim());$('code').value='';needsCode=false;addingAccount=false;render(await call('state'));toast('Your account is ready.');navigate(hasAccountManager()?'account':'home');}));
 $('restart-login').addEventListener('click',()=>{needsCode=false;render(currentState);});
