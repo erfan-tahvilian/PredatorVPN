@@ -8,7 +8,7 @@ const electron=process.platform!=='win32'?require('electron'):path.resolve('.too
 // Validate the same mobile HTML/CSS that Android packages, not stale copies.
 const prepared=spawnSync(process.execPath,['scripts/prepare-android.cjs'],{stdio:'inherit',timeout:30000,windowsHide:true});
 if(prepared.error||prepared.status!==0){console.error('Android preview asset preparation failed.');process.exit(1);}
-for(const [script,status] of [['scripts/smoke.cjs','test-results/smoke-status.txt'],['scripts/smoke-main.cjs','test-results/main-smoke-status.txt'],['scripts/smoke-tray.cjs','test-results/tray-smoke-status.txt'],['scripts/smoke-accounts.cjs','test-results/accounts-smoke-status.txt'],['scripts/smoke-updates.cjs','test-results/updates-smoke-status.txt'],['scripts/studio-layout-smoke.cjs','test-results/studio-layout-status.txt']]){
+for(const [script,status] of [['scripts/smoke.cjs','test-results/smoke-status.txt'],['scripts/smoke-main.cjs','test-results/main-smoke-status.txt'],['scripts/smoke-tray.cjs','test-results/tray-smoke-status.txt'],['scripts/smoke-accounts.cjs','test-results/accounts-smoke-status.txt'],['scripts/smoke-updates.cjs','test-results/updates-smoke-status.txt'],['scripts/studio-layout-smoke.cjs','test-results/studio-layout-status.txt'],['scripts/android-layout-smoke.cjs','test-results/android-layout-status.txt']]){
   if(fs.existsSync(status))fs.unlinkSync(status);
   const run=spawnSync(electron,[script],{stdio:'inherit',timeout:60000,windowsHide:true});
   if(run.error||run.status!==0||!fs.existsSync(status)||!fs.readFileSync(status,'utf8').startsWith('PASS:')){

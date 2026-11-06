@@ -125,7 +125,7 @@ async function mobile(){
   const state={version:'2.0.0',platform:'android',latencies:{},pinging:false,pingingIds:[],activeServer:null,settings:structuredClone(DEFAULTS),signedIn:false,email:'',servers:[],logs:[],connection:'disconnected',startedAt:null,exit:null,quota:null,lastError:null,up:0,down:0,systemDark:true,busy:false};
   await inspect(w,'window.fox.receive('+JSON.stringify(state)+')');await wait(150);
   const result=await inspect(w,"(()=>{const home=document.querySelector('#home'),dest=home.querySelector('.destination-grid'),cards=[...dest.querySelectorAll('.destination-panel')],r=cards.map(e=>e.getBoundingClientRect()),nav=document.querySelector('.sidebar'),btn=document.getElementById('connect').getBoundingClientRect();return {dest:cards.length,grid:getComputedStyle(dest).display,stackGap:r[1].top-r[0].bottom,overflow:document.documentElement.scrollWidth-innerWidth,navBottom:Math.round(nav.getBoundingClientRect().bottom-innerHeight),powerSize:btn.width,quickTileSetting:!!document.querySelector('#quick-tile-setting')}})()");
-  assert.equal(result.dest,2);assert.equal(result.grid,'flex');assert(result.stackGap>=8);
+  assert.equal(result.dest,2);assert.equal(result.grid,'contents');assert(result.stackGap>=8);
   assert(result.overflow<=2,'Mobile document may not overflow horizontally');
   assert(Math.abs(result.navBottom)<3,'Mobile navigation stays docked');
   assert(result.powerSize>=85,'Mobile connect tap target is usable');

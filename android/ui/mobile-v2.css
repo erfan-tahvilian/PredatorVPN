@@ -271,3 +271,360 @@ body.light input[type=checkbox].switch::after{transition:transform .16s ease!imp
   #home .destination-panel .server-select{grid-column:3;grid-row:2}
   #home .destination-panel .latency{grid-column:1;grid-row:2;justify-self:start;margin:0;min-width:62px}
 }
+
+/* Predator VPN 2.0.0 | Android visual refinement
+   Only loaded by the Android WebView. Desktop keeps its own layout.
+   Android spacing, tap sizes and status hierarchy are intentionally independent. */
+:root{--android-radius:22px;--android-edge:rgba(135,148,170,.14)}
+body{font-family:Roboto,Inter,system-ui,sans-serif;line-height:1.45}
+body .workspace{background:var(--bg)}
+header{height:68px;padding-inline:18px;border-bottom:1px solid var(--line);box-shadow:none}
+.mobile-app-brand{font-size:16px;letter-spacing:-.35px;gap:10px}
+.mobile-app-brand img{height:38px;width:38px}
+.header-actions{gap:9px;max-width:56%}
+#theme-toggle{width:42px;height:42px;min-width:42px;display:grid;place-items:center}
+#theme-toggle svg,.account-chip svg{display:block;margin:auto}
+.account-chip{display:flex;align-items:center;min-height:42px;gap:7px;max-width:160px}
+.account-chip .avatar{display:grid;place-items:center}
+.account-chip #account-name{font-size:12px}
+.sidebar{height:calc(76px + env(safe-area-inset-bottom));padding:7px 9px calc(7px + env(safe-area-inset-bottom));box-shadow:0 -8px 32px rgba(0,0,0,.11)}
+.sidebar nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;align-items:stretch;justify-items:stretch}
+.sidebar .nav-item{display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:6px;min-width:0;min-height:57px;padding:7px 2px;line-height:1.15;font-size:10px;font-weight:550;border-radius:14px}
+.sidebar .nav-item svg{display:block;width:21px;height:21px;flex:none;margin:0 auto;transform:none}
+.sidebar .nav-item.active{border:1px solid var(--accent-hairline);background:var(--accent-surface);color:var(--accent);font-weight:760}
+main{padding:22px 16px calc(109px + env(safe-area-inset-bottom));max-width:620px}
+.page-heading{margin:0 0 17px}
+.page-heading .eyebrow{font-size:10px;letter-spacing:1.5px;font-weight:750}
+.page-heading h1{font-size:27px;letter-spacing:-.8px;font-weight:790;margin-bottom:7px}
+.page-heading>p{font-size:12px;line-height:1.55;max-width:38ch}
+#home.active{gap:14px}
+#home .overview-grid,#home .right-column,#home .destination-grid,#home .insights-grid{gap:14px}
+#home .connection-card,#home .network-card,#home .privacy-card,#home .destination-panel,#home .allowance-card,#home .metrics,#home .recent-activity{
+ border:1px solid var(--android-edge);border-radius:var(--android-radius);
+ box-shadow:0 7px 28px rgba(0,0,0,.055);
+}
+#home .connection-card{
+ padding:21px 19px 17px;
+ background:radial-gradient(ellipse at 50% 32%,var(--accent-surface),transparent 72%),var(--card);
+}
+#home .connection-card .card-top{min-height:30px;gap:8px}
+#home .connection-card .pill{padding:7px 10px;font-size:9px;letter-spacing:1.1px}
+#home .status{font-size:11px;white-space:nowrap;gap:7px}
+#home .status i{width:7px;height:7px}
+#home .orbital{height:222px;margin:1px auto 3px}
+#home .orbit-1{width:201px;height:201px}
+#home .orbit-2{width:169px;height:169px}
+#home .orbit-3{width:143px;height:143px}
+#home .power-button,#home .power-button.connected,#home .power-button.connecting{
+ width:120px;height:120px;display:grid;place-items:center;
+ border:3px solid var(--accent);border-radius:50%;
+ box-shadow:0 0 0 7px var(--accent-surface),0 0 40px var(--accent-glow),inset 0 0 28px var(--accent-surface);
+}
+#home .power-button svg{width:33px;height:33px;place-self:center}
+#home .connection-card h2{font-size:20px;letter-spacing:-.4px;margin:7px 0 6px}
+#home .connection-card>p{font-size:12px;line-height:1.5;margin:0 auto 15px;max-width:37ch}
+#home .connection-footer{border-top:1px solid var(--line);padding:14px 0 0;min-height:26px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:11px;line-height:1.4}
+#home .connection-footer svg{width:16px;height:16px;display:block;flex-shrink:0}
+#home .network-card{display:block;padding:19px 18px 15px;min-height:0}
+#home .network-card .card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px}
+#home .network-card .card-top h3{font-size:15px;line-height:1.3;font-weight:750}
+#home .tiny-pill{font-size:9px;padding:6px 10px;letter-spacing:.7px}
+#home .globe-visual{display:none}
+/* Explicitly restore the Windows-quality status row:
+   Android did not load desktop-v2.css, so the original layout was block. */
+#home .connection-health{
+ display:grid!important;grid-template-columns:50px minmax(0,1fr);gap:13px;
+ align-items:center;justify-items:stretch;min-height:84px;
+ border:1px solid var(--accent-hairline);border-radius:16px;
+ padding:15px 14px;margin:0 0 8px;
+ background:linear-gradient(110deg,var(--accent-surface),var(--card-alt));
+}
+#home .connection-health .health-emblem{
+ display:grid!important;place-items:center;align-self:center;justify-self:center;
+ width:48px;height:48px;min-width:48px;min-height:48px;
+ border:1px solid var(--accent-hairline);border-radius:15px;
+ background:var(--accent-surface);color:var(--accent);
+}
+#home .connection-health .health-emblem svg{display:block;width:25px;height:25px;margin:auto}
+#home .connection-health>div:last-child{display:flex;flex-direction:column;justify-content:center;min-width:0;margin:0}
+#home .connection-health strong{display:block;line-height:1.3;font-size:18px;font-weight:780;letter-spacing:-.4px}
+#home .connection-health p{display:block;font-size:12px;line-height:1.48;margin:5px 0 0;color:var(--muted);overflow-wrap:anywhere}
+#home .connection-health[data-status=connected]{
+ background:linear-gradient(110deg,rgba(45,184,113,.14),var(--card-alt));
+ border-color:rgba(45,184,113,.3)
+}
+#home .connection-health[data-status=connected] .health-emblem{
+ background:rgba(45,184,113,.12)!important;color:var(--green)!important;
+ border-color:rgba(45,184,113,.4)!important
+}
+#home .connection-health[data-status=connected] strong{color:var(--green)!important}
+#home .connection-health[data-status=disconnected]{
+ background:var(--card-alt);border-color:var(--line)
+}
+#home .connection-health[data-status=disconnected] .health-emblem{
+ background:var(--card);border-color:var(--line);color:var(--muted)
+}
+#home .network-card dl{margin:3px 0 0}
+#home .network-card dl>div{
+ display:flex;align-items:center;justify-content:space-between;
+ gap:14px;padding:13px 2px;border-bottom:1px solid var(--line)
+}
+#home .network-card dt{font-size:12px;color:var(--muted);flex-shrink:0}
+#home .network-card dd{font-size:12px;text-align:right;font-weight:690;max-width:64%;overflow-wrap:anywhere}
+#home .network-card>.text-button{min-height:44px;font-size:12px;font-weight:710;display:inline-flex;align-items:center}
+#home .privacy-card{display:flex;align-items:flex-start;gap:12px;padding:17px}
+#home .privacy-icon{display:grid;place-items:center;flex:0 0 44px;height:44px;width:44px;border-radius:13px}
+#home .privacy-icon svg{width:21px;height:21px}
+#home .privacy-card h3{font-size:13px;margin:1px 0 5px}
+#home .privacy-card p{font-size:11px;line-height:1.5}
+#home .destination-panel{padding:18px}
+#home .destination-panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:13px}
+#home .destination-panel-head h3{font-size:16px;font-weight:750}
+#home .destination-panel .server-selector{padding:4px 0 0;border:0;background:transparent;gap:9px}
+#home .destination-panel .selected-location-copy strong{font-size:14px;line-height:1.3}
+#home .destination-panel .selected-location-copy em{font-size:11px;line-height:1.4}
+#home .destination-panel .location-symbol{width:45px;height:45px;flex:0 0 45px;display:grid;place-items:center;border-radius:13px}
+#home .destination-panel .location-symbol svg{width:22px;height:22px;display:block}
+#home .destination-panel .server-ping,#home .destination-panel .server-select{
+ display:grid;place-items:center;min-width:44px;min-height:44px;width:44px;height:44px;padding:0;border-radius:13px
+}
+#home .destination-panel .server-ping svg,#home .destination-panel .server-select svg{
+ display:block;width:18px;height:18px;margin:auto
+}
+#home .destination-panel .latency{font-size:11px;padding:7px 10px;border-radius:9px;max-width:100%;overflow:visible}
+#home .recommended-panel-content{gap:13px;min-height:68px}
+#home .recommend-icon{width:45px;height:45px;flex:0 0 45px;border-radius:13px;display:grid;place-items:center}
+#home .recommend-icon svg{display:block;width:22px;height:22px}
+#home .recommended-panel-content strong{font-size:14px}
+#home .recommended-panel-content p{font-size:11px;line-height:1.45}
+#home .recommend-action{display:inline-flex;align-items:center;justify-content:center;min-height:44px;min-width:66px;font-size:12px}
+#home .recommend-action svg{width:15px;height:15px;display:block}
+#home .insights-grid .metric-icon{display:grid;place-items:center}
+#home .insights-grid .metric-icon svg{display:block;width:19px;height:19px;margin:auto}
+#home .metrics .metric{gap:8px;padding:15px 7px;align-items:center;justify-content:center;text-align:center}
+#home .metrics .metric strong{font-size:16px;letter-spacing:-.2px;margin:0}
+#home .metrics .metric small{font-size:9px;line-height:1.3;letter-spacing:.4px}
+#home .metrics .metric em{font-size:10px}
+#home .allowance-card{padding:18px}
+#home .allowance-total{font-size:19px}
+#home .allowance-copy p{font-size:11px;line-height:1.45}
+#home .allowance-actions .icon-button{width:42px;height:42px;display:grid;place-items:center;border-radius:12px}
+#home .allowance-actions svg{display:block;margin:auto;width:19px;height:19px}
+#home .recent-activity{padding:18px}
+#home .activity-heading h3{font-size:14px}
+#home .activity-heading p{font-size:11px}
+#home .recent-row{font-size:11px}
+/* The legacy mobile stylesheet added a generated arrow *as well as*
+   the arrow already present in the Automatic label. Keep exactly one. */
+#locations .recommended{
+ display:grid;grid-template-columns:27px minmax(0,1fr) auto;
+ align-items:center;column-gap:13px;
+ padding:16px;border-radius:17px;min-height:79px;
+ border-color:var(--accent-hairline);background:var(--accent-surface)
+}
+#locations .recommended>svg{width:24px;height:24px;display:block;margin:auto;color:var(--accent)}
+#locations .recommended>div{min-width:0}
+#locations .recommended strong{font-size:13px;line-height:1.3}
+#locations .recommended small{font-size:11px;line-height:1.4}
+#locations .recommended>span{font-size:11px!important;line-height:1.3;font-weight:700;white-space:nowrap;margin-left:2px}
+#locations .recommended>span::after{content:none!important;display:none!important}
+#locations .server-row{display:flex;align-items:center;padding:14px 12px;gap:8px;min-height:77px;border-radius:15px}
+#locations .server-choice{align-items:center;gap:12px;min-width:0}
+#locations .server-choice svg{display:block;flex-shrink:0}
+#locations .server-row .server-ping,#locations .server-row .server-select{width:44px;height:44px;min-width:44px;min-height:44px;display:grid;place-items:center}
+#locations .server-row .server-ping svg,#locations .server-row .server-select svg{display:block;margin:auto;width:17px;height:17px}
+#locations .toolbar input{min-height:48px;font-size:15px}
+#locations .toolbar .button-row button{min-height:44px;font-size:12px}
+#locations .location-sort .select-control{width:100%}
+#locations .select-trigger{min-height:46px;font-size:12px}
+#locations .latency{font-size:11px;max-width:80px}
+#settings .settings-sections>.settings-card{padding:20px 18px;border-radius:19px}
+#settings .setting-row{gap:13px}
+#settings .setting-row label{font-size:12px;line-height:1.4}
+#settings .setting-row small{font-size:11px;line-height:1.45}
+#settings .accent-options{gap:9px;padding-top:7px}
+#settings .accent-choice{min-height:78px}
+#settings .accent-choice small{font-size:10px}
+input[type=checkbox].switch{display:inline-block;vertical-align:middle;flex-shrink:0}
+#settings .setting-row input[type=checkbox].switch{margin-left:auto}
+body.light #home .connection-card,body.light #home .network-card,
+body.light #home .destination-panel,body.light #home .allowance-card,
+body.light #home .metrics,body.light #home .recent-activity{
+ box-shadow:0 6px 24px rgba(25,46,76,.065);border-color:rgba(38,56,82,.13)
+}
+@media(max-width:360px){
+ header{padding-inline:13px}
+ main{padding-inline:12px}
+ .mobile-app-brand{font-size:14px}
+ .mobile-app-brand img{width:34px;height:34px}
+ .account-chip #account-name{max-width:57px}
+ .sidebar{padding-inline:5px}
+ .sidebar .nav-item{font-size:9px}
+ #home .network-card{padding:16px 14px 13px}
+ #home .connection-health{grid-template-columns:42px minmax(0,1fr);padding:12px 10px;column-gap:10px}
+ #home .connection-health .health-emblem{width:42px;height:42px;min-width:42px;min-height:42px}
+ #home .connection-health strong{font-size:17px}
+ #home .destination-panel{padding:15px}
+ #home .destination-panel .server-selector{column-gap:5px}
+ #home .destination-panel .selected-location-copy strong{font-size:13px}
+ #locations .recommended{grid-template-columns:24px minmax(0,1fr);row-gap:7px}
+ #locations .recommended>span{grid-column:2;justify-self:start}
+}
+@media(min-width:720px){
+ main{max-width:1060px}
+ #home .connection-health{grid-template-columns:50px minmax(0,1fr)}
+ #home .insights-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+ #home .destination-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(prefers-reduced-motion:reduce){
+ #home .orbital,#home .power-button,#home .power-button.connecting{
+ animation:none!important;transition:none!important
+ }
+}
+
+/* Android: content order follows the connection task, not desktop DOM columns.
+   Flatten only the two desktop grouping wrappers, leaving their children intact.
+   No desktop selectors/markup/event handlers are modified. */
+#home.active{display:flex!important;flex-direction:column;align-items:stretch;gap:14px}
+#home.active>.page-heading{order:0;margin-bottom:2px}
+#home.active>.overview-grid,
+#home.active>.overview-grid>.right-column,
+#home.active>.destination-grid{display:contents!important}
+#home.active .connection-card{order:1;width:100%;min-width:0}
+#home.active .destination-panel.selected-panel{order:2;width:100%;min-width:0}
+#home.active .network-card{order:3;width:100%;min-width:0}
+#home.active .destination-panel.recommended-panel{order:4;width:100%;min-width:0}
+#home.active .privacy-card{order:5;width:100%;min-width:0}
+#home.active>.insights-grid{order:6;width:100%;min-width:0}
+#home.active>.recent-activity{order:7;width:100%;min-width:0}
+#home.active>.info-strip{order:8;width:100%;min-width:0}
+/* Keep the selected endpoint visibly attached to the main connection action. */
+#home.active .connection-card{margin-bottom:0}
+#home.active .destination-panel.selected-panel{
+ margin-top:0;border-color:var(--accent-hairline);
+ box-shadow:0 8px 25px rgba(0,0,0,.05);
+}
+#home.active .destination-panel.selected-panel .destination-panel-head{
+ margin-bottom:8px
+}
+#home.active .destination-panel.selected-panel .server-selector{gap:8px}
+#home.active .destination-panel.selected-panel .selected-location-choice{
+ min-width:0;flex:1 1 0;gap:10px
+}
+#home.active .destination-panel.selected-panel .selected-location-copy{
+ min-width:0;flex:1 1 0;overflow:hidden
+}
+#home.active .destination-panel.selected-panel .selected-location-copy strong{
+ overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+}
+#home.active .destination-panel.selected-panel .selected-location-copy em{
+ overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+}
+#home.active .destination-panel.selected-panel #selected-latency{
+ flex-shrink:0;white-space:nowrap;margin-left:auto;padding:6px 7px
+}
+#home.active .destination-panel.selected-panel .server-ping,
+#home.active .destination-panel.selected-panel .server-select{
+ flex:0 0 42px;width:42px;min-width:42px;height:44px;min-height:44px
+}
+/* Consistent centered appearance control: never depend on SVG baseline. */
+header .header-actions #theme-toggle{
+ display:grid!important;place-items:center!important;
+ padding:0!important;margin:0!important;
+ width:44px!important;height:44px!important;min-width:44px!important;
+ line-height:1!important;flex:0 0 44px;
+}
+header .header-actions #theme-toggle svg{
+ display:block!important;place-self:center!important;
+ margin:0!important;padding:0!important;
+ width:21px!important;height:21px!important;
+ transform:none!important;flex:none
+}
+header .header-actions #theme-toggle svg use{transform:none}
+/* Compact diagnostic rows: time and severity form a metadata line, message below. */
+#home .recent-activity{
+ border:1px solid var(--android-edge);border-radius:var(--android-radius);
+ background:var(--card);padding:18px 17px
+}
+#home .recent-activity .activity-heading{
+ display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;
+ align-items:start;padding:0 0 13px;margin-bottom:10px
+}
+#home .recent-activity .activity-heading h3{font-size:15px;line-height:1.35}
+#home .recent-activity .activity-heading p{font-size:11px;line-height:1.55;margin-top:5px}
+#home .recent-activity .activity-heading .text-button{
+ display:inline-flex;align-items:center;justify-content:center;
+ min-height:44px;font-size:11px;white-space:nowrap
+}
+#home .recent-activity .recent-activity-list{
+ display:grid;gap:8px;min-width:0
+}
+#home .recent-activity .recent-row{
+ display:grid;grid-template-columns:auto minmax(0,1fr);
+ grid-template-rows:auto auto;column-gap:9px;row-gap:6px;
+ min-width:0;align-items:center;
+ border:1px solid var(--line);border-radius:13px;
+ background:var(--card-alt);padding:12px 13px;
+ font-size:11px;line-height:1.5
+}
+#home .recent-activity .recent-row time{
+ grid-column:1;grid-row:1;font-size:10px;white-space:nowrap
+}
+#home .recent-activity .recent-row .recent-severity{
+ grid-column:2;grid-row:1;font-size:10px;letter-spacing:.45px;justify-self:start;
+ margin:0
+}
+#home .recent-activity .recent-row>span:last-child{
+ grid-column:1/-1;grid-row:2;overflow-wrap:anywhere;
+ font-size:12px;line-height:1.55;color:var(--text)
+}
+/* A balanced 2 by 2 metrics dashboard on phones. */
+#home .insights-grid .metrics,#home .insights-grid .metrics.has-total{
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:0;width:100%;overflow:hidden
+}
+#home .insights-grid .metric{
+ display:flex;flex-direction:column;align-items:center;justify-content:center;
+ min-width:0;min-height:157px;padding:16px 9px;
+ text-align:center;gap:7px;border:0;border-radius:0
+}
+#home .insights-grid .metric:nth-child(odd){border-right:1px solid var(--line)}
+#home .insights-grid .metric:nth-child(n+3){border-top:1px solid var(--line)}
+#home .insights-grid .metric-icon{
+ display:grid;place-items:center;width:38px;height:38px;margin:0 auto;
+ border-radius:12px
+}
+#home .insights-grid .metric-icon svg{display:block;margin:0 auto;width:20px;height:20px}
+#home .insights-grid .metric small{font-size:10px;letter-spacing:.85px;line-height:1.35}
+#home .insights-grid .metric strong{font-size:20px;line-height:1.25}
+#home .insights-grid .metric em{font-size:10px;line-height:1.45}
+#home .insights-grid .metrics:not(.has-total) .metric:nth-child(3){
+ grid-column:1/-1;border-right:0
+}
+/* Location rows: reliable hitboxes and icon centering for 320-430px screens. */
+#locations .recommended>svg,#locations .server-choice svg,
+#locations .server-row button svg,#locations .server-row .country-code{
+ align-self:center;justify-self:center
+}
+#locations .server-row .country-code{display:grid;place-items:center;flex-shrink:0}
+#locations .server-row button{align-self:center}
+#locations .server-row .server-choice{flex:1 1 0;min-width:0}
+#locations .server-row .server-choice>div{min-width:0}
+#locations .server-row .server-choice strong,
+#locations .server-row .server-choice small{
+ overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+}
+#locations .server-row .latency{margin-left:auto;flex-shrink:0}
+#locations .recommended>span::before{content:none!important}
+#locations .recommended>span::after{content:none!important}
+@media(max-width:360px){
+ #home.active{gap:12px}
+ #home.active .destination-panel.selected-panel{padding:14px 12px}
+ #home.active .destination-panel.selected-panel .server-selector{gap:5px}
+ #home.active .destination-panel.selected-panel .location-symbol{flex-basis:39px;width:39px;height:39px}
+ #home.active .destination-panel.selected-panel .server-ping,
+ #home.active .destination-panel.selected-panel .server-select{flex-basis:40px;width:40px;min-width:40px;height:44px}
+ #home.active .destination-panel.selected-panel #selected-latency{font-size:10px;padding:5px}
+ #home .recent-activity .activity-heading{grid-template-columns:1fr}
+ #home .recent-activity .activity-heading .text-button{justify-content:flex-start}
+}
