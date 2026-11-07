@@ -12,13 +12,16 @@ function hkdf(input,info,length){return Buffer.from(crypto.hkdfSync('sha256',inp
 function authPW(email,password){
  return hkdf(crypto.pbkdf2Sync(password,PREFIX+'quickStretch:'+email,1000,32,'sha256'),PREFIX+'authPW',32).toString('hex');
 }
-function hawk(method,url,session,body,now=Math.floor(Date.now()/1000),nonce=crypto.randomBytes(6).toString('base64url')){
+function hawk(method,url,session,body,now=Math.floor(Date.now()/1000),nonce=crypto.randomBytes(6).toString('hex')){
+ if(!SESSION_TOKEN_HEX.test(session||''))throw Error('The account provider returned an invalid session token.');
  const expanded=hkdf(Buffer.from(session,'hex'),PREFIX+'sessionToken',64);
  const u=new URL(url);
- const hash=crypto.createHash('sha256').update('hawk.1.payload\napplication/json\n'+body+'\n').digest('base64');
- const normalized='hawk.1.header\n'+now+'\n'+nonce+'\n'+method+'\n'+u.pathname+u.search+'\n'+u.hostname+'\n'+(u.port||443)+'\n'+hash+'\n\n';
- const mac=crypto.createHmac('sha256',expanded.subarray(32)).update(normalized).digest('base64');
- return 'Hawk id="'+expanded.subarray(0,32).toString('hex')+'", ts="'+now+'", nonce="'+nonce+'", mac="'+mac+'", hash="'+hash+'"';
+ // Match FxA's hex-encoded HAWK MAC and payload hash. GET has no payload hash.
+ const hash=body===undefined||body===''?'':crypto.createHash('sha256').update('hawk.1.payload\napplication/json\n'+body+'\n').digest('hex');
+ const port=u.port||(u.protocol==='https:'?'443':'80');
+ const normalized='hawk.1.header\n'+now+'\n'+nonce+'\n'+method.toUpperCase()+'\n'+u.pathname+u.search+'\n'+u.hostname+'\n'+port+'\n'+hash+'\n\n';
+ const mac=crypto.createHmac('sha256',expanded.subarray(32)).update(normalized).digest('hex');
+ return 'Hawk id="'+expanded.subarray(0,32).toString('hex')+'", ts="'+now+'", nonce="'+nonce+'", mac="'+mac+'"'+(hash?', hash="'+hash+'"':'');
 }
 function normalizeCode(value){
  return String(value||'').replace(/[۰-۹]/g,c=>String(c.codePointAt(0)-0x6f0))
@@ -45,13 +48,12 @@ class Auth {
   return (await this.http.json(url,{method:'POST',body,authorization:session?hawk('POST',url,session,body):undefined})).data;
  }
  async sessionVerified(sessionToken){
-  // Mozilla Accounts introduced prefixed Bearer tokens for authenticated
-  // routes; unlike legacy Hawk, no request signing or nonce is required.
-  // This call never exposes the short-lived session token to the renderer.
+  // A legacy FxA session is authenticated with HAWK, as in Arman's
+  // SessionVerified implementation. Never expose this token to the renderer.
   if(!SESSION_TOKEN_HEX.test(sessionToken||''))throw Error('The account provider returned an invalid session token.');
   const url='https://api.accounts.firefox.com/v1/recovery_email/status';
   const response=await this.http.json(url,{
-   method:'GET',authorization:'Bearer fxs_'+sessionToken
+   method:'GET',authorization:hawk('GET',url,sessionToken)
   });
   if(typeof response?.data?.verified!=='boolean')throw Error('The account provider returned an unexpected verification status.');
   return response.data.verified;

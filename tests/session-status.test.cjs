@@ -10,7 +10,7 @@ test('email confirmation link does not exchange OAuth until provider marks sessi
    const p=new URL(url).pathname;
    if(p==='/v1/recovery_email/status'){
      assert.equal(request.method,'GET');
-     assert.equal(request.authorization,'Bearer fxs_'+session);
+     assert.match(request.authorization,/^Hawk id="[a-f0-9]{64}", ts="[0-9]+", nonce="[a-f0-9]{12}", mac="[a-f0-9]{64}"$/);
      assert.equal(Object.hasOwn(request,'body'),false);
      statusChecks++;
      return {data:{verified:statusChecks>=2}};
@@ -63,7 +63,7 @@ test('read-only session status uses an authenticated GET without a JSON request 
  assert.equal(await auth.sessionVerified('ab'.repeat(32)),false);
  assert.equal(captured.method,'GET');
  assert.equal(captured.body,undefined);
- assert.equal(captured.headers.Authorization,'Bearer fxs_'+'ab'.repeat(32));
+ assert.match(captured.headers.Authorization,/^Hawk id="[a-f0-9]{64}", ts="[0-9]+", nonce="[a-f0-9]{12}", mac="[a-f0-9]{64}"$/);
  assert.equal(Object.hasOwn(captured.headers,'Content-Type'),false);
 });
 
