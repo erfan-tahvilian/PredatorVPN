@@ -266,3 +266,83 @@ test('Chromium-managed FxA transport never forwards account cookies in a raw app
  for(const call of observed)assert.equal(Object.keys(call.options.headers).some(k=>k.toLowerCase()==='cookie'),false);
  assert.equal(control.cookies.size,0);
 });
+
+// Standards-based HTTP/2 fallback is available only for public Remote Settings.
+test('public HTTP/2 fallback negotiates verified TLS and returns a bounded public response',async()=>{
+ const {EventEmitter}=require('node:events');
+ const {fetchPublicH2,PUBLIC_ORIGIN,PUBLIC_PATH}=require('../src/lib/http2-public-fallback.cjs');
+ let connected=0,closed=0,headersSeen;
+ const fakeConnect=(origin,settings)=>{
+  assert.equal(origin,PUBLIC_ORIGIN);
+  assert.equal(settings.rejectUnauthorized,true);
+  assert.deepEqual(settings.ALPNProtocols,['h2']);
+  connected++;
+  const session=new EventEmitter();
+  session.socket={alpnProtocol:'h2'};
+  session.close=()=>{closed++;};
+  session.request=headers=>{
+   headersSeen=headers;
+   const stream=new EventEmitter();
+   stream.close=()=>{};
+   stream.end=()=>queueMicrotask(()=>{
+    stream.emit('response',{':status':200,'content-type':'application/json'});
+    stream.emit('data',Buffer.from('{"ok":true}'));
+    stream.emit('end');
+   });
+   return stream;
+  };
+  queueMicrotask(()=>session.emit('connect'));
+  return session;
+ };
+ const response=await fetchPublicH2(PUBLIC_ORIGIN+PUBLIC_PATH,{connect:fakeConnect});
+ assert.equal(response.status,200);
+ assert.deepEqual(await response.json(),{ok:true});
+ assert.equal(headersSeen[':method'],'GET');
+ assert.equal(connected,1);
+ assert.equal(closed,1);
+ await assert.rejects(fetchPublicH2('https://api.accounts.firefox.com/v1/oauth/token',
+   {connect:fakeConnect}),/restricted to approved public/i);
+ await assert.rejects(fetchPublicH2(PUBLIC_ORIGIN+PUBLIC_PATH,
+   {method:'POST',connect:fakeConnect}),/restricted to approved public/i);
+ assert.equal(connected,1,'No protected endpoint was contacted');
+});
+test('transport uses independent HTTP/2 only after a public read network error',async()=>{
+ const {PUBLIC_ORIGIN,PUBLIC_PATH}=require('../src/lib/http2-public-fallback.cjs');
+ const fail=Object.assign(Error('net::ERR_CONNECTION_RESET'),{code:'ERR_CONNECTION_RESET'});
+ const calls=[];
+ const transport=createAccountTransport({
+  createSession:()=>({setProxy:async()=>{},fetch:async()=>{calls.push('chromium');throw fail;}}),
+  systemFetch:async()=>{calls.push('system');return new Response('{}')},
+  publicH2:async(url,{method})=>{calls.push('h2');assert.equal(url,PUBLIC_ORIGIN+PUBLIC_PATH);assert.equal(method,'GET');return new Response('{"ok":true}')}
+ });
+ const publicResponse=await transport(PUBLIC_ORIGIN+PUBLIC_PATH);
+ assert.deepEqual(await publicResponse.json(),{ok:true});
+ assert.deepEqual(calls,['chromium','h2']);
+ await transport('https://api.accounts.firefox.com/v1/recovery_email/status');
+ assert.deepEqual(calls,['chromium','h2','chromium','system']);
+ await assert.rejects(transport('https://api.accounts.firefox.com/v1/oauth/token',
+   {method:'POST'}),/connection was interrupted/i);
+ assert.deepEqual(calls,['chromium','h2','chromium','system','chromium']);
+});
+test('provider-rejected challenge clearance is not treated as valid',async()=>{
+ const {Control}=require('../src/lib/control.cjs');
+ const prefix='/_fs-ch-test';
+ let postbacks=0;
+ const control=new Control({transport:async raw=>{
+  const url=new URL(raw);
+  if(url.hostname==='api.accounts.firefox.com')
+   return new Response('Nothing to verify');
+  if(url.pathname==='/')
+   return new Response('<title>Client Challenge</title>'+prefix);
+  if(url.pathname.endsWith('/script.js'))
+   return new Response('init('+JSON.stringify([{ty:'clientmetrics',data:{}}])+',"token","'+prefix+'");');
+  if(url.pathname.endsWith('/fst-post-back')){
+   postbacks++;
+   return new Response('{"status":"success"}',{headers:{'Content-Type':'application/json'}});
+  }
+  throw Error('Unexpected route in test');
+ }});
+ await assert.rejects(control.solveChallenge(),error=>
+  error.verificationStage==='challenge-response'&&error.verificationStatus===406);
+ assert.equal(postbacks,1,'Do not replay the sign-in when provider clearance was not confirmed');
+});

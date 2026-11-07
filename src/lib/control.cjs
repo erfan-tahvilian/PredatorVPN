@@ -151,7 +151,20 @@ class Control {
         const r = await this.fetch(root+'/fst-post-back', {method:'POST', headers:{...headers,Origin:base,'Content-Type':'application/json'},body:JSON.stringify({token,data:answers})});
         if(!r.ok) {const error=Error('Service verification failed.');error.verificationStage='challenge-response';error.verificationStatus=r.status;throw error;}
         const data = await r.json();
-        if(data.status==='success') return;
+        if(data.status==='success') {
+          // A successful response alone does not prove that the provider
+          // accepted the browser's verified session. Check the landing page
+          // through the very same transport/cookie jar before replaying OAuth.
+          const probe=await this.fetch(base+'/',{headers});
+          const page=await probe.text();
+          if(!probe.ok||(page.includes('Client Challenge')&&/\/_fs-ch-[A-Za-z0-9]+/.test(page))){
+            const error=Error('The account provider did not confirm challenge completion.');
+            error.verificationStage='challenge-response';
+            error.verificationStatus=probe.ok?406:probe.status;
+            throw error;
+          }
+          return;
+        }
         challenges=data.ch; token=data.tok;
         if(!Array.isArray(challenges) || !token) throw Error('Service verification did not complete.');
       }

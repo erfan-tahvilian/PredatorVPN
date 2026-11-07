@@ -25,7 +25,9 @@ test('service verification uses a fresh cookie jar, consistent account agent and
       if(options.method!=='POST')return new Response('{}');
       return options.headers.Cookie?.includes('clearance=accepted') ? new Response('{"ok":true}') : new Response('',{status:406});
     }
-    if(url.pathname==='/')return new Response('<title>Client Challenge</title><script src="/_fs-ch-test/script.js"></script>');
+    if(url.pathname==='/')return verifications
+      ? new Response('<title>Verification complete</title>')
+      : new Response('<title>Client Challenge</title><script src="/_fs-ch-test/script.js"></script>');
     if(url.pathname.endsWith('/script.js'))return new Response('init ([{"ty":"clientmetrics","data":{"nested":[[1,2]]}}], "token", "/_fs-ch-test", true)');
     if(url.pathname.endsWith('/fst-post-back')){verifications++;return new Response('{"status":"success"}',{headers:{'Set-Cookie':'clearance=accepted; Domain=firefox.com; Path=/; HttpOnly'}});}
     throw Error('Unexpected request');
