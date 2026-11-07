@@ -172,7 +172,7 @@ class Auth {
   const pending=this.pending;
   if(!pending?.session)throw Error('Start account sign-in again.');
   const session=pending.session;
-  let token,alternateTried=false;
+  let token,alternateTried=false,alternateRejected406=false;
   try{
     token=await this.request('/oauth/token',{client_id:CLIENT,grant_type:'fxa-credentials',
       scope:SCOPE,access_type:'offline'},session,{onNotAcceptable:async()=>{
@@ -181,9 +181,21 @@ class Auth {
       try{return await exchangeSessionWithOAuthCode({
         json:(url,options)=>this.http.json(url,{...options,challengeOn406:false})
       },session,hawk);}
-      catch(error){if(error?.status===406)return null;throw error;}
+      catch(error){
+        if(error?.status===406){alternateRejected406=true;return null;}
+        throw error;
+      }
     }});
   }catch(error){
+    // Preserve the actual failure point instead of showing a generic
+    // challenge-page error after BOTH legitimate OAuth grants were refused.
+    if(alternateRejected406&&error?.status===406){
+      const blocked=Error('Sign-in reached OAuth token issuance, but Mozilla returned HTTP 406 for both the direct and authorization-code grants. No usable verification page was provided. No verification code was resubmitted automatically. Check authorization for this OAuth client with the account provider.');
+      blocked.code='FXA_OAUTH_GRANTS_REJECTED';
+      blocked.status=406;
+      blocked.loginStage='oauth-token';
+      throw blocked;
+    }
     // Non-Control transports can still report 406 directly. Only retry
     // the alternate grant if the earlier fallback has not run already.
     if(error.status!==406||alternateTried)throw error;

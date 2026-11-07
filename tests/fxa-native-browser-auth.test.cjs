@@ -213,7 +213,7 @@ test('Second empty 406 does not replay an already attempted OAuth authorization 
  const auth=new Auth(http,{setAuth:()=>saved++});
  auth.pending={session:'ab'.repeat(32),email:'person@example.invalid',verified:true};
  try{
-  await assert.rejects(auth.complete(),/account provider could not complete its verification/i);
+  await assert.rejects(auth.complete(),error=>error.code==='FXA_OAUTH_GRANTS_REJECTED'&&error.loginStage==='oauth-token'&&error.status===406&&/both the direct and authorization-code grants/i.test(error.message)&&!error.message.includes('ab'.repeat(32)));
   assert.equal(direct,1);assert.equal(alternate,1);assert.equal(challenge,1);assert.equal(saved,0);
  }finally{auth.cancel();}
 });
