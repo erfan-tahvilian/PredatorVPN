@@ -22,7 +22,7 @@ test('Protocol recognizes status/link requests without reporting an authenticate
 });
 test('Legacy WebChannel session token is not misclassified as a completed OAuth login',()=>{
  const result=parseWebChannel(ORIGIN,wrapped('fxaccounts:login',{email:'person@example.invalid',sessionToken:'ab'.repeat(32)}),state);
- assert.deepEqual(result,{kind:'legacy-session',sessionToken:'ab'.repeat(32)});
+ assert.deepEqual(result,{kind:'legacy-session',sessionToken:'ab'.repeat(32),email:'person@example.invalid'});
  assert.equal(parseWebChannel(ORIGIN,wrapped('fxaccounts:login',{token:'invalid'}),state),null);
  assert.equal(parseWebChannel(ORIGIN,'not-json',state),null);
  assert.equal(parseWebChannel(ORIGIN,{},state),null);

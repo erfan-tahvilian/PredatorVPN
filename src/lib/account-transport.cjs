@@ -3,7 +3,7 @@
 // inheriting any proxy applied to the application window. An OS-level VPN route
 // is not bypassed by this setting; direct here means "no Chromium proxy".
 const TRANSIENT=/\b(?:ERR_CONNECTION_RESET|ERR_NETWORK_CHANGED|ERR_CONNECTION_CLOSED|ERR_TIMED_OUT|ETIMEDOUT|ECONNRESET|EPIPE)\b/i;
-const APPROVED=new Set(['api.accounts.firefox.com','accounts.firefox.com','vpn.mozilla.org','firefox.settings.services.mozilla.com']);
+const APPROVED=new Set(['api.accounts.firefox.com','accounts.firefox.com','oauth.accounts.firefox.com','vpn.mozilla.org','firefox.settings.services.mozilla.com']);
 function isTransient(error) {
   const candidate=[error?.code,error?.message,error?.cause?.code,error?.cause?.message].filter(Boolean).join(' ');
   return TRANSIENT.test(candidate);

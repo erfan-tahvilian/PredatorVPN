@@ -3,7 +3,7 @@
 const crypto = require('node:crypto');
 const {parseChallengeInit} = require('./service-challenge.cjs');
 const UA = 'MozillaVPN/2.35.0 (sys:linux; iap:true)';
-const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
+const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0) Gecko/20100101 Firefox/145.0';
 const ALPHABET = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 // Translate only locally classified provider verification failures. Never return
 // raw third-party challenge contents, cookies, tokens or URLs to the renderer.

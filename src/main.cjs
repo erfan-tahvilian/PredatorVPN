@@ -28,6 +28,9 @@ function makeControl({interactive=false}={}){
 const {Auth}=require('./lib/auth.cjs');
 const {readProviderRegistration,createAuthorization,redirectResult,signInNavigationAllowed}=require('./lib/provider-browser-auth.cjs');
 const {completeBrowserOAuth}=require('./lib/oauth-browser-completion.cjs');
+const {parseWebChannel}=require('./lib/fxa-webchannel-protocol.cjs');
+const {followNativeBrowserSession}=require('./lib/fxa-native-browser-auth.cjs');
+const {createNativeOAuthFlow,completeNativeOAuthCode}=require('./lib/fxa-native-oauth-code.cjs');
 const {CaptchaPrompt}=require('./lib/captcha-prompt.cjs');
 const APP_VERSION=require('../package.json').version;
 // Adopt the new product name for all new Electron profile directories.
@@ -68,12 +71,145 @@ async function refreshAccount(id){const data=await accountCoordinator.refresh(id
 function beginLogin(){loginAccountId=null;const http=makeControl({interactive:true}),sink={auth:null,setAuth(auth){if(!auth)return;loginAccountId=store.addAccount(auth,connection==='disconnected');this.auth=auth;}};loginGuardian=new Guardian(http,new Auth(http,sink));return loginGuardian.auth;}
 function completeLogin(result){if(loginAccountId){syncGuardian();if(connection==='disconnected')quota=store.activeAccount?.quota||null;const id=loginAccountId;loginGuardian=null;loginAccountId=null;if(store.activeAccountId!==id)void refreshAccount(id).catch(()=>{});}return result;}
 
-// Provider-hosted login requires a separately registered OAuth application.
-// Firefox's native client ID/WebChannel are intentionally not reused.
+// Native Mozilla Accounts browser sign-in with isolated WebChannel mediation.
+// The user enters credentials only into the identity provider's own page.
+async function signInViaNativeBrowser(){
+  if(busy||providerBrowserWindow)throw Error('Another account operation is already running.');
+  const attempt=++providerBrowserAttempt;
+  const loginUrl='https://accounts.firefox.com/?context=fx_desktop_v3&service=sync&action=email';
+  const nativeOAuth=createNativeOAuthFlow();
+  const browserUA='Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0) Gecko/20100101 Firefox/145.0';
+  const permitted=new Set(['accounts.firefox.com','content.accounts.firefox.com','oauth.accounts.firefox.com',
+    'accounts.google.com','appleid.apple.com']);
+  busy=true;emit();
+  try{
+    await new Promise((resolve,reject)=>{
+      let settled=false,sessionSeq=0,lastToken='',usingModern=false;
+      const popup=new BrowserWindow({
+        parent:window,modal:true,width:560,height:760,minWidth:460,minHeight:550,
+        show:true,title:'Mozilla account sign-in - Predator VPN',autoHideMenuBar:true,
+        webPreferences:{preload:path.join(__dirname,'fxa-webchannel-preload.cjs'),
+          nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,
+          partition:'predator-native-fxa-'+attempt+'-'+require('node:crypto').randomBytes(8).toString('hex')}
+      });
+      providerBrowserWindow=popup;
+      popup.webContents.setUserAgent(browserUA);
+      const timer=setTimeout(()=>finish(Error('Browser sign-in timed out.')),15*60*1000);
+      timer.unref?.();
+      function active(sequence){
+        return !settled&&providerBrowserAttempt===attempt&&sessionSeq===sequence;
+      }
+      function finish(error){
+        if(settled)return;
+        settled=true;sessionSeq++;clearTimeout(timer);
+        ipcMain.off('predator:fxa-webchannel',onWebChannel);
+        if(providerBrowserWindow===popup)providerBrowserWindow=null;
+        if(!popup.isDestroyed())popup.close();
+        if(error)reject(error);else resolve();
+      }
+      function onWebChannel(event,detail){
+        if(settled||event.sender!==popup.webContents)return;
+        let origin;
+        try{origin=new URL(event.senderFrame?.url||'').origin;}catch{return;}
+        const message=parseWebChannel(origin,detail,nativeOAuth.state);
+        if(!message)return;
+        if(message.kind==='query'){
+          const data=message.command==='fxaccounts:fxa_status'
+            ?{capabilities:{},signedInUser:null}:{ok:true};
+          popup.webContents.send('predator:fxa-webchannel-reply',{
+            id:message.id,message:{messageId:message.messageId,command:message.command,data}
+          });
+          return;
+        }
+        if(message.kind==='oauth-code'){
+          const sequence=++sessionSeq;
+          void completeNativeOAuthCode({
+            code:message.code,flow:nativeOAuth,
+            fetcher:(url,options)=>popup.webContents.session.fetch(url,{...options,credentials:'include'}),
+            checkVpn:async accessToken=>{
+              const entitlement=new Guardian(makeControl(),{token:async()=>accessToken});
+              await entitlement.pass();
+            },
+            saveAccount:credentials=>{
+              if(!active(sequence))throw Error('Browser sign-in was cancelled.');
+              const id=store.addAccount(credentials,connection==='disconnected');
+              syncGuardian();
+              if(connection==='disconnected')quota=store.activeAccount?.quota||null;
+              emit();
+              if(store.activeAccountId!==id)void refreshAccount(id).catch(()=>{});
+              return id;
+            },
+            active:()=>active(sequence)
+          }).then(()=>{if(active(sequence))finish(null);},
+            error=>{if(active(sequence))finish(error);});
+          return;
+        }
+        if(message.kind!=='legacy-session'||message.sessionToken===lastToken)return;
+        lastToken=message.sessionToken;
+        const sequence=++sessionSeq;
+        void followNativeBrowserSession({
+          sessionToken:message.sessionToken,email:message.email,
+          // Use the same isolated Chromium cookie jar as the hosted sign-in.
+          http:new Control({transport:(url,options)=>popup.webContents.session.fetch(url,{...options,credentials:'include'}),
+            captchaSolver:image=>captchaPrompt.ask(image)}),
+          fetcher:(...args)=>electronNet.fetch(...args),
+          checkVpn:async accessToken=>{
+            const entitlement=new Guardian(makeControl(),{token:async()=>accessToken});
+            await entitlement.pass();
+          },
+          saveAccount:credentials=>{
+            if(!active(sequence))throw Error('Browser sign-in was cancelled.');
+            const id=store.addAccount(credentials,connection==='disconnected');
+            syncGuardian();
+            if(connection==='disconnected')quota=store.activeAccount?.quota||null;
+            emit();
+            if(store.activeAccountId!==id)void refreshAccount(id).catch(()=>{});
+            return id;
+          },
+          active:()=>active(sequence)
+        }).then(()=>{if(active(sequence))finish(null);},
+          error=>{if(active(sequence))finish(error);});
+      }
+      ipcMain.on('predator:fxa-webchannel',onWebChannel);
+      popup.on('close',()=>finish(Error('Browser sign-in was cancelled.')));
+      popup.on('closed',()=>finish(Error('Browser sign-in was cancelled.')));
+      popup.webContents.on('will-navigate',(event,url)=>{
+        try{
+          const u=new URL(url);
+          if(u.protocol==='https:'&&permitted.has(u.hostname))return;
+        }catch{}
+        event.preventDefault();finish(Error('The provider attempted to leave approved sign-in domains.'));
+      });
+      popup.webContents.on('will-redirect',(event,url)=>{
+        try{const u=new URL(url);if(u.protocol==='https:'&&permitted.has(u.hostname))return;}catch{}
+        event.preventDefault();finish(Error('The provider redirected outside approved sign-in domains.'));
+      });
+      popup.webContents.on('did-navigate',(_event,url)=>{
+        if(usingModern||settled)return;
+        try{
+          const u=new URL(url);
+          if(u.origin==='https://accounts.firefox.com'&&u.pathname.startsWith('/update_firefox')){
+            usingModern=true;
+            popup.loadURL(nativeOAuth.url).catch(()=>finish(Error('The updated provider sign-in page could not be loaded.')));
+          }
+        }catch{}
+      });
+      popup.webContents.setWindowOpenHandler(()=>({action:'deny'}));
+      popup.webContents.on('did-fail-load',(_event,code,_desc,_url,mainFrame)=>{
+        if(mainFrame&&code!==-3)finish(Error('The account provider sign-in page could not be loaded.'));
+      });
+      popup.loadURL(loginUrl).catch(()=>finish(Error('The account provider sign-in page could not be loaded.')));
+    });
+    return {needsCode:false};
+  }finally{busy=false;emit();}
+}
+
+// Provider-hosted login with a separately registered OAuth application.
+// If no registration exists, use the native WebChannel flow.
 async function signInViaProviderBrowser(){
   if(busy||providerBrowserWindow)throw Error('Another account operation is already running.');
   const registration=readProviderRegistration(path.join(app.getPath('userData'),'mozilla-client-registration.json'));
-  if(!registration)throw Error('Browser sign-in is not configured: Mozilla requires a separately registered OAuth client ID and HTTPS callback for Predator VPN. The public Firefox Desktop client ID is for Firefox native WebChannel sign-in, not an independent app registration. Select Browser sign-in requirements for the provider instructions.');
+  if(!registration)return signInViaNativeBrowser();
   const attempt=++providerBrowserAttempt,flow=createAuthorization(registration);
   busy=true;emit();
   try{

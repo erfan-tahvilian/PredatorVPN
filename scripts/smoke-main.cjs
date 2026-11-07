@@ -28,11 +28,25 @@ async function run(){
     assert(fs.existsSync('test-results/main-profile/vault.bin'));
     const reject=await win.webContents.executeJavaScript(`window.fox.call('settings',{socksPort:0})`);assert.equal(reject.ok,false);
     const noAuth=await win.webContents.executeJavaScript(`window.fox.call('account')`);assert.equal(noAuth.ok,false);
-    const browserStatus=await win.webContents.executeJavaScript(`window.fox.call('browserLogin')`);
-    assert.equal(browserStatus.ok,false,'Missing registered-provider credentials must fail closed');
-    assert(/registered OAuth client ID|OAuth registration/.test(browserStatus.error),'Missing registration must be reported clearly');
-    assert(/Firefox Desktop client ID/.test(browserStatus.error),'Native client identifiers must not be represented as independently registered clients');
-    assert.equal(BrowserWindow.getAllWindows().length,1,'No provider window should launch without an approved client');
+    // Browser login now opens an isolated interactive WebChannel window.
+    await win.webContents.executeJavaScript(`window.__browserProbe=window.fox.call('browserLogin'); 'started'`);
+    let browser=null;
+    for(let i=0;i<30;i++){
+      browser=BrowserWindow.getAllWindows().find(w=>w!==win&&!w.isDestroyed());
+      if(browser)break;
+      await new Promise(resolve=>setTimeout(resolve,100));
+    }
+    assert(browser,'Browser login should launch the provider window');
+    const opts=browser.webContents.getLastWebPreferences();
+    assert.equal(opts.nodeIntegration,false);
+    assert.equal(opts.contextIsolation,true);
+    assert.equal(opts.sandbox,true);
+    assert(fs.existsSync(path.resolve('src/fxa-webchannel-preload.cjs')),'Native bridge preload file must exist');
+    browser.close();
+    const browserStatus=await win.webContents.executeJavaScript(`window.__browserProbe`);
+    assert.equal(browserStatus.ok,false,'Cancelled browser login cannot create an account');
+    assert(/cancelled/.test(browserStatus.error),'Closing provider page must cancel login');
+    assert.equal(BrowserWindow.getAllWindows().filter(w=>!w.isDestroyed()).length,1);
     const unknown=await win.webContents.executeJavaScript(`window.fox.call('openLink','not-allowed')`);assert.equal(unknown.ok,false);
     fs.writeFileSync('test-results/main-smoke-status.txt','PASS: real main process, sandboxed preload IPC, OS-encrypted vault, settings rejection, signed-out behavior and URL allowlist');
     console.log('Main-process smoke checks passed.');

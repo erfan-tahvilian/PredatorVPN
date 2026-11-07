@@ -32,7 +32,9 @@ function parseWebChannel(origin,value,expectedState){
  if(command==='fxaccounts:login'){
   const data=message.data,token=data?.sessionToken??data?.token;
   if(typeof token!=='string'||!SESSION_TOKEN.test(token))return null;
-  return {kind:'legacy-session',sessionToken:token};
+  const email=typeof data?.email==='string'?data.email.trim():'';
+  if(email.length>320||(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)))return null;
+  return {kind:'legacy-session',sessionToken:token.toLowerCase(),email};
  }
  return null;
 }

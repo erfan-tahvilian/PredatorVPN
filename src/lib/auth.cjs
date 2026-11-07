@@ -165,8 +165,17 @@ class Auth {
   const pending=this.pending;
   if(!pending?.session)throw Error('Start account sign-in again.');
   const session=pending.session;
-  const token=await this.request('/oauth/token',{client_id:CLIENT,grant_type:'fxa-credentials',
-    scope:SCOPE,access_type:'offline'},session);
+  let token;
+  try{
+    token=await this.request('/oauth/token',{client_id:CLIENT,grant_type:'fxa-credentials',
+      scope:SCOPE,access_type:'offline'},session);
+  }catch(error){
+    // Arman-compatible session-authorized code grant when the direct grant
+    // is rejected with 406. No password or verification challenge is skipped.
+    if(error.status!==406)throw error;
+    const {exchangeSessionWithOAuthCode}=require('./fxa-session-code-grant.cjs');
+    token=await exchangeSessionWithOAuthCode(this.http,session,hawk);
+  }
   // A late response from a cancelled, timed-out or replaced sign-in must
   // never create an account or be attributed to another pending email.
   if(this.pending!==pending)throw Error('The account sign-in was cancelled.');
