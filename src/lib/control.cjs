@@ -62,7 +62,7 @@ class Control {
     }
     return response;
   }
-  async json(url, {method = 'GET', body, authorization} = {}) {
+  async json(url, {method = 'GET', body, authorization, onNotAcceptable, challengeOn406=true} = {}) {
     const options = {method,body,headers:{...(body===undefined?{}:{'Content-Type':'application/json'}), ...(authorization ? {Authorization:authorization}: {})}};
     let response = await this.fetch(url, options);
     // Fastly returns an EMPTY HTTP 406 from the account API while hosting its
@@ -79,6 +79,17 @@ class Control {
         const error=Error(data?.message||'The account service rejected this request (HTTP 406).');
         error.status=406;error.errno=data?.errno;
         throw error;
+      }
+      // FxA permits a session-authenticated authorization-code grant as an
+      // alternative when its direct credentials grant receives an empty 406.
+      // Try that authorized grant once, before interacting with a challenge.
+      if(!challengeOn406){
+        const error=Error('The account provider refused the OAuth request (HTTP 406).');
+        error.status=406;throw error;
+      }
+      if(attempt===0&&typeof onNotAcceptable==='function'){
+        const alternative=await onNotAcceptable();
+        if(alternative?.access_token)return {data:alternative,headers:response.headers};
       }
       try{await this.challenge();}
       catch(cause){

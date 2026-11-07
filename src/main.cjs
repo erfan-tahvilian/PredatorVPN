@@ -109,7 +109,8 @@ async function signInViaNativeBrowser(){
         if(providerBrowserWindow===popup)providerBrowserWindow=null;
         if(!popup.isDestroyed())popup.close();
         const safeStage=error?.loginStage||(!oauthExchangeStarted?'provider-page':'oauth-flow');
-        log(error?'warn':'info',error?'Browser sign-in did not complete at '+safeStage+'.':'Browser sign-in completed.');
+        const safeStatus=Number.isInteger(error?.status)?' (HTTP '+error.status+')':'';
+        log(error?'warn':'info',error?'Browser sign-in did not complete at '+safeStage+safeStatus+'.':'Browser sign-in completed.');
         if(error)reject(error);else resolve();
       }
       function onWebChannel(event,detail){

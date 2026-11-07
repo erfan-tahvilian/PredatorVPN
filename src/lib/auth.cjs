@@ -47,10 +47,12 @@ class Auth {
   if(session)void this.request('/session/destroy',{},session).catch(()=>{});
  }
  clearTimer(){if(this.unblockTimer)clearTimeout(this.unblockTimer);this.unblockTimer=null;}
- async request(path,data,session){
+ async request(path,data,session,{onNotAcceptable}={}){
   const url='https://api.accounts.firefox.com/v1'+path;
   const body=JSON.stringify(data);
-  return (await this.http.json(url,{method:'POST',body,authorization:session?hawk('POST',url,session,body):undefined})).data;
+  return (await this.http.json(url,{method:'POST',body,
+   authorization:session?hawk('POST',url,session,body):undefined,
+   onNotAcceptable})).data;
  }
  async sessionVerified(sessionToken){
   // A legacy FxA session is authenticated with HAWK, as in Arman's
@@ -170,14 +172,21 @@ class Auth {
   const pending=this.pending;
   if(!pending?.session)throw Error('Start account sign-in again.');
   const session=pending.session;
-  let token;
+  let token,alternateTried=false;
   try{
     token=await this.request('/oauth/token',{client_id:CLIENT,grant_type:'fxa-credentials',
-      scope:SCOPE,access_type:'offline'},session);
+      scope:SCOPE,access_type:'offline'},session,{onNotAcceptable:async()=>{
+      alternateTried=true;
+      const {exchangeSessionWithOAuthCode}=require('./fxa-session-code-grant.cjs');
+      try{return await exchangeSessionWithOAuthCode({
+        json:(url,options)=>this.http.json(url,{...options,challengeOn406:false})
+      },session,hawk);}
+      catch(error){if(error?.status===406)return null;throw error;}
+    }});
   }catch(error){
-    // Arman-compatible session-authorized code grant when the direct grant
-    // is rejected with 406. No password or verification challenge is skipped.
-    if(error.status!==406)throw error;
+    // Non-Control transports can still report 406 directly. Only retry
+    // the alternate grant if the earlier fallback has not run already.
+    if(error.status!==406||alternateTried)throw error;
     const {exchangeSessionWithOAuthCode}=require('./fxa-session-code-grant.cjs');
     token=await exchangeSessionWithOAuthCode(this.http,session,hawk);
   }

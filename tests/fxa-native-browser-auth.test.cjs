@@ -161,3 +161,99 @@ test('Native OAuth labels a rejected token exchange without exposing secrets',as
  }),error=>/OAuth code exchange/.test(error.message)&&/HTTP 406/.test(error.message)&&error.loginStage==='oauth-token-exchange');
  assert.equal(checked,0);assert.equal(saved,0);
 });
+
+test('Browser session OAuth tries the verified authorization-code grant before HTTP 406 challenge handling',async()=>{
+ const {Control}=require('../src/lib/control.cjs');
+ const {Auth}=require('../src/lib/auth.cjs');
+ const events=[];
+ const reply=data=>new Response(JSON.stringify(data),{status:200,headers:{'content-type':'application/json'}});
+ const http=new Control({browserManagedCookies:true,transport:async(url,options={})=>{
+  const u=new URL(url);
+  if(u.pathname.endsWith('/oauth/token')){
+   events.push('direct-406');
+   return new Response('',{status:406});
+  }
+  if(u.pathname.endsWith('/oauth/authorization')){
+   events.push('authorized-code');
+   assert.match(options.headers.Authorization,/^Hawk /);
+   const body=JSON.parse(options.body);
+   assert.equal(body.code_challenge_method,'S256');
+   return reply({code:'fixture-code',state:body.state});
+  }
+  if(u.pathname==='/v1/token'&&u.hostname==='oauth.accounts.firefox.com'){
+   events.push('code-exchange');
+   assert.equal(JSON.parse(options.body).grant_type,'authorization_code');
+   return reply({access_token:'fixture-access',refresh_token:'fixture-refresh',expires_in:3600});
+  }
+  if(u.pathname.endsWith('/session/destroy')){events.push('destroy');return reply({});}
+  throw Error('Unexpected endpoint: '+u.pathname);
+ }});
+ let saved;
+ const auth=new Auth(http,{setAuth:record=>{saved=record;}});
+ auth.pending={session:'ab'.repeat(32),email:'person@example.invalid',verified:true};
+ try{
+  assert.deepEqual(await auth.complete(),{needsCode:false});
+  assert.deepEqual(events,['direct-406','authorized-code','code-exchange','destroy']);
+  assert.equal(saved.email,'person@example.invalid');
+  assert.equal(saved.refresh_token,'fixture-refresh');
+ }finally{auth.cancel();}
+});
+
+test('Second empty 406 does not replay an already attempted OAuth authorization fallback',async()=>{
+ const {Control}=require('../src/lib/control.cjs');
+ const {Auth}=require('../src/lib/auth.cjs');
+ let direct=0,alternate=0,challenge=0,saved=0;
+ const http=new Control({browserManagedCookies:true,transport:async url=>{
+  const route=new URL(url).pathname;
+  if(route.endsWith('/oauth/token'))direct++;
+  if(route.endsWith('/oauth/authorization'))alternate++;
+  return new Response('',{status:406});
+ }});
+ http.challenge=async()=>{challenge++;throw Error('Provider verification could not complete');};
+ const auth=new Auth(http,{setAuth:()=>saved++});
+ auth.pending={session:'ab'.repeat(32),email:'person@example.invalid',verified:true};
+ try{
+  await assert.rejects(auth.complete(),/account provider could not complete its verification/i);
+  assert.equal(direct,1);assert.equal(alternate,1);assert.equal(challenge,1);assert.equal(saved,0);
+ }finally{auth.cancel();}
+});
+
+test('Browser sign-in retains the same session across a transient status error',async()=>{
+ let status=0,exchanged=0,record;
+ const http={async json(url){
+  const path=new URL(url).pathname;
+  if(path.endsWith('/recovery_email/status')){
+   status++;
+   if(status===1)throw Object.assign(Error('Temporary transport failure'),{status:406});
+   return {data:{verified:true}};
+  }
+  if(path.endsWith('/oauth/token')){exchanged++;return {data:{access_token:'a',refresh_token:'r',expires_in:3600}};}
+  if(path.endsWith('/session/destroy'))return {data:{}};
+  throw Error('Unexpected route');
+ }};
+ const delays=[];
+ const output=await followNativeBrowserSession({sessionToken:token,email:'person@example.invalid',
+  http,fetcher,checkVpn:async()=>{},saveAccount:v=>{record=v;return 'ok';},
+  delay:async ms=>delays.push(ms)});
+ assert.equal(output,'ok');assert.equal(status,2);assert.equal(exchanged,1);
+ assert.deepEqual(delays,[3000]);assert.equal(record.email,'person@example.invalid');
+});
+
+test('Provider unverified-session errno 138 after confirmation retries the OAuth grant only',async()=>{
+ let status=0,grant=0,account;
+ const http={async json(url){
+  const path=new URL(url).pathname;
+  if(path.endsWith('/recovery_email/status')){status++;return {data:{verified:true}};}
+  if(path.endsWith('/oauth/token')){
+   grant++;
+   if(grant===1)throw Object.assign(Error('Session confirmation not propagated'),{status:400,errno:138});
+   return {data:{access_token:'a',refresh_token:'r',expires_in:3600}};
+  }
+  if(path.endsWith('/session/destroy'))return {data:{}};
+  throw Error('Unexpected route');
+ }};
+ const res=await followNativeBrowserSession({sessionToken:token,email:'person@example.invalid',http,fetcher,
+  checkVpn:async()=>{},saveAccount:v=>{account=v;return 'ok';},delay:async()=>{}});
+ assert.equal(res,'ok');assert.equal(status,1);assert.equal(grant,2);
+ assert.equal(account.refresh_token,'r');
+});
