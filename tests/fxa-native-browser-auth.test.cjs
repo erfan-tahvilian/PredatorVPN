@@ -13,8 +13,15 @@ function provider(){
       assert.match(request.authorization,/^Hawk /);
       return {data:{verified:++status>1}};
     }
-    if(pathname.endsWith('/oauth/token')){
+    if(pathname.endsWith('/oauth/authorization')){
+      assert.match(request.authorization,/^Hawk /);
+      const body=JSON.parse(request.body);
+      assert.equal(body.code_challenge_method,'S256');
+      return {data:{code:'fixture-code',state:body.state}};
+    }
+    if(url==='https://oauth.accounts.firefox.com/v1/token'){
       exchanges++;
+      assert.equal(JSON.parse(request.body).grant_type,'authorization_code');
       return {data:{access_token:'access',refresh_token:'refresh',expires_in:3600}};
     }
     if(pathname.endsWith('/session/destroy'))return {data:{}};
@@ -220,14 +227,22 @@ test('Second empty 406 does not replay an already attempted OAuth authorization 
 
 test('Browser sign-in retains the same session across a transient status error',async()=>{
  let status=0,exchanged=0,record;
- const http={async json(url){
+ const http={async json(url,request){
   const path=new URL(url).pathname;
   if(path.endsWith('/recovery_email/status')){
    status++;
    if(status===1)throw Object.assign(Error('Temporary transport failure'),{status:406});
    return {data:{verified:true}};
   }
-  if(path.endsWith('/oauth/token')){exchanged++;return {data:{access_token:'a',refresh_token:'r',expires_in:3600}};}
+  if(path.endsWith('/oauth/authorization')){
+   const body=JSON.parse(request.body);
+   return {data:{code:'fixture-code',state:body.state}};
+  }
+  if(path==='/v1/token'){
+   exchanged++;
+   assert.equal(JSON.parse(request.body).grant_type,'authorization_code');
+   return {data:{access_token:'a',refresh_token:'r',expires_in:3600}};
+  }
   if(path.endsWith('/session/destroy'))return {data:{}};
   throw Error('Unexpected route');
  }};
@@ -241,12 +256,17 @@ test('Browser sign-in retains the same session across a transient status error',
 
 test('Provider unverified-session errno 138 after confirmation retries the OAuth grant only',async()=>{
  let status=0,grant=0,account;
- const http={async json(url){
+ const http={async json(url,request){
   const path=new URL(url).pathname;
   if(path.endsWith('/recovery_email/status')){status++;return {data:{verified:true}};}
-  if(path.endsWith('/oauth/token')){
+  if(path.endsWith('/oauth/authorization')){
    grant++;
    if(grant===1)throw Object.assign(Error('Session confirmation not propagated'),{status:400,errno:138});
+   const body=JSON.parse(request.body);
+   return {data:{code:'fixture-code',state:body.state}};
+  }
+  if(path==='/v1/token'){
+   assert.equal(JSON.parse(request.body).grant_type,'authorization_code');
    return {data:{access_token:'a',refresh_token:'r',expires_in:3600}};
   }
   if(path.endsWith('/session/destroy'))return {data:{}};

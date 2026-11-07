@@ -44,7 +44,7 @@ async function followNativeBrowserSession({
     // Retry only those explicit 104/138 responses, never an arbitrary failure.
     for(let attempt=0;;attempt++){
       if(!active()||auth.pending!==pending)throw Error('The browser sign-in was cancelled.');
-      try{await auth.complete();break;}
+      try{await auth.complete({authorizationCodeFirst:true});break;}
       catch(error){
         if(attempt>=9||![104,138].includes(error?.errno))throw stageError(error,'oauth-token');
         await delay(3000);
