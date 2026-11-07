@@ -174,7 +174,7 @@ class Auth {
   const session=pending.session;
   // Arman-style grant order: verified session credentials first;
   // retain the existing authorization-code + PKCE alternative.
-  let token,alternateTried=false,alternateRejected406=false;
+  let token,alternateTried=false,alternateRejected406=false,alternateDiagnostic=null;
   try{
     token=await this.request('/oauth/token',{client_id:CLIENT,grant_type:'fxa-credentials',
       scope:SCOPE,access_type:'offline'},session,{onNotAcceptable:async()=>{
@@ -184,7 +184,7 @@ class Auth {
         json:(url,options)=>this.http.json(url,{...options,challengeOn406:false})
       },session,hawk);}
       catch(error){
-        if(error?.status===406){alternateRejected406=true;return null;}
+        if(error?.status===406){alternateRejected406=true;alternateDiagnostic=error.diagnostic||null;return null;}
         throw error;
       }
     }});
@@ -196,6 +196,8 @@ class Auth {
       blocked.code='FXA_OAUTH_GRANTS_REJECTED';
       blocked.status=406;
       blocked.loginStage='oauth-token';
+      blocked.responseDiagnostics={direct:error.diagnostic||null,
+        authorization:alternateDiagnostic};
       throw blocked;
     }
     // Non-Control transports can still report 406 directly. Only retry

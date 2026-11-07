@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Erfan Tahvilian
 const crypto = require('node:crypto');
 const {parseChallengeInit} = require('./service-challenge.cjs');
+const {responseDiagnostic}=require('./fxa-response-diagnostic.cjs');
 const UA = 'MozillaVPN/2.35.0 (sys:linux; iap:true)';
 const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0) Gecko/20100101 Firefox/145.0';
 const ALPHABET = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -71,13 +72,14 @@ class Control {
     // Never replay non-406 failures or network errors; only retry a confirmed
     // edge rejection after the provider's challenge has completed.
     for(let attempt=0; response.status===406 && attempt<2; attempt++){
+      const diagnostic=responseDiagnostic(response);
       const responseType=String(response.headers.get('content-type')||'').toLowerCase();
       const blockedBody=await response.text();
       if(responseType.includes('application/json') && blockedBody.trim()){
         let data=null;
         try{data=JSON.parse(blockedBody);}catch{}
         const error=Error(data?.message||'The account service rejected this request (HTTP 406).');
-        error.status=406;error.errno=data?.errno;
+        error.status=406;error.errno=data?.errno;error.diagnostic=diagnostic;
         throw error;
       }
       // FxA permits a session-authenticated authorization-code grant as an
@@ -85,7 +87,7 @@ class Control {
       // Try that authorized grant once, before interacting with a challenge.
       if(!challengeOn406){
         const error=Error('The account provider refused the OAuth request (HTTP 406).');
-        error.status=406;throw error;
+        error.status=406;error.diagnostic=diagnostic;throw error;
       }
       if(attempt===0&&typeof onNotAcceptable==='function'){
         const alternative=await onNotAcceptable();
@@ -96,6 +98,7 @@ class Control {
         const detail=describeVerificationFailure(cause);
         const error=Error(detail.message);
         error.code=detail.code;error.status=406;error.cause=cause;
+        error.diagnostic=diagnostic;
         throw error;
       }
       response=await this.fetch(url,options);
@@ -104,6 +107,7 @@ class Control {
       await response.arrayBuffer();
       const error=Error('The account service still rejects sign-in after successful verification (HTTP 406). Try again later or contact the provider.');
       error.code='ACCOUNT_PROVIDER_BLOCKED';error.status=406;
+      error.diagnostic=responseDiagnostic(response);
       throw error;
     }
     const raw = await response.text();

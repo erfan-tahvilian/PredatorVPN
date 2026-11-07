@@ -17,6 +17,7 @@ const {profileMigration,verifyMigratedProfile,NEW_DIR}=require('./lib/profile-mi
 // account verification, sign-in and token renewal. Do not mix it with Node fetch.
 const {session}=require('electron');
 const {createAccountTransport}=require('./lib/account-transport.cjs');
+const {diagnosticLine}=require('./lib/fxa-response-diagnostic.cjs');
 let authSessionSequence=0,captchaPrompt=null;
 function makeControl({interactive=false}={}){
   const transport=createAccountTransport({
@@ -115,6 +116,18 @@ async function signInViaNativeBrowser(){
         const safeStage=error?.loginStage||(!oauthExchangeStarted?'provider-page':'oauth-flow');
         const safeStatus=Number.isInteger(error?.status)?' (HTTP '+error.status+')':'';
         log(error?'warn':'info',error?'Browser sign-in did not complete at '+safeStage+safeStatus+'.':'Browser sign-in completed.');
+        // Only allowlisted, validated response metadata enters exportable logs.
+        // Never log raw headers, URL/query strings, cookies or OAuth values.
+        const responses=error?.responseDiagnostics;
+        if(responses){
+          for(const label of ['direct','authorization']){
+            const safe=diagnosticLine(responses[label]);
+            if(safe)log('warn','OAuth response ('+label+'): '+safe);
+          }
+        }else if(error?.diagnostic){
+          const safe=diagnosticLine(error.diagnostic);
+          if(safe)log('warn','OAuth response ('+safeStage+'): '+safe);
+        }
         if(error)reject(error);else resolve();
       }
       function onWebChannel(event,detail){

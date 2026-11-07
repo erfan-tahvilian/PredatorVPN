@@ -26,6 +26,7 @@ async function exchangeSessionWithOAuthCode(http,sessionToken,signHawk){
     rejected.status=406;
     rejected.code='FXA_OAUTH_AUTHORIZATION_REJECTED';
     rejected.loginStage='oauth-authorization';
+    rejected.diagnostic=error.diagnostic||null;
     throw rejected;
   }
   if(typeof authorization?.code!=='string'||!authorization.code||
@@ -44,6 +45,7 @@ async function exchangeSessionWithOAuthCode(http,sessionToken,signHawk){
     rejected.status=406;
     rejected.code='FXA_OAUTH_TOKEN_EXCHANGE_REJECTED';
     rejected.loginStage='oauth-code-exchange';
+    rejected.diagnostic=error.diagnostic||null;
     throw rejected;
   }
   if(typeof result?.access_token!=='string'||!result.access_token)
