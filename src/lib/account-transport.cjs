@@ -24,7 +24,10 @@ function createAccountTransport({createSession,systemFetch}){
     if(target.protocol!=='https:'||!APPROVED.has(target.hostname))throw Error('Unapproved account-service endpoint');
     await ready;
     const method=(options.method||'GET').toUpperCase();
-    try {return await isolated.fetch(url,options);}
+    // Chromium owns Set-Cookie and Cookie for every FxA origin. Explicit
+    // credentials are required for the shared, domain-scoped cookie jar on
+    // network requests initiated in Electron's main process.
+    try {return await isolated.fetch(url,{...options,credentials:'include'});}
     catch(error){
       // Only idempotent reads can safely be retried on another network stack.
       // POST (verification codes, sign-in, token refresh) must NOT be replayed.

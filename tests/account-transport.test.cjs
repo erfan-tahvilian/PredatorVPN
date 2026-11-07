@@ -219,3 +219,50 @@ test('an Electron-backed provider session retains exclusive control of browser c
  assert.equal(client.cookies.size,1,
   'A browser-managed response must not be copied into the legacy manual cookie map');
 });
+test('provider-issued Firefox domain cookies stay in one Chromium session for account and OAuth requests',async()=>{
+ const {Control}=require('../src/lib/control.cjs');
+ let created=0,clearance=false;
+ const requests=[];
+ const session={
+  setProxy:async({mode})=>{assert.equal(mode,'direct');},
+  fetch:async(url,options)=>{
+   const u=new URL(url);
+   requests.push({host:u.hostname,method:options.method||'GET',credentials:options.credentials,headers:options.headers});
+   assert.equal(options.credentials,'include','Main-process requests must use the session cookie jar');
+   assert.equal(Object.keys(options.headers||{}).some(k=>k.toLowerCase()==='cookie'),false,
+    'Application must never construct a Cookie header for a Chromium session');
+   if(u.pathname==='/challenge-finished'){
+    clearance=true;
+    return new Response('verified',{headers:{'Set-Cookie':'test-clearance=issued-by-provider; Domain=firefox.com; Path=/; Secure; HttpOnly'}});
+   }
+   if(u.hostname==='api.accounts.firefox.com'||u.hostname==='oauth.accounts.firefox.com'){
+    assert.equal(clearance,true,'Both FxA origins should be accessed after successful verification');
+    return new Response('{}',{headers:{'Content-Type':'application/json'}});
+   }
+   throw Error('Unexpected test endpoint');
+  }
+ };
+ const transport=createAccountTransport({createSession:()=>{created++;return session;},
+  systemFetch:()=>{throw Error('Should never use a different cookie jar')}});
+ const control=new Control({transport,browserManagedCookies:true});
+ await control.fetch('https://accounts.firefox.com/challenge-finished');
+ await control.json('https://api.accounts.firefox.com/v1/oauth/authorization',{method:'POST',body:'{}'});
+ await control.json('https://oauth.accounts.firefox.com/v1/token',{method:'POST',body:'{}'});
+ assert.equal(created,1,'Account and OAuth calls must share the same session');
+ assert.deepEqual(requests.map(x=>x.host),[
+  'accounts.firefox.com','api.accounts.firefox.com','oauth.accounts.firefox.com']);
+ assert.equal(control.cookies.size,0,'Do not synthesize or duplicate provider cookies in a JS Map');
+});
+test('Chromium-managed FxA transport never forwards account cookies in a raw application header',async()=>{
+ const {Control}=require('../src/lib/control.cjs');
+ const observed=[];
+ const control=new Control({browserManagedCookies:true,transport:async(url,options)=>{
+  observed.push({url,options});
+  return new Response('{}',{headers:{'Set-Cookie':'clearance=provider-value; Domain=firefox.com; Path=/; Secure; HttpOnly'}});
+ }});
+ await control.fetch('https://accounts.firefox.com/');
+ await control.fetch('https://api.accounts.firefox.com/v1/recovery_email/status');
+ await control.fetch('https://oauth.accounts.firefox.com/v1/token');
+ for(const call of observed)assert.equal(Object.keys(call.options.headers).some(k=>k.toLowerCase()==='cookie'),false);
+ assert.equal(control.cookies.size,0);
+});

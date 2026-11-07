@@ -23,7 +23,11 @@ function makeControl({interactive=false}={}){
     createSession:()=>session.fromPartition('predator-auth-'+(++authSessionSequence)),
     systemFetch:(...args)=>electronNet.fetch(...args)
   });
-  return new Control({transport,captchaSolver:interactive?image=>captchaPrompt.ask(image):null});
+  // Account requests run inside the same isolated Chromium session as their
+  // verification flow. Its cookie jar preserves server-issued cookies with
+  // the original Domain, Path, Secure, HttpOnly and expiration constraints.
+  return new Control({transport,browserManagedCookies:true,
+    captchaSolver:interactive?image=>captchaPrompt.ask(image):null});
 }
 const {Auth}=require('./lib/auth.cjs');
 const {readProviderRegistration,createAuthorization,redirectResult,signInNavigationAllowed}=require('./lib/provider-browser-auth.cjs');
