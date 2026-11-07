@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       source_ref:
-        description: Immutable maintenance source tag matching this workflow commit
+        description: Existing v2.0.0 tag, updated to the approved source commit
         required: true
         type: string
       windows_run:
@@ -50,10 +50,9 @@ jobs:
         run: |
           node .github/scripts/release-tools.cjs metadata >> "$GITHUB_ENV"
           test "$FOX_CONFIRM_VERSION" = "$(node -p "require('./package.json').version")"
-          # Same-version fixes require a new immutable source snapshot. Keep the
-          # original version tag and verify every exported source file first.
-          [[ "$FOX_SOURCE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-maintenance\.[1-9][0-9]*$ ]]
-          [[ "$FOX_SOURCE_REF" == "v$FOX_CONFIRM_VERSION-maintenance."* ]]
+          # Re-publish the exact existing version tag, not a maintenance tag.
+          # Verify the requested tag points to the source commit being built.
+          test "$FOX_SOURCE_REF" = "v$FOX_CONFIRM_VERSION"
           test "$(git rev-parse "refs/tags/$FOX_SOURCE_REF^{commit}")" = "$GITHUB_SHA"
           python3 .github/scripts/verify-source.py --commit "$FOX_SOURCE_REF" --url "https://codeload.github.com/$GITHUB_REPOSITORY/tar.gz/refs/tags/$FOX_SOURCE_REF"
           for kind in WINDOWS MAC LINUX ANDROID; do
