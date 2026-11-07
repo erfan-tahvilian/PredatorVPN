@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {parseWebChannel,ORIGIN}=require('../src/lib/fxa-webchannel-protocol.cjs');
+const {parseWebChannel,shouldProcessWebChannelResult,ORIGIN}=require('../src/lib/fxa-webchannel-protocol.cjs');
 const state='state-'+('x'.repeat(32));
 const wrapped=(command,data)=>({id:'account_updates',message:{messageId:123,command,data}});
 test('Native OAuth WebChannel returns only an authorization code after strict state and origin validation',()=>{
@@ -26,4 +26,17 @@ test('Legacy WebChannel session token is not misclassified as a completed OAuth 
  assert.equal(parseWebChannel(ORIGIN,wrapped('fxaccounts:login',{token:'invalid'}),state),null);
  assert.equal(parseWebChannel(ORIGIN,'not-json',state),null);
  assert.equal(parseWebChannel(ORIGIN,{},state),null);
+});
+
+test('Modern OAuth rejects legacy sessions and processes a code at most once',()=>{
+ const legacy={kind:'legacy-session',sessionToken:'ab'.repeat(32)};
+ const code={kind:'oauth-code',code:'fixture-code',state};
+ assert.equal(shouldProcessWebChannelResult(legacy,'modern',false),false);
+ assert.equal(shouldProcessWebChannelResult(code,'modern',false),true);
+ assert.equal(shouldProcessWebChannelResult(code,'modern',true),false);
+ assert.equal(shouldProcessWebChannelResult(legacy,'legacy',false),true);
+ assert.equal(shouldProcessWebChannelResult(code,'legacy',false),false);
+ assert.equal(shouldProcessWebChannelResult({kind:'query'},'modern',true),true);
+ assert.equal(shouldProcessWebChannelResult(null,'modern',false),false);
+ assert.equal(shouldProcessWebChannelResult(code,'unknown',false),false);
 });

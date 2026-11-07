@@ -38,4 +38,14 @@ function parseWebChannel(origin,value,expectedState){
  }
  return null;
 }
-module.exports={ORIGIN,parseWebChannel};
+// Do not process legacy session tokens during a modern OAuth-code flow.
+// Repeated code deliveries must not trigger multiple token exchanges.
+function shouldProcessWebChannelResult(message,mode,exchangeStarted=false){
+ if(!message||typeof message!=='object')return false;
+ if(message.kind==='query')return true;
+ if(exchangeStarted)return false;
+ if(mode==='modern')return message.kind==='oauth-code';
+ if(mode==='legacy')return message.kind==='legacy-session';
+ return false;
+}
+module.exports={ORIGIN,parseWebChannel,shouldProcessWebChannelResult};

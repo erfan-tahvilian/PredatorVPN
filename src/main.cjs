@@ -28,7 +28,7 @@ function makeControl({interactive=false}={}){
 const {Auth}=require('./lib/auth.cjs');
 const {readProviderRegistration,createAuthorization,redirectResult,signInNavigationAllowed}=require('./lib/provider-browser-auth.cjs');
 const {completeBrowserOAuth}=require('./lib/oauth-browser-completion.cjs');
-const {parseWebChannel}=require('./lib/fxa-webchannel-protocol.cjs');
+const {parseWebChannel,shouldProcessWebChannelResult}=require('./lib/fxa-webchannel-protocol.cjs');
 const {followNativeBrowserSession}=require('./lib/fxa-native-browser-auth.cjs');
 const {createNativeOAuthFlow,completeNativeOAuthCode}=require('./lib/fxa-native-oauth-code.cjs');
 const {CaptchaPrompt}=require('./lib/captcha-prompt.cjs');
@@ -86,7 +86,7 @@ async function signInViaNativeBrowser(){
   busy=true;emit();
   try{
     await new Promise((resolve,reject)=>{
-      let settled=false,sessionSeq=0,lastToken='',usingModern=true;
+      let settled=false,sessionSeq=0,lastToken='',usingModern=true,oauthExchangeStarted=false;
       const popup=new BrowserWindow({
         parent:window,modal:true,width:560,height:760,minWidth:460,minHeight:550,
         show:true,title:'Mozilla account sign-in - Predator VPN',autoHideMenuBar:true,
@@ -95,6 +95,7 @@ async function signInViaNativeBrowser(){
           partition:'predator-native-fxa-'+attempt+'-'+require('node:crypto').randomBytes(8).toString('hex')}
       });
       providerBrowserWindow=popup;
+      log('info','Browser sign-in: waiting for provider authorization.');
       popup.webContents.setUserAgent(browserUA);
       const timer=setTimeout(()=>finish(Error('Browser sign-in timed out.')),15*60*1000);
       timer.unref?.();
@@ -107,6 +108,8 @@ async function signInViaNativeBrowser(){
         ipcMain.off('predator:fxa-webchannel',onWebChannel);
         if(providerBrowserWindow===popup)providerBrowserWindow=null;
         if(!popup.isDestroyed())popup.close();
+        const safeStage=error?.loginStage||(!oauthExchangeStarted?'provider-page':'oauth-flow');
+        log(error?'warn':'info',error?'Browser sign-in did not complete at '+safeStage+'.':'Browser sign-in completed.');
         if(error)reject(error);else resolve();
       }
       function onWebChannel(event,detail){
@@ -123,7 +126,10 @@ async function signInViaNativeBrowser(){
           });
           return;
         }
+        if(!shouldProcessWebChannelResult(message,usingModern?'modern':'legacy',oauthExchangeStarted))return;
         if(message.kind==='oauth-code'){
+          log('info','Browser sign-in: authorization code received; verifying provider token and VPN access.');
+          oauthExchangeStarted=true;
           const sequence=++sessionSeq;
           void completeNativeOAuthCode({
             code:message.code,flow:nativeOAuth,
@@ -512,7 +518,7 @@ else {
     handle('ackReleaseNotes',()=>releaseNotes.acknowledge());
     handle('downloadUpdate',async()=>{const update=await updates.check();if(!update.available)throw Error('No newer update is available.');await shell.openExternal(update.url);});
     handle('browserLogin',signInViaProviderBrowser);
-    handle('login',async({email,password})=>{if(busy)throw Error('An operation is already running.');busy=true;emit();try{return multiAccount?completeLogin(await beginLogin().login(email,password)):await guardian.auth.login(email,password);}finally{busy=false;emit();}});
+    handle('login',async({email,password})=>{if(busy)throw Error('An operation is already running.');busy=true;emit();try{return multiAccount?completeLogin(await beginLogin().login(email,password)):await guardian.auth.login(email,password);}catch(error){if(error?.status===406)log('warn','Email/password sign-in: provider returned HTTP 406.');throw error;}finally{busy=false;emit();}});
     handle('answerCaptcha',answer=>captchaPrompt.submit(answer));
     handle('cancelCaptcha',()=>captchaPrompt.cancel());
     handle('verify',async code=>{if(busy)throw Error('An operation is already running.');busy=true;emit();try{if(multiAccount&&!loginGuardian)throw Error('Start account sign-in again.');return multiAccount?completeLogin(await loginGuardian.auth.verify(code)):await guardian.auth.verify(code);}finally{busy=false;emit();}});

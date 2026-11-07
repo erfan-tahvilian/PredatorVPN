@@ -149,6 +149,6 @@ test('Native OAuth labels a rejected token exchange without exposing secrets',as
   flow,code:'fixture',active:()=>true,
   fetcher:async()=>({ok:false,status:406,arrayBuffer:async()=>new ArrayBuffer(0)}),
   checkVpn:async()=>{checked++},saveAccount:()=>{saved++}
- }),error=>/OAuth code exchange/.test(error.message)&&/HTTP 406/.test(error.message));
+ }),error=>/OAuth code exchange/.test(error.message)&&/HTTP 406/.test(error.message)&&error.loginStage==='oauth-token-exchange');
  assert.equal(checked,0);assert.equal(saved,0);
 });
