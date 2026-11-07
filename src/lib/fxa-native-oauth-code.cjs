@@ -13,7 +13,10 @@ function createNativeOAuthFlow(){
  const url=new URL('https://accounts.firefox.com/');
  for(const [key,value] of Object.entries({
    context:'oauth_webchannel_v1',service:'vpn',client_id:CLIENT,
-   scope:SCOPE,state,redirect_uri:REDIRECT,
+   // Native WebChannel receives the code in a message rather than a URL redirect.
+   // FxA's current query validator rejects the WebChannel URN when sent as
+   // redirect_uri; the native client's registered callback applies server-side.
+   scope:SCOPE,state,
    code_challenge:challenge,code_challenge_method:'S256',access_type:'offline'
  }))url.searchParams.set(key,value);
  return {url:url.href,verifier,state,redirectUri:REDIRECT};

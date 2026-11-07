@@ -91,7 +91,10 @@ test('Modern Firefox OAuth WebChannel URL uses native client and PKCE',()=>{
  assert.equal(url.searchParams.get('client_id'),CLIENT);
  assert.equal(url.searchParams.get('service'),'vpn');
  assert.equal(url.searchParams.get('state'),flow.state);
- assert.equal(url.searchParams.get('redirect_uri'),REDIRECT);
+ assert.equal(url.searchParams.has('redirect_uri'),false,
+   'Native WebChannel redirect URN must not be passed through FxA query validation');
+ assert.equal(flow.redirectUri,REDIRECT,
+   'The native WebChannel callback remains available for OAuth code exchange');
  assert.equal(url.searchParams.get('code_challenge_method'),'S256');
  assert.notEqual(url.searchParams.get('code_challenge'),flow.verifier);
 });
