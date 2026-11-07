@@ -44,7 +44,9 @@ async function followNativeBrowserSession({
     // Retry only those explicit 104/138 responses, never an arbitrary failure.
     for(let attempt=0;;attempt++){
       if(!active()||auth.pending!==pending)throw Error('The browser sign-in was cancelled.');
-      try{await auth.complete({authorizationCodeFirst:true});break;}
+      // Match Arman's order: try the verified-session credentials grant first,
+      // then its authorization-code/PKCE fallback on a provider 406.
+      try{await auth.complete();break;}
       catch(error){
         if(attempt>=9||![104,138].includes(error?.errno))throw stageError(error,'oauth-token');
         await delay(3000);

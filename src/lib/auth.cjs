@@ -168,18 +168,13 @@ class Auth {
    if(this.activeVerify===pending)this.activeVerify=null;
   }
  }
- async complete({authorizationCodeFirst=false}={}){
+ async complete(){
   const pending=this.pending;
   if(!pending?.session)throw Error('Start account sign-in again.');
   const session=pending.session;
-  let token;
-  if(authorizationCodeFirst){
-   // FoxyVPN's browser sign-in grants its verified session through an
-   // authorization code + PKCE immediately, without an initial direct grant.
-   const {exchangeSessionWithOAuthCode}=require('./fxa-session-code-grant.cjs');
-   token=await exchangeSessionWithOAuthCode(this.http,session,hawk);
-  }else{
-  let alternateTried=false,alternateRejected406=false;
+  // Arman-style grant order: verified session credentials first;
+  // retain the existing authorization-code + PKCE alternative.
+  let token,alternateTried=false,alternateRejected406=false;
   try{
     token=await this.request('/oauth/token',{client_id:CLIENT,grant_type:'fxa-credentials',
       scope:SCOPE,access_type:'offline'},session,{onNotAcceptable:async()=>{
@@ -208,7 +203,6 @@ class Auth {
     if(error.status!==406||alternateTried)throw error;
     const {exchangeSessionWithOAuthCode}=require('./fxa-session-code-grant.cjs');
     token=await exchangeSessionWithOAuthCode(this.http,session,hawk);
-  }
   }
   // A late response from a cancelled, timed-out or replaced sign-in must
   // never create an account or be attributed to another pending email.

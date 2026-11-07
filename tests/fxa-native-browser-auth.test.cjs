@@ -13,15 +13,10 @@ function provider(){
       assert.match(request.authorization,/^Hawk /);
       return {data:{verified:++status>1}};
     }
-    if(pathname.endsWith('/oauth/authorization')){
-      assert.match(request.authorization,/^Hawk /);
-      const body=JSON.parse(request.body);
-      assert.equal(body.code_challenge_method,'S256');
-      return {data:{code:'fixture-code',state:body.state}};
-    }
-    if(url==='https://oauth.accounts.firefox.com/v1/token'){
+    if(pathname.endsWith('/oauth/token')){
       exchanges++;
-      assert.equal(JSON.parse(request.body).grant_type,'authorization_code');
+      assert.match(request.authorization,/^Hawk /);
+      assert.equal(JSON.parse(request.body).grant_type,'fxa-credentials');
       return {data:{access_token:'access',refresh_token:'refresh',expires_in:3600}};
     }
     if(pathname.endsWith('/session/destroy'))return {data:{}};
@@ -234,13 +229,9 @@ test('Browser sign-in retains the same session across a transient status error',
    if(status===1)throw Object.assign(Error('Temporary transport failure'),{status:406});
    return {data:{verified:true}};
   }
-  if(path.endsWith('/oauth/authorization')){
-   const body=JSON.parse(request.body);
-   return {data:{code:'fixture-code',state:body.state}};
-  }
-  if(path==='/v1/token'){
+  if(path.endsWith('/oauth/token')){
    exchanged++;
-   assert.equal(JSON.parse(request.body).grant_type,'authorization_code');
+   assert.equal(JSON.parse(request.body).grant_type,'fxa-credentials');
    return {data:{access_token:'a',refresh_token:'r',expires_in:3600}};
   }
   if(path.endsWith('/session/destroy'))return {data:{}};
@@ -259,14 +250,10 @@ test('Provider unverified-session errno 138 after confirmation retries the OAuth
  const http={async json(url,request){
   const path=new URL(url).pathname;
   if(path.endsWith('/recovery_email/status')){status++;return {data:{verified:true}};}
-  if(path.endsWith('/oauth/authorization')){
+  if(path.endsWith('/oauth/token')){
    grant++;
    if(grant===1)throw Object.assign(Error('Session confirmation not propagated'),{status:400,errno:138});
-   const body=JSON.parse(request.body);
-   return {data:{code:'fixture-code',state:body.state}};
-  }
-  if(path==='/v1/token'){
-   assert.equal(JSON.parse(request.body).grant_type,'authorization_code');
+   assert.equal(JSON.parse(request.body).grant_type,'fxa-credentials');
    return {data:{access_token:'a',refresh_token:'r',expires_in:3600}};
   }
   if(path.endsWith('/session/destroy'))return {data:{}};
@@ -306,4 +293,43 @@ test('Browser sign-in requirements link is absent from account page and listener
  const js=fs.readFileSync(path.join(__dirname,'..','src','ui','app.js'),'utf8');
  assert.doesNotMatch(html,/id="provider-login-help"|Browser sign-in requirements/);
  assert.doesNotMatch(js,/provider-login-help/);
+});
+test('Arman-style browser grant uses direct FxA credentials, then PKCE on an empty 406',async()=>{
+ const {Control}=require('../src/lib/control.cjs');
+ const events=[];let stored;
+ const ok=data=>new Response(JSON.stringify(data),{status:200,headers:{'content-type':'application/json'}});
+ const control=new Control({browserManagedCookies:true,transport:async(url,options={})=>{
+  const u=new URL(url);
+  assert(!Object.keys(options.headers||{}).some(k=>k.toLowerCase()==='cookie'),
+    'Chromium must own the browser cookie jar');
+  if(u.pathname.endsWith('/recovery_email/status')){
+   events.push('confirmed');return ok({verified:true});
+  }
+  if(u.pathname.endsWith('/oauth/token')){
+   assert.equal(JSON.parse(options.body).grant_type,'fxa-credentials');
+   events.push('direct-406');return new Response('',{status:406});
+  }
+  if(u.pathname.endsWith('/oauth/authorization')){
+   events.push('authorization');
+   assert.match(options.headers.Authorization,/^Hawk /);
+   const data=JSON.parse(options.body);
+   assert.equal(data.code_challenge_method,'S256');
+   return ok({code:'fixture-code',state:data.state});
+  }
+  if(u.hostname==='oauth.accounts.firefox.com'&&u.pathname==='/v1/token'){
+   events.push('exchange');
+   assert.equal(JSON.parse(options.body).grant_type,'authorization_code');
+   return ok({access_token:'access',refresh_token:'refresh',expires_in:3600});
+  }
+  if(u.pathname.endsWith('/session/destroy')){
+   events.push('destroy');return ok({});
+  }
+  throw Error('Unexpected request: '+u.hostname+u.pathname);
+ }});
+ await followNativeBrowserSession({sessionToken:token,email:'person@example.invalid',http:control,
+  fetcher,checkVpn:async()=>{events.push('entitlement')},
+  saveAccount:account=>{events.push('save');stored=account;return 'saved-id';},
+  delay:async()=>{}});
+ assert.deepEqual(events,['confirmed','direct-406','authorization','exchange','destroy','entitlement','save']);
+ assert.equal(stored.refresh_token,'refresh');
 });
