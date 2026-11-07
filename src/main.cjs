@@ -18,6 +18,7 @@ const {profileMigration,verifyMigratedProfile,NEW_DIR}=require('./lib/profile-mi
 const {session}=require('electron');
 const {createAccountTransport}=require('./lib/account-transport.cjs');
 const {diagnosticLine}=require('./lib/fxa-response-diagnostic.cjs');
+const {persistOAuthRejection}=require('./lib/oauth-diagnostic-journal.cjs');
 let authSessionSequence=0,captchaPrompt=null;
 function makeControl({interactive=false}={}){
   const transport=createAccountTransport({
@@ -127,6 +128,13 @@ async function signInViaNativeBrowser(){
         }else if(error?.diagnostic){
           const safe=diagnosticLine(error.diagnostic);
           if(safe)log('warn','OAuth response ('+safeStage+'): '+safe);
+        }
+        // Preserve only safe OAuth 406 metadata across app restarts.
+        // This never reads or stores an email, password, code, cookie, token,
+        // request body, or unfiltered response header.
+        if(error?.status===406){
+          try{persistOAuthRejection(app.getPath('userData'),error);}
+          catch{/* Diagnostics must never interrupt sign-in or expose secrets. */}
         }
         if(error)reject(error);else resolve();
       }

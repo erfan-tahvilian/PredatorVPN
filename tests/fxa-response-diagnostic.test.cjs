@@ -59,3 +59,31 @@ test('both rejected OAuth requests retain separate, non-sensitive correlation ID
   assert.deepEqual(events,['direct','authorization','challenge-page','challenge-page']);
  }finally{auth.cancel();}
 });
+test('OAuth 406 diagnostics persist safely across restarts, without secrets',()=>{
+ const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+ const {persistOAuthRejection,FILE_NAME}=require('../src/lib/oauth-diagnostic-journal.cjs');
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'predator-oauth-diagnostics-'));
+ try{
+  const error=Object.assign(new Error('secret=never-write-this'),{
+   status:406,loginStage:'oauth-token',
+   email:'person@example.invalid',password:'password-never-log',sessionToken:'session-never-log',
+   responseDiagnostics:{
+    direct:{status:406,'x-request-id':'direct-id-123',cookie:'secret-cookie'},
+    authorization:{status:406,'x-request-id':'authorization-id-456',authorization:'secret-token'}
+   }
+  });
+  assert.equal(persistOAuthRejection(dir,error),path.join(dir,FILE_NAME));
+  const record=JSON.parse(fs.readFileSync(path.join(dir,FILE_NAME),'utf8').trim());
+  assert.deepEqual(Object.keys(record),['time','stage','status','diagnostics']);
+  assert.equal(record.stage,'oauth-token');
+  assert.equal(record.diagnostics.direct,'HTTP 406 x-request-id=direct-id-123');
+  assert.equal(record.diagnostics.authorization,'HTTP 406 x-request-id=authorization-id-456');
+  const raw=fs.readFileSync(path.join(dir,FILE_NAME),'utf8');
+  assert.doesNotMatch(raw,/never-write-this|person@example|password-never-log|session-never-log|secret-cookie|secret-token/i);
+  for(let i=0;i<46;i++)persistOAuthRejection(dir,error);
+  const lines=fs.readFileSync(path.join(dir,FILE_NAME),'utf8').trim().split('\n');
+  assert.equal(lines.length,40,'Diagnostic journal must remain bounded');
+  assert.equal(persistOAuthRejection(dir,{status:400,loginStage:'oauth-token'}),null);
+  assert.equal(fs.readFileSync(path.join(dir,FILE_NAME),'utf8').trim().split('\n').length,40);
+ }finally{fs.rmSync(dir,{recursive:true,force:true})}
+});
