@@ -17,26 +17,15 @@ const {profileMigration,verifyMigratedProfile,NEW_DIR}=require('./lib/profile-mi
 // account verification, sign-in and token renewal. Do not mix it with Node fetch.
 const {session}=require('electron');
 const {createAccountTransport}=require('./lib/account-transport.cjs');
-const {diagnosticLine}=require('./lib/fxa-response-diagnostic.cjs');
-const {persistOAuthRejection}=require('./lib/oauth-diagnostic-journal.cjs');
 let authSessionSequence=0,captchaPrompt=null;
 function makeControl({interactive=false}={}){
   const transport=createAccountTransport({
     createSession:()=>session.fromPartition('predator-auth-'+(++authSessionSequence)),
     systemFetch:(...args)=>electronNet.fetch(...args)
   });
-  // Account requests run inside the same isolated Chromium session as their
-  // verification flow. Its cookie jar preserves server-issued cookies with
-  // the original Domain, Path, Secure, HttpOnly and expiration constraints.
-  return new Control({transport,browserManagedCookies:true,
-    captchaSolver:interactive?image=>captchaPrompt.ask(image):null});
+  return new Control({transport,captchaSolver:interactive?image=>captchaPrompt.ask(image):null});
 }
 const {Auth}=require('./lib/auth.cjs');
-const {readProviderRegistration,createAuthorization,redirectResult,signInNavigationAllowed}=require('./lib/provider-browser-auth.cjs');
-const {completeBrowserOAuth}=require('./lib/oauth-browser-completion.cjs');
-const {parseWebChannel,shouldProcessWebChannelResult}=require('./lib/fxa-webchannel-protocol.cjs');
-const {followNativeBrowserSession}=require('./lib/fxa-native-browser-auth.cjs');
-const {createLegacyBrowserSignInUrl,createNativeOAuthFlow,completeNativeOAuthCode}=require('./lib/fxa-native-oauth-code.cjs');
 const {CaptchaPrompt}=require('./lib/captcha-prompt.cjs');
 const APP_VERSION=require('../package.json').version;
 // Adopt the new product name for all new Electron profile directories.
@@ -68,251 +57,13 @@ const applications=new ApplicationCatalog(app);
 const mac=process.platform==='darwin',linux=process.platform==='linux';
 const osName=mac?'macOS':linux?'Linux':'Windows';
 const multiAccount=true;
-let accountCoordinator,traffic,loginGuardian,loginAccountId,switchingAccount=false,trafficSaveWarning=false;
-let providerBrowserWindow=null,providerBrowserAttempt=0;const accountGuardians=new Map();
+let accountCoordinator,traffic,loginGuardian,loginAccountId,switchingAccount=false,trafficSaveWarning=false;const accountGuardians=new Map();
 function accountGuardian(id){if(!accountGuardians.has(id)){const http=makeControl();accountGuardians.set(id,new Guardian(http,new Auth(http,store.accountStore(id))));}return accountGuardians.get(id);}
 function syncGuardian(){if(multiAccount&&store.activeAccountId)guardian=accountGuardian(store.activeAccountId);}
 function observeTraffic(){if(multiAccount&&traffic&&tunnel)traffic.observe(tunnel.up,tunnel.down);}
 async function refreshAccount(id){const data=await accountCoordinator.refresh(id);if(store.activeAccountId===id)quota=store.activeAccount?.quota||null;emit();return data;}
 function beginLogin(){loginAccountId=null;const http=makeControl({interactive:true}),sink={auth:null,setAuth(auth){if(!auth)return;loginAccountId=store.addAccount(auth,connection==='disconnected');this.auth=auth;}};loginGuardian=new Guardian(http,new Auth(http,sink));return loginGuardian.auth;}
 function completeLogin(result){if(loginAccountId){syncGuardian();if(connection==='disconnected')quota=store.activeAccount?.quota||null;const id=loginAccountId;loginGuardian=null;loginAccountId=null;if(store.activeAccountId!==id)void refreshAccount(id).catch(()=>{});}return result;}
-
-// Native Mozilla Accounts browser sign-in with isolated WebChannel mediation.
-// The user enters credentials only into the identity provider's own page.
-async function signInViaNativeBrowser(){
-  if(busy||providerBrowserWindow)throw Error('Another account operation is already running.');
-  const attempt=++providerBrowserAttempt;
-  const nativeOAuth=createNativeOAuthFlow();
-  // Start with the desktop browser sign-in entry point used by Arman.
-  // Its WebChannel session is verified by FxA before any OAuth token is saved.
-  const loginUrl=createLegacyBrowserSignInUrl();
-  const browserUA='Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0) Gecko/20100101 Firefox/145.0';
-  const permitted=new Set(['accounts.firefox.com','content.accounts.firefox.com','oauth.accounts.firefox.com',
-    'accounts.google.com','appleid.apple.com']);
-  busy=true;emit();
-  try{
-    await new Promise((resolve,reject)=>{
-      let settled=false,sessionSeq=0,lastToken='',usingModern=false,oauthExchangeStarted=false;
-      const popup=new BrowserWindow({
-        parent:window,modal:true,width:560,height:760,minWidth:460,minHeight:550,
-        show:true,title:'Mozilla account sign-in - Predator VPN',autoHideMenuBar:true,
-        webPreferences:{preload:path.join(__dirname,'fxa-webchannel-preload.cjs'),
-          nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,
-          partition:'predator-native-fxa-'+attempt+'-'+require('node:crypto').randomBytes(8).toString('hex')}
-      });
-      providerBrowserWindow=popup;
-      log('info','Browser sign-in: waiting for provider authorization.');
-      popup.webContents.setUserAgent(browserUA);
-      const timer=setTimeout(()=>finish(Error('Browser sign-in timed out.')),15*60*1000);
-      timer.unref?.();
-      function active(sequence){
-        return !settled&&providerBrowserAttempt===attempt&&sessionSeq===sequence;
-      }
-      function finish(error){
-        if(settled)return;
-        settled=true;sessionSeq++;clearTimeout(timer);
-        ipcMain.off('predator:fxa-webchannel',onWebChannel);
-        if(providerBrowserWindow===popup)providerBrowserWindow=null;
-        if(!popup.isDestroyed())popup.close();
-        const safeStage=error?.loginStage||(!oauthExchangeStarted?'provider-page':'oauth-flow');
-        const safeStatus=Number.isInteger(error?.status)?' (HTTP '+error.status+')':'';
-        log(error?'warn':'info',error?'Browser sign-in did not complete at '+safeStage+safeStatus+'.':'Browser sign-in completed.');
-        // Only allowlisted, validated response metadata enters exportable logs.
-        // Never log raw headers, URL/query strings, cookies or OAuth values.
-        const responses=error?.responseDiagnostics;
-        if(responses){
-          for(const label of ['direct','authorization']){
-            const safe=diagnosticLine(responses[label]);
-            if(safe)log('warn','OAuth response ('+label+'): '+safe);
-          }
-        }else if(error?.diagnostic){
-          const safe=diagnosticLine(error.diagnostic);
-          if(safe)log('warn','OAuth response ('+safeStage+'): '+safe);
-        }
-        // Preserve only safe OAuth 406 metadata across app restarts.
-        // This never reads or stores an email, password, code, cookie, token,
-        // request body, or unfiltered response header.
-        if(error?.status===406){
-          try{persistOAuthRejection(app.getPath('userData'),error);}
-          catch{/* Diagnostics must never interrupt sign-in or expose secrets. */}
-        }
-        if(error)reject(error);else resolve();
-      }
-      function onWebChannel(event,detail){
-        if(settled||event.sender!==popup.webContents)return;
-        let origin;
-        try{origin=new URL(event.senderFrame?.url||'').origin;}catch{return;}
-        const message=parseWebChannel(origin,detail,nativeOAuth.state);
-        if(!message)return;
-        if(message.kind==='query'){
-          const data=message.command==='fxaccounts:fxa_status'
-            ?{
-              signedInUser:null,
-              clientId:'5882386c6d801776',
-              capabilities:{
-                multiService:true,
-                pairing:false,
-                choose_what_to_sync:false,
-                engines:['bookmarks','history','passwords','tabs']
-              }
-            }
-            :{ok:true};
-          log('info','Browser sign-in: WebChannel query '+message.command);
-          popup.webContents.send('predator:fxa-webchannel-reply',{
-            id:message.id,message:{messageId:message.messageId,command:message.command,data}
-          });
-          return;
-        }
-        if(!shouldProcessWebChannelResult(message,usingModern?'modern':'legacy',oauthExchangeStarted))return;
-        if(message.kind==='oauth-code'){
-          log('info','Browser sign-in: authorization code received; verifying provider token and VPN access.');
-          oauthExchangeStarted=true;
-          const sequence=++sessionSeq;
-          void completeNativeOAuthCode({
-            code:message.code,flow:nativeOAuth,
-            fetcher:(url,options)=>popup.webContents.session.fetch(url,{...options,credentials:'include'}),
-            checkVpn:async accessToken=>{
-              const entitlement=new Guardian(makeControl(),{token:async()=>accessToken});
-              await entitlement.pass();
-            },
-            saveAccount:credentials=>{
-              if(!active(sequence))throw Error('Browser sign-in was cancelled.');
-              const id=store.addAccount(credentials,connection==='disconnected');
-              syncGuardian();
-              if(connection==='disconnected')quota=store.activeAccount?.quota||null;
-              emit();
-              if(store.activeAccountId!==id)void refreshAccount(id).catch(()=>{});
-              return id;
-            },
-            active:()=>active(sequence)
-          }).then(()=>{if(active(sequence))finish(null);},
-            error=>{if(active(sequence))finish(error);});
-          return;
-        }
-        if(message.kind!=='legacy-session'||message.sessionToken===lastToken)return;
-        log('info','Browser sign-in: WebChannel session received; completing account.');
-        lastToken=message.sessionToken;
-        const sequence=++sessionSeq;
-        void followNativeBrowserSession({
-          sessionToken:message.sessionToken,email:message.email,
-          // Use the same isolated Chromium cookie jar as the hosted sign-in.
-          http:new Control({transport:(url,options)=>popup.webContents.session.fetch(url,{...options,credentials:'include'}),
-            browserManagedCookies:true,captchaSolver:image=>captchaPrompt.ask(image)}),
-          fetcher:(...args)=>electronNet.fetch(...args),
-          checkVpn:async accessToken=>{
-            const entitlement=new Guardian(makeControl(),{token:async()=>accessToken});
-            await entitlement.pass();
-          },
-          saveAccount:credentials=>{
-            if(!active(sequence))throw Error('Browser sign-in was cancelled.');
-            const id=store.addAccount(credentials,connection==='disconnected');
-            syncGuardian();
-            if(connection==='disconnected')quota=store.activeAccount?.quota||null;
-            emit();
-            if(store.activeAccountId!==id)void refreshAccount(id).catch(()=>{});
-            return id;
-          },
-          active:()=>active(sequence)
-        }).then(()=>{if(active(sequence))finish(null);},
-          error=>{if(active(sequence))finish(error);});
-      }
-      ipcMain.on('predator:fxa-webchannel',onWebChannel);
-      popup.on('close',()=>finish(Error('Browser sign-in was cancelled.')));
-      popup.on('closed',()=>finish(Error('Browser sign-in was cancelled.')));
-      popup.webContents.on('will-navigate',(event,url)=>{
-        try{
-          const u=new URL(url);
-          if(u.protocol==='https:'&&permitted.has(u.hostname))return;
-        }catch{}
-        event.preventDefault();finish(Error('The provider attempted to leave approved sign-in domains.'));
-      });
-      popup.webContents.on('will-redirect',(event,url)=>{
-        try{const u=new URL(url);if(u.protocol==='https:'&&permitted.has(u.hostname))return;}catch{}
-        event.preventDefault();finish(Error('The provider redirected outside approved sign-in domains.'));
-      });
-      popup.webContents.on('did-navigate',(_event,url)=>{
-        if(settled)return;
-        try{
-          const u=new URL(url);
-          if(u.origin==='https://accounts.firefox.com'&&u.pathname.startsWith('/update_firefox')){
-            // A rejected native-client entry mode is not a successful sign-in.
-            finish(Error('The provider does not support this native OAuth sign-in flow. Use a registered OAuth client or contact the account provider.'));
-          }
-        }catch{}
-      });
-      popup.webContents.setWindowOpenHandler(()=>({action:'deny'}));
-      popup.webContents.on('did-fail-load',(_event,code,_desc,_url,mainFrame)=>{
-        if(mainFrame&&code!==-3)finish(Error('The account provider sign-in page could not be loaded.'));
-      });
-      popup.loadURL(loginUrl).catch(()=>finish(Error('The account provider sign-in page could not be loaded.')));
-    });
-    return {needsCode:false};
-  }finally{busy=false;emit();}
-}
-
-// Provider-hosted login with a separately registered OAuth application.
-// If no registration exists, use the native WebChannel flow.
-async function signInViaProviderBrowser(){
-  if(busy||providerBrowserWindow)throw Error('Another account operation is already running.');
-  const registration=readProviderRegistration(path.join(app.getPath('userData'),'mozilla-client-registration.json'));
-  if(!registration)return signInViaNativeBrowser();
-  const attempt=++providerBrowserAttempt,flow=createAuthorization(registration);
-  busy=true;emit();
-  try{
-    const code=await new Promise((resolve,reject)=>{
-      let settled=false;
-      const popup=new BrowserWindow({
-        parent:window,modal:true,width:560,height:760,minWidth:460,minHeight:550,
-        show:true,title:'Provider sign-in - Predator VPN',autoHideMenuBar:true,
-        webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,
-          webSecurity:true,partition:'predator-provider-login-'+attempt+'-'+require('node:crypto').randomBytes(8).toString('hex')}
-      });
-      providerBrowserWindow=popup;
-      const timer=setTimeout(()=>finish(Error('Browser sign-in timed out. Start again.')),15*60*1000);
-      timer.unref?.();
-      function finish(error,result){
-        if(settled)return;
-        settled=true;clearTimeout(timer);
-        if(providerBrowserWindow===popup)providerBrowserWindow=null;
-        if(!popup.isDestroyed())popup.close();
-        if(error)reject(error);else resolve(result);
-      }
-      function navigation(event,url){
-        try{
-          const code=redirectResult(url,registration,flow);
-          if(code){event.preventDefault();finish(null,code);return;}
-          if(!signInNavigationAllowed(url,registration)){
-            event.preventDefault();
-            finish(Error('The provider sign-in attempted to leave the approved identity-provider domains.'));
-          }
-        }catch(error){event.preventDefault();finish(error);}
-      }
-      popup.webContents.on('will-redirect',navigation);
-      popup.webContents.on('will-navigate',navigation);
-      popup.webContents.setWindowOpenHandler(()=>({action:'deny'}));
-      popup.on('closed',()=>finish(Error('Browser sign-in was cancelled.')));
-      popup.webContents.on('did-fail-load',(_event,errorCode,_description,_url,isMainFrame)=>{
-        if(isMainFrame&&errorCode!==-3)finish(Error('The provider sign-in page could not be loaded.'));
-      });
-      popup.loadURL(flow.url).catch(()=>finish(Error('The provider sign-in page could not be loaded.')));
-    });
-    if(providerBrowserAttempt!==attempt)throw Error('Browser sign-in was cancelled.');
-    const id=await completeBrowserOAuth({
-      fetcher:(...args)=>electronNet.fetch(...args),registration,flow,code,
-      active:()=>providerBrowserAttempt===attempt,
-      authorizeVpn:async accessToken=>{
-        const entitlement=new Guardian(makeControl(),{token:async()=>accessToken});
-        await entitlement.pass();
-      },
-      saveAccount:account=>store.addAccount(account,connection==='disconnected')
-    });
-    syncGuardian();
-    if(connection==='disconnected')quota=store.activeAccount?.quota||null;
-    emit();
-    if(store.activeAccountId!==id)void refreshAccount(id).catch(()=>{});
-    return {needsCode:false};
-  }finally{busy=false;emit();}
-}
 let macEngine;
 let window,tray,trayPopup,store,guardian,tunnel,pendingTunnel,engine,passRenewer,recoveryController,busy=false,quitting=false,generation=0;
 let latencies={},pinging=false;const pingingIds=new Set();
@@ -555,8 +306,7 @@ else {
     handle('releaseNotes',()=>releaseNotes.read());
     handle('ackReleaseNotes',()=>releaseNotes.acknowledge());
     handle('downloadUpdate',async()=>{const update=await updates.check();if(!update.available)throw Error('No newer update is available.');await shell.openExternal(update.url);});
-    handle('browserLogin',signInViaProviderBrowser);
-    handle('login',async({email,password})=>{if(busy)throw Error('An operation is already running.');busy=true;emit();try{return multiAccount?completeLogin(await beginLogin().login(email,password)):await guardian.auth.login(email,password);}catch(error){if(error?.status===406)log('warn','Email/password sign-in: provider returned HTTP 406.');throw error;}finally{busy=false;emit();}});
+    handle('login',async({email,password})=>{if(busy)throw Error('An operation is already running.');busy=true;emit();try{return multiAccount?completeLogin(await beginLogin().login(email,password)):await guardian.auth.login(email,password);}finally{busy=false;emit();}});
     handle('answerCaptcha',answer=>captchaPrompt.submit(answer));
     handle('cancelCaptcha',()=>captchaPrompt.cancel());
     handle('verify',async code=>{if(busy)throw Error('An operation is already running.');busy=true;emit();try{if(multiAccount&&!loginGuardian)throw Error('Start account sign-in again.');return multiAccount?completeLogin(await loginGuardian.auth.verify(code)):await guardian.auth.verify(code);}finally{busy=false;emit();}});
@@ -581,7 +331,7 @@ else {
     });
     handle('account',()=>multiAccount?refreshAccount(store.activeAccountId):guardian.account());
     if(multiAccount){
-      handle('cancelAccountLogin',()=>{captchaPrompt?.cancel();loginGuardian?.auth.cancel();loginGuardian=null;loginAccountId=null;if(providerBrowserWindow&&!providerBrowserWindow.isDestroyed()){providerBrowserAttempt++;providerBrowserWindow.close();}});
+      handle('cancelAccountLogin',()=>{captchaPrompt?.cancel();loginGuardian?.auth.cancel();loginGuardian=null;loginAccountId=null;});
       handle('accountPreferences',auto=>{store.setAccountPreferences(auto);emit();});
       handle('selectAccount',async id=>{if(busy)throw Error('Wait for the current operation.');const chosen=store.accounts.find(a=>a.id===id);if(!chosen?.auth)throw Error('Sign in to this account again.');busy=true;emit();try{const reconnect=connection==='connected';if(connection!=='disconnected')await disconnect();store.selectAccount(id);syncGuardian();quota=store.activeAccount?.quota||null;if(reconnect)await connect();}finally{busy=false;emit();}});
       handle('removeAccount',async id=>{if(busy)throw Error('Wait for the current operation.');if(id===store.activeAccountId&&connection!=='disconnected')throw Error('Disconnect before removing the active account.');store.removeAccount(id);accountGuardians.delete(id);syncGuardian();quota=store.activeAccount?.quota||null;emit();});
@@ -600,7 +350,7 @@ else {
     handle('exit',async()=>{if(connection!=='connected')throw Error('Connect before verifying your connection.');const active=tunnel,epoch=generation;const result=await active.exit(store.settings.serverId==='REC'?null:active.candidate.code);if(tunnel!==active||epoch!==generation)throw Error('Connection changed while checking.');exit=result;emit();void refreshAddresses(active,epoch);return result;});
     handle('clearLogs',()=>{logs=[];emit();});
     handle('exportLogs',async()=>{const result=await dialog.showSaveDialog(window,{defaultPath:'PredatorVPN-diagnostics.txt',filters:[{name:'Text files',extensions:['txt']}]});if(!result.canceled)fs.writeFileSync(result.filePath,logs.map(l=>`${l.time} [${l.level}] ${l.message}`).join('\n'));});
-    handle('openLink',id=>{const urls={source:'https://github.com/erfan-tahvilian/PredatorVPN',license:'https://github.com/erfan-tahvilian/PredatorVPN/blob/main/LICENSE',providerLoginHelp:'https://mozilla.github.io/ecosystem-platform/relying-parties/tutorials/integration-with-fxa'};if(!urls[id])throw Error('Unknown link');return shell.openExternal(urls[id]);});
+    handle('openLink',id=>{const urls={source:'https://github.com/erfan-tahvilian/PredatorVPN',license:'https://github.com/erfan-tahvilian/PredatorVPN/blob/main/LICENSE'};if(!urls[id])throw Error('Unknown link');return shell.openExternal(urls[id]);});
     nativeTheme.on('updated',emit);setInterval(()=>{if(multiAccount&&traffic){observeTraffic();try{traffic.checkpoint();trafficSaveWarning=false;}catch{if(!trafficSaveWarning){logs.push({time:new Date().toISOString(),level:'warn',message:'Traffic statistics could not be saved.'});trafficSaveWarning=true;}}}emit();},1000).unref();
     if(store.loadError)log('warn',store.loadError);
     refreshServers().catch(()=>log('warn','Locations could not be refreshed. Saved locations remain available; try Refresh again later.'));

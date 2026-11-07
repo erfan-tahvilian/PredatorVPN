@@ -71,21 +71,21 @@ jobs:
           done
       - uses: actions/download-artifact@v4
         with:
-          pattern: FoxVPN-Windows-*
+          pattern: PredatorVPN-Windows-*
           merge-multiple: true
           path: verified-build
           run-id: ${{ inputs.windows_run }}
           github-token: ${{ github.token }}
       - uses: actions/download-artifact@v4
         with:
-          pattern: FoxVPN-macOS-*
+          pattern: PredatorVPN-macOS-*
           merge-multiple: true
           path: verified-build
           run-id: ${{ inputs.mac_run }}
           github-token: ${{ github.token }}
       - uses: actions/download-artifact@v4
         with:
-          pattern: FoxVPN-Linux-*
+          pattern: PredatorVPN-Linux-*
           merge-multiple: true
           path: verified-build
           run-id: ${{ inputs.linux_run }}
@@ -135,7 +135,7 @@ jobs:
           test "$(sha256sum signing-tools/apksigner.jar | cut -d' ' -f1)" = 00ef9948f843fe395d2440ae3ef41405b8040a6d5d46493bd1902ac0ee6deae7
           mkdir release-assets
           for arch in arm64-v8a armeabi-v7a x86_64 x86 universal; do
-            output="release-assets/FoxVPN-$FOX_VERSION-Android-$arch.apk"
+            output="release-assets/PredatorVPN-$FOX_VERSION-Android-$arch.apk"
             java -jar signing-tools/apksigner.jar sign --ks "$RUNNER_TEMP/fox-sign/release.jks" --ks-key-alias foxvpn --ks-pass "file:$RUNNER_TEMP/fox-sign/password" --key-pass "file:$RUNNER_TEMP/fox-sign/key-password" --min-sdk-version 26 --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --v4-signing-enabled false --out "$output" "unsigned/app-$arch-release-unsigned.apk"
             java -jar signing-tools/apksigner.jar verify --verbose --print-certs "$output" > /tmp/verify.txt
             grep -F "$(tr -d '\r\n' < android/signing-certificate.sha256)" /tmp/verify.txt
@@ -143,11 +143,11 @@ jobs:
       - name: Prepare every package and corresponding source
         run: |
           for arch in x64 x86 arm64; do
-            for ext in exe zip; do cp "verified-build/dist/FoxVPN-$FOX_VERSION-Windows-$arch.$ext" release-assets/; done
+            for ext in exe zip; do cp "verified-build/dist/PredatorVPN-$FOX_VERSION-Windows-$arch.$ext" release-assets/; done
           done
           for arch in x64 arm64; do
-            for ext in dmg zip; do cp "verified-build/dist/FoxVPN-$FOX_VERSION-macOS-$arch.$ext" release-assets/; done
-            for ext in AppImage deb rpm; do cp "verified-build/dist/FoxVPN-$FOX_VERSION-Linux-$arch.$ext" release-assets/; done
+            for ext in dmg zip; do cp "verified-build/dist/PredatorVPN-$FOX_VERSION-macOS-$arch.$ext" release-assets/; done
+            for ext in AppImage deb rpm; do cp "verified-build/dist/PredatorVPN-$FOX_VERSION-Linux-$arch.$ext" release-assets/; done
           done
           # Fox VPN source comes from the verified immutable maintenance tag.
           gh release download "$FOX_TAG" --pattern sing-box-1.12.0-source.tar.gz --dir release-assets

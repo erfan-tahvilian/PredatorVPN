@@ -81,7 +81,7 @@ test('captcha image and response can be exchanged within Control without a brows
  transport:async(url,options={})=>{
    const req=new URL(url);
    if(req.pathname==='/'&&req.host==='https.accounts.firefox.com')throw Error('Invalid expected host');
-   if(req.pathname==='/')return new Response(sent?'<html>Verified</html>':'<html>Client Challenge '+prefix+'</html>');
+   if(req.pathname==='/')return new Response('<html>Client Challenge '+prefix+'</html>');
    if(req.pathname.endsWith('/script.js'))return new Response('init('+JSON.stringify([{ty:'captcha',data:{image_b64:img}}])+',"token",'+JSON.stringify(prefix)+');');
    if(req.pathname.endsWith('/fst-post-back')){
      const data=JSON.parse(options.body);assert.equal(data.data[0].answer,'CODE7');sent=true;

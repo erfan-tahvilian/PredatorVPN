@@ -2,9 +2,8 @@
 // Copyright (C) 2026 Erfan Tahvilian
 const crypto = require('node:crypto');
 const {parseChallengeInit} = require('./service-challenge.cjs');
-const {responseDiagnostic}=require('./fxa-response-diagnostic.cjs');
 const UA = 'MozillaVPN/2.35.0 (sys:linux; iap:true)';
-const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0) Gecko/20100101 Firefox/145.0';
+const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 const ALPHABET = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 // Translate only locally classified provider verification failures. Never return
 // raw third-party challenge contents, cookies, tokens or URLs to the renderer.
@@ -26,7 +25,7 @@ function describeVerificationFailure(cause) {
   if(stage==='challenge-discovery') {
     return {
       code:'ACCOUNT_VERIFICATION_UNAVAILABLE',
-      message:'The account provider rejected an account API request (HTTP 406) and did not supply a usable verification page. Browser sign-in may already have succeeded; the separate session or token request was not accepted.'
+      message:'The account provider did not offer a usable verification page. The login request was blocked by the provider (HTTP 406), before credentials could be checked.'
     };
   }
   if(cause?.code==='ACCOUNT_NETWORK_INTERRUPTED' || cause?.name==='TimeoutError' || cause?.name==='AbortError') {
@@ -47,24 +46,22 @@ function solvePow(base, hash) {
   throw Error('Unable to complete the server proof-of-work challenge.');
 }
 class Control {
-  constructor({transport = (...args)=>fetch(...args),captchaSolver=null,browserManagedCookies=false} = {}) { this.cookies = new Map(); this.transport=transport;this.captchaSolver=captchaSolver;this.browserManagedCookies=browserManagedCookies; }
+  constructor({transport = (...args)=>fetch(...args),captchaSolver=null} = {}) { this.cookies = new Map(); this.transport=transport;this.captchaSolver=captchaSolver; }
   async fetch(url, options = {}) {
     const u = new URL(url);
-    // When using a real Electron session, let Chromium enforce cookie domain,
-    // path, expiry and SameSite rules. Do not override its Cookie header.
-    const cookies = this.browserManagedCookies ? '' : [...this.cookies.values()].filter(c => u.hostname === c.domain || u.hostname.endsWith('.'+c.domain)).map(c => c.pair).join('; ');
+    const cookies = [...this.cookies.values()].filter(c => u.hostname === c.domain || u.hostname.endsWith('.'+c.domain)).map(c => c.pair).join('; ');
     // Keep account API and verification requests on a consistent client profile.
     const agent = ['api.accounts.firefox.com','accounts.firefox.com'].includes(u.hostname) ? BROWSER_UA : UA;
     const response = await this.transport(url, {...options, redirect:'error', signal:AbortSignal.timeout(30000), headers:{'User-Agent':agent, Accept:'application/json', ...(cookies ? {Cookie:cookies} : {}), ...options.headers}});
-    if(!this.browserManagedCookies)for (const raw of response.headers.getSetCookie()) {
+    for (const raw of response.headers.getSetCookie()) {
       const pair = raw.split(';')[0];
       const domain = (raw.match(/;\s*domain=([^;]+)/i)?.[1] || u.hostname).replace(/^\./,'');
       if (u.hostname === domain || u.hostname.endsWith('.'+domain)) this.cookies.set(domain+':'+pair.split('=')[0], {domain,pair});
     }
     return response;
   }
-  async json(url, {method = 'GET', body, authorization, onNotAcceptable, challengeOn406=true} = {}) {
-    const options = {method,body,headers:{...(body===undefined?{}:{'Content-Type':'application/json'}), ...(authorization ? {Authorization:authorization}: {})}};
+  async json(url, {method = 'GET', body, authorization} = {}) {
+    const options = {method,body,headers:{'Content-Type':'application/json', ...(authorization ? {Authorization:authorization}: {})}};
     let response = await this.fetch(url, options);
     // Fastly returns an EMPTY HTTP 406 from the account API while hosting its
     // interactive verification page on accounts.firefox.com. Checking only
@@ -72,33 +69,20 @@ class Control {
     // Never replay non-406 failures or network errors; only retry a confirmed
     // edge rejection after the provider's challenge has completed.
     for(let attempt=0; response.status===406 && attempt<2; attempt++){
-      const diagnostic=responseDiagnostic(response);
       const responseType=String(response.headers.get('content-type')||'').toLowerCase();
       const blockedBody=await response.text();
       if(responseType.includes('application/json') && blockedBody.trim()){
         let data=null;
         try{data=JSON.parse(blockedBody);}catch{}
         const error=Error(data?.message||'The account service rejected this request (HTTP 406).');
-        error.status=406;error.errno=data?.errno;error.diagnostic=diagnostic;
+        error.status=406;error.errno=data?.errno;
         throw error;
-      }
-      // FxA permits a session-authenticated authorization-code grant as an
-      // alternative when its direct credentials grant receives an empty 406.
-      // Try that authorized grant once, before interacting with a challenge.
-      if(!challengeOn406){
-        const error=Error('The account provider refused the OAuth request (HTTP 406).');
-        error.status=406;error.diagnostic=diagnostic;throw error;
-      }
-      if(attempt===0&&typeof onNotAcceptable==='function'){
-        const alternative=await onNotAcceptable();
-        if(alternative?.access_token)return {data:alternative,headers:response.headers};
       }
       try{await this.challenge();}
       catch(cause){
         const detail=describeVerificationFailure(cause);
         const error=Error(detail.message);
         error.code=detail.code;error.status=406;error.cause=cause;
-        error.diagnostic=diagnostic;
         throw error;
       }
       response=await this.fetch(url,options);
@@ -107,7 +91,6 @@ class Control {
       await response.arrayBuffer();
       const error=Error('The account service still rejects sign-in after successful verification (HTTP 406). Try again later or contact the provider.');
       error.code='ACCOUNT_PROVIDER_BLOCKED';error.status=406;
-      error.diagnostic=responseDiagnostic(response);
       throw error;
     }
     const raw = await response.text();
@@ -120,9 +103,9 @@ class Control {
     this.verifying = (async()=>{
       // A previous clearance can hide the challenge page even when the API
       // rejects that clearance. Keep the main session while verifying afresh.
-      const solver = new Control({transport:this.transport,captchaSolver:this.captchaSolver,browserManagedCookies:this.browserManagedCookies});
+      const solver = new Control({transport:this.transport,captchaSolver:this.captchaSolver});
       await solver.solveChallenge();
-      if(!this.browserManagedCookies)for (const [key,cookie] of solver.cookies) this.cookies.set(key,cookie);
+      for (const [key,cookie] of solver.cookies) this.cookies.set(key,cookie);
     })();
     try { return await this.verifying; } finally { this.verifying=null; }
   }
@@ -155,20 +138,7 @@ class Control {
         const r = await this.fetch(root+'/fst-post-back', {method:'POST', headers:{...headers,Origin:base,'Content-Type':'application/json'},body:JSON.stringify({token,data:answers})});
         if(!r.ok) {const error=Error('Service verification failed.');error.verificationStage='challenge-response';error.verificationStatus=r.status;throw error;}
         const data = await r.json();
-        if(data.status==='success') {
-          // A successful response alone does not prove that the provider
-          // accepted the browser's verified session. Check the landing page
-          // through the very same transport/cookie jar before replaying OAuth.
-          const probe=await this.fetch(base+'/',{headers});
-          const page=await probe.text();
-          if(!probe.ok||(page.includes('Client Challenge')&&/\/_fs-ch-[A-Za-z0-9]+/.test(page))){
-            const error=Error('The account provider did not confirm challenge completion.');
-            error.verificationStage='challenge-response';
-            error.verificationStatus=probe.ok?406:probe.status;
-            throw error;
-          }
-          return;
-        }
+        if(data.status==='success') return;
         challenges=data.ch; token=data.tok;
         if(!Array.isArray(challenges) || !token) throw Error('Service verification did not complete.');
       }

@@ -116,8 +116,6 @@ function render(s) {
   document.querySelector('#account-shortcut .avatar').textContent=s.signedIn?(Array.from((s.email||'').trim())[0]?.toUpperCase()||'?'):'P';
   $('signin-panel').hidden=s.signedIn;$('signedin-panel').hidden=!s.signedIn;$('signedin-email').textContent=s.email;
   const captchaActive=!!s.signinCaptcha;
-   $('browser-login').hidden=needsCode||captchaActive;
-   $('browser-login').disabled=!!s.busy;
    $('login-form').hidden=needsCode||captchaActive;
    $('code-form').hidden=!needsCode||captchaActive;
    $('captcha-form').hidden=!captchaActive;
@@ -253,13 +251,6 @@ function configureVerification(method){
   render(currentState);
   if(!isLink)$('code').focus();
 }
-$('browser-login').addEventListener('click',action(async()=>{
-  $('password').value='';
-  const result=await call('browserLogin');
-  if(result.needsCode)throw Error('The provider returned an incomplete browser authorization.');
-  needsCode=false;addingAccount=false;render(await call('state'));
-  toast('Your authorized account is ready.');navigate(hasAccountManager()?'account':'home');
-}));
 $('login-form').addEventListener('submit',action(async e=>{
   e.preventDefault();
   const email=$('email').value.trim(),password=$('password').value;

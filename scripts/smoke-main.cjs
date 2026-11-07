@@ -28,38 +28,8 @@ async function run(){
     assert(fs.existsSync('test-results/main-profile/vault.bin'));
     const reject=await win.webContents.executeJavaScript(`window.fox.call('settings',{socksPort:0})`);assert.equal(reject.ok,false);
     const noAuth=await win.webContents.executeJavaScript(`window.fox.call('account')`);assert.equal(noAuth.ok,false);
-    // Browser login now opens an isolated interactive WebChannel window.
-    await win.webContents.executeJavaScript(`window.__browserProbe=window.fox.call('browserLogin'); 'started'`);
-    let browser=null;
-    for(let i=0;i<30;i++){
-      browser=BrowserWindow.getAllWindows().find(w=>w!==win&&!w.isDestroyed());
-      if(browser)break;
-      await new Promise(resolve=>setTimeout(resolve,100));
-    }
-    assert(browser,'Browser login should launch the provider window');
-    const opts=browser.webContents.getLastWebPreferences();
-    assert.equal(opts.nodeIntegration,false);
-    assert.equal(opts.contextIsolation,true);
-    assert.equal(opts.sandbox,true);
-    assert(fs.existsSync(path.resolve('src/fxa-webchannel-preload.cjs')),'Native bridge preload file must exist');
-    // Verify Chromium's own first-party cookie rules with synthetic test values.
-    // Domain-scoped cookies may reach subdomains; host-only cookies may not.
-    const jar=browser.webContents.session.cookies;
-    const sharedName='predator-session-fixture',hostOnlyName='predator-host-only-fixture';
-    await jar.set({url:'https://accounts.firefox.com/',name:sharedName,value:'synthetic-test',domain:'.firefox.com',path:'/',secure:true});
-    await jar.set({url:'https://accounts.firefox.com/',name:hostOnlyName,value:'host-test',path:'/',secure:true});
-    const oauthCookies=await jar.get({url:'https://oauth.accounts.firefox.com/'});
-    assert(oauthCookies.some(c=>c.name===sharedName),'Chromium should send domain cookies to permitted OAuth subdomains');
-    assert(!oauthCookies.some(c=>c.name===hostOnlyName),'Chromium must not send host-only cookies to other subdomains');
-    const unrelatedCookies=await jar.get({url:'https://vpn.mozilla.org/'});
-    assert(!unrelatedCookies.some(c=>c.name===sharedName),'FxA cookies must not be copied to unrelated service domains');
-    await jar.remove('https://accounts.firefox.com/',sharedName);
-    await jar.remove('https://accounts.firefox.com/',hostOnlyName);
-    browser.close();
-    const browserStatus=await win.webContents.executeJavaScript(`window.__browserProbe`);
-    assert.equal(browserStatus.ok,false,'Cancelled browser login cannot create an account');
-    assert(/cancelled/.test(browserStatus.error),'Closing provider page must cancel login');
-    assert.equal(BrowserWindow.getAllWindows().filter(w=>!w.isDestroyed()).length,1);
+    const browserRemoved=await win.webContents.executeJavaScript(`(()=>{try{window.fox.call('browserLogin');return false;}catch(error){return /Unsupported action/.test(error.message);}})()`);
+    assert(browserRemoved,'The removed browser-login IPC action must not be callable');
     const unknown=await win.webContents.executeJavaScript(`window.fox.call('openLink','not-allowed')`);assert.equal(unknown.ok,false);
     fs.writeFileSync('test-results/main-smoke-status.txt','PASS: real main process, sandboxed preload IPC, OS-encrypted vault, settings rejection, signed-out behavior and URL allowlist');
     console.log('Main-process smoke checks passed.');
