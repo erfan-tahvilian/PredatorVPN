@@ -6,7 +6,7 @@ const HEX=/^[0-9a-f]{64}$/i;
 const EMAIL=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 function stageError(error,stage){
- if(error&&typeof error==='object')error.loginStage=stage;
+ if(error&&typeof error==='object'&&!error.loginStage)error.loginStage=stage;
  return error;
 }
 async function followNativeBrowserSession({

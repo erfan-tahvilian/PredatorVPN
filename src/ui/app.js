@@ -253,7 +253,6 @@ function configureVerification(method){
   render(currentState);
   if(!isLink)$('code').focus();
 }
-$('provider-login-help').addEventListener('click',action(()=>call('openLink','providerLoginHelp')));
 $('browser-login').addEventListener('click',action(async()=>{
   $('password').value='';
   const result=await call('browserLogin');

@@ -277,3 +277,33 @@ test('Provider unverified-session errno 138 after confirmation retries the OAuth
  assert.equal(res,'ok');assert.equal(status,1);assert.equal(grant,2);
  assert.equal(account.refresh_token,'r');
 });
+
+test('Authorization failure reports the safe OAuth step without leaking provider data',async()=>{
+ const secret='do-not-display-session-secret';
+ await assert.rejects(exchangeSessionWithOAuthCode({
+  async json(){throw Object.assign(Error(secret),{status:406});}
+ },token,()=> 'Hawk fixture'),error=>
+  error.code==='FXA_OAUTH_AUTHORIZATION_REJECTED'&&error.status===406&&
+  error.loginStage==='oauth-authorization'&&!error.message.includes(secret)
+ );
+});
+test('Code exchange failure identifies OAuth token endpoint without exposing codes',async()=>{
+ const secret='do-not-display-authorization-code';
+ await assert.rejects(exchangeSessionWithOAuthCode({async json(url,options){
+  if(url.endsWith('/oauth/authorization')){
+   return {data:{code:secret,state:JSON.parse(options.body).state}};
+  }
+  throw Object.assign(Error(secret),{status:406});
+ }},token,()=> 'Hawk fixture'),error=>
+  error.code==='FXA_OAUTH_TOKEN_EXCHANGE_REJECTED'&&error.status===406&&
+  error.loginStage==='oauth-code-exchange'&&!error.message.includes(secret)
+ );
+});
+test('Browser sign-in requirements link is absent from account page and listeners',()=>{
+ const fs=require('node:fs');
+ const path=require('node:path');
+ const html=fs.readFileSync(path.join(__dirname,'..','src','ui','index.html'),'utf8');
+ const js=fs.readFileSync(path.join(__dirname,'..','src','ui','app.js'),'utf8');
+ assert.doesNotMatch(html,/id="provider-login-help"|Browser sign-in requirements/);
+ assert.doesNotMatch(js,/provider-login-help/);
+});
