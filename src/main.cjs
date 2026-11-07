@@ -76,15 +76,17 @@ function completeLogin(result){if(loginAccountId){syncGuardian();if(connection==
 async function signInViaNativeBrowser(){
   if(busy||providerBrowserWindow)throw Error('Another account operation is already running.');
   const attempt=++providerBrowserAttempt;
-  const loginUrl='https://accounts.firefox.com/?context=fx_desktop_v3&service=sync&action=email';
   const nativeOAuth=createNativeOAuthFlow();
+  // Firefox 134+ returns an OAuth authorization code directly via WebChannel.
+  // Avoid the old session-token verification round-trip as the default path.
+  const loginUrl=nativeOAuth.url;
   const browserUA='Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0) Gecko/20100101 Firefox/145.0';
   const permitted=new Set(['accounts.firefox.com','content.accounts.firefox.com','oauth.accounts.firefox.com',
     'accounts.google.com','appleid.apple.com']);
   busy=true;emit();
   try{
     await new Promise((resolve,reject)=>{
-      let settled=false,sessionSeq=0,lastToken='',usingModern=false;
+      let settled=false,sessionSeq=0,lastToken='',usingModern=true;
       const popup=new BrowserWindow({
         parent:window,modal:true,width:560,height:760,minWidth:460,minHeight:550,
         show:true,title:'Mozilla account sign-in - Predator VPN',autoHideMenuBar:true,
@@ -185,12 +187,12 @@ async function signInViaNativeBrowser(){
         event.preventDefault();finish(Error('The provider redirected outside approved sign-in domains.'));
       });
       popup.webContents.on('did-navigate',(_event,url)=>{
-        if(usingModern||settled)return;
+        if(settled)return;
         try{
           const u=new URL(url);
           if(u.origin==='https://accounts.firefox.com'&&u.pathname.startsWith('/update_firefox')){
-            usingModern=true;
-            popup.loadURL(nativeOAuth.url).catch(()=>finish(Error('The updated provider sign-in page could not be loaded.')));
+            // A rejected native-client entry mode is not a successful sign-in.
+            finish(Error('The provider does not support this native OAuth sign-in flow. Use a registered OAuth client or contact the account provider.'));
           }
         }catch{}
       });

@@ -23,11 +23,16 @@ async function completeNativeOAuthCode({
 }){
  if(!active())throw Error('Browser sign-in was cancelled.');
  const registration={clientId:CLIENT,redirectUri:REDIRECT,scope:SCOPE};
- const tokens=await exchangeAuthorization(fetcher,registration,flow,code);
+ let tokens;
+ try{tokens=await exchangeAuthorization(fetcher,registration,flow,code);}
+ catch(error){throw Error('OAuth code exchange: '+error.message);}
  if(!active())throw Error('Browser sign-in was cancelled.');
- const email=await readAuthorizedProfile(fetcher,tokens.access_token);
+ let email;
+ try{email=await readAuthorizedProfile(fetcher,tokens.access_token);}
+ catch(error){throw Error('Authorized account profile: '+error.message);}
  if(!active())throw Error('Browser sign-in was cancelled.');
- await checkVpn(tokens.access_token);
+ try{await checkVpn(tokens.access_token);}
+ catch(error){throw Error('VPN entitlement verification: '+error.message);}
  if(!active())throw Error('Browser sign-in was cancelled.');
  if(!tokens.refresh_token)throw Error('Provider did not grant offline account access.');
  return saveAccount({

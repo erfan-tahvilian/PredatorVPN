@@ -203,11 +203,13 @@ class Auth {
   if(!auth.refresh_token){this.store.setAuth(null);throw Error('Your session expired. Sign in again.');}
   let renewed;
   try{
-   if(auth.provider==='mozilla-registered-oidc'){
-    if(!/^[0-9a-f]{16,64}$/i.test(auth.oauthClientId||'')||auth.oauthClientId===CLIENT)
-      throw Error('The registered OAuth client identity is missing.');
+   if(auth.provider==='mozilla-registered-oidc'||auth.provider==='mozilla-native-webchannel'){
+    const native=auth.provider==='mozilla-native-webchannel';
+    const clientId=native?CLIENT:auth.oauthClientId;
+    if(!/^[0-9a-f]{16,64}$/i.test(clientId||'')||(!native&&clientId===CLIENT))
+      throw Error('The OAuth client identity is missing or invalid.');
     renewed=(await this.http.json('https://oauth.accounts.firefox.com/v1/token',{
-     method:'POST',body:JSON.stringify({client_id:auth.oauthClientId,grant_type:'refresh_token',
+     method:'POST',body:JSON.stringify({client_id:clientId,grant_type:'refresh_token',
        refresh_token:auth.refresh_token})
     })).data;
    }else{

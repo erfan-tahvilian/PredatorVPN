@@ -118,3 +118,34 @@ test('Modern WebChannel code can be exchanged and saved only after VPN authoriza
  assert.equal(id,'saved-id');
  assert.deepEqual(events,['token','profile','vpn','save']);
 });
+
+test('Native OAuth refresh uses the native client ID and OAuth token endpoint',async()=>{
+ const {Auth}=require('../src/lib/auth.cjs');
+ const saved={
+  provider:'mozilla-native-webchannel',email:'person@example.invalid',
+  access_token:'access-expired',refresh_token:'refresh-existing',expiresAt:0
+ };
+ const store={auth:saved,setAuth(next){this.auth=next;}};
+ const seen=[];
+ const auth=new Auth({async json(url,options){
+  seen.push({url,body:JSON.parse(options.body)});
+  return {data:{access_token:'access-renewed',expires_in:3600}};
+ }},store);
+ assert.equal(await auth.token(true),'access-renewed');
+ assert.equal(seen.length,1);
+ assert.equal(seen[0].url,'https://oauth.accounts.firefox.com/v1/token');
+ assert.equal(seen[0].body.client_id,'5882386c6d801776');
+ assert.equal(seen[0].body.grant_type,'refresh_token');
+ assert.equal(seen[0].body.refresh_token,'refresh-existing');
+ assert.equal(store.auth.refresh_token,'refresh-existing');
+});
+test('Native OAuth labels a rejected token exchange without exposing secrets',async()=>{
+ const flow=createNativeOAuthFlow();
+ let saved=0,checked=0;
+ await assert.rejects(completeNativeOAuthCode({
+  flow,code:'fixture',active:()=>true,
+  fetcher:async()=>({ok:false,status:406,arrayBuffer:async()=>new ArrayBuffer(0)}),
+  checkVpn:async()=>{checked++},saveAccount:()=>{saved++}
+ }),error=>/OAuth code exchange/.test(error.message)&&/HTTP 406/.test(error.message));
+ assert.equal(checked,0);assert.equal(saved,0);
+});

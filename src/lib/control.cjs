@@ -25,7 +25,7 @@ function describeVerificationFailure(cause) {
   if(stage==='challenge-discovery') {
     return {
       code:'ACCOUNT_VERIFICATION_UNAVAILABLE',
-      message:'The account provider did not offer a usable verification page. The login request was blocked by the provider (HTTP 406), before credentials could be checked.'
+      message:'The account provider rejected an account API request (HTTP 406) and did not supply a usable verification page. Browser sign-in may already have succeeded; the separate session or token request was not accepted.'
     };
   }
   if(cause?.code==='ACCOUNT_NETWORK_INTERRUPTED' || cause?.name==='TimeoutError' || cause?.name==='AbortError') {
