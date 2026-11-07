@@ -42,6 +42,19 @@ async function run(){
     assert.equal(opts.contextIsolation,true);
     assert.equal(opts.sandbox,true);
     assert(fs.existsSync(path.resolve('src/fxa-webchannel-preload.cjs')),'Native bridge preload file must exist');
+    // Verify Chromium's own first-party cookie rules with synthetic test values.
+    // Domain-scoped cookies may reach subdomains; host-only cookies may not.
+    const jar=browser.webContents.session.cookies;
+    const sharedName='predator-session-fixture',hostOnlyName='predator-host-only-fixture';
+    await jar.set({url:'https://accounts.firefox.com/',name:sharedName,value:'synthetic-test',domain:'.firefox.com',path:'/',secure:true});
+    await jar.set({url:'https://accounts.firefox.com/',name:hostOnlyName,value:'host-test',path:'/',secure:true});
+    const oauthCookies=await jar.get({url:'https://oauth.accounts.firefox.com/'});
+    assert(oauthCookies.some(c=>c.name===sharedName),'Chromium should send domain cookies to permitted OAuth subdomains');
+    assert(!oauthCookies.some(c=>c.name===hostOnlyName),'Chromium must not send host-only cookies to other subdomains');
+    const unrelatedCookies=await jar.get({url:'https://vpn.mozilla.org/'});
+    assert(!unrelatedCookies.some(c=>c.name===sharedName),'FxA cookies must not be copied to unrelated service domains');
+    await jar.remove('https://accounts.firefox.com/',sharedName);
+    await jar.remove('https://accounts.firefox.com/',hostOnlyName);
     browser.close();
     const browserStatus=await win.webContents.executeJavaScript(`window.__browserProbe`);
     assert.equal(browserStatus.ok,false,'Cancelled browser login cannot create an account');

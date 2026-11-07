@@ -46,14 +46,16 @@ function solvePow(base, hash) {
   throw Error('Unable to complete the server proof-of-work challenge.');
 }
 class Control {
-  constructor({transport = (...args)=>fetch(...args),captchaSolver=null} = {}) { this.cookies = new Map(); this.transport=transport;this.captchaSolver=captchaSolver; }
+  constructor({transport = (...args)=>fetch(...args),captchaSolver=null,browserManagedCookies=false} = {}) { this.cookies = new Map(); this.transport=transport;this.captchaSolver=captchaSolver;this.browserManagedCookies=browserManagedCookies; }
   async fetch(url, options = {}) {
     const u = new URL(url);
-    const cookies = [...this.cookies.values()].filter(c => u.hostname === c.domain || u.hostname.endsWith('.'+c.domain)).map(c => c.pair).join('; ');
+    // When using a real Electron session, let Chromium enforce cookie domain,
+    // path, expiry and SameSite rules. Do not override its Cookie header.
+    const cookies = this.browserManagedCookies ? '' : [...this.cookies.values()].filter(c => u.hostname === c.domain || u.hostname.endsWith('.'+c.domain)).map(c => c.pair).join('; ');
     // Keep account API and verification requests on a consistent client profile.
     const agent = ['api.accounts.firefox.com','accounts.firefox.com'].includes(u.hostname) ? BROWSER_UA : UA;
     const response = await this.transport(url, {...options, redirect:'error', signal:AbortSignal.timeout(30000), headers:{'User-Agent':agent, Accept:'application/json', ...(cookies ? {Cookie:cookies} : {}), ...options.headers}});
-    for (const raw of response.headers.getSetCookie()) {
+    if(!this.browserManagedCookies)for (const raw of response.headers.getSetCookie()) {
       const pair = raw.split(';')[0];
       const domain = (raw.match(/;\s*domain=([^;]+)/i)?.[1] || u.hostname).replace(/^\./,'');
       if (u.hostname === domain || u.hostname.endsWith('.'+domain)) this.cookies.set(domain+':'+pair.split('=')[0], {domain,pair});
@@ -103,9 +105,9 @@ class Control {
     this.verifying = (async()=>{
       // A previous clearance can hide the challenge page even when the API
       // rejects that clearance. Keep the main session while verifying afresh.
-      const solver = new Control({transport:this.transport,captchaSolver:this.captchaSolver});
+      const solver = new Control({transport:this.transport,captchaSolver:this.captchaSolver,browserManagedCookies:this.browserManagedCookies});
       await solver.solveChallenge();
-      for (const [key,cookie] of solver.cookies) this.cookies.set(key,cookie);
+      if(!this.browserManagedCookies)for (const [key,cookie] of solver.cookies) this.cookies.set(key,cookie);
     })();
     try { return await this.verifying; } finally { this.verifying=null; }
   }

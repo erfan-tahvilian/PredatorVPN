@@ -159,7 +159,7 @@ async function signInViaNativeBrowser(){
           sessionToken:message.sessionToken,email:message.email,
           // Use the same isolated Chromium cookie jar as the hosted sign-in.
           http:new Control({transport:(url,options)=>popup.webContents.session.fetch(url,{...options,credentials:'include'}),
-            captchaSolver:image=>captchaPrompt.ask(image)}),
+            browserManagedCookies:true,captchaSolver:image=>captchaPrompt.ask(image)}),
           fetcher:(...args)=>electronNet.fetch(...args),
           checkVpn:async accessToken=>{
             const entitlement=new Guardian(makeControl(),{token:async()=>accessToken});
