@@ -30,7 +30,7 @@ const {readProviderRegistration,createAuthorization,redirectResult,signInNavigat
 const {completeBrowserOAuth}=require('./lib/oauth-browser-completion.cjs');
 const {parseWebChannel,shouldProcessWebChannelResult}=require('./lib/fxa-webchannel-protocol.cjs');
 const {followNativeBrowserSession}=require('./lib/fxa-native-browser-auth.cjs');
-const {createNativeOAuthFlow,completeNativeOAuthCode}=require('./lib/fxa-native-oauth-code.cjs');
+const {createLegacyBrowserSignInUrl,createNativeOAuthFlow,completeNativeOAuthCode}=require('./lib/fxa-native-oauth-code.cjs');
 const {CaptchaPrompt}=require('./lib/captcha-prompt.cjs');
 const APP_VERSION=require('../package.json').version;
 // Adopt the new product name for all new Electron profile directories.
@@ -77,16 +77,16 @@ async function signInViaNativeBrowser(){
   if(busy||providerBrowserWindow)throw Error('Another account operation is already running.');
   const attempt=++providerBrowserAttempt;
   const nativeOAuth=createNativeOAuthFlow();
-  // Firefox 134+ returns an OAuth authorization code directly via WebChannel.
-  // Avoid the old session-token verification round-trip as the default path.
-  const loginUrl=nativeOAuth.url;
+  // Start with the desktop browser sign-in entry point used by Arman.
+  // Its WebChannel session is verified by FxA before any OAuth token is saved.
+  const loginUrl=createLegacyBrowserSignInUrl();
   const browserUA='Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0) Gecko/20100101 Firefox/145.0';
   const permitted=new Set(['accounts.firefox.com','content.accounts.firefox.com','oauth.accounts.firefox.com',
     'accounts.google.com','appleid.apple.com']);
   busy=true;emit();
   try{
     await new Promise((resolve,reject)=>{
-      let settled=false,sessionSeq=0,lastToken='',usingModern=true,oauthExchangeStarted=false;
+      let settled=false,sessionSeq=0,lastToken='',usingModern=false,oauthExchangeStarted=false;
       const popup=new BrowserWindow({
         parent:window,modal:true,width:560,height:760,minWidth:460,minHeight:550,
         show:true,title:'Mozilla account sign-in - Predator VPN',autoHideMenuBar:true,

@@ -58,6 +58,16 @@ test('Firefox auth derivation is case-sensitive and produces a 32-byte key',()=>
   assert.match(authPW('user@example.com','password'),/^[a-f0-9]{64}$/);
   assert.notEqual(authPW('User@example.com','password'),authPW('user@example.com','password'));
 });
+test('FxA password stretching matches the one-byte HKDF salt used by the Go client',()=>{
+  const prefix='identity.mozilla.com/picl/v1/';
+  const stretched=crypto.pbkdf2Sync('password',prefix+'quickStretch:user@example.com',1000,32,'sha256');
+  const expected=Buffer.from(crypto.hkdfSync('sha256',stretched,Buffer.from([0]),prefix+'authPW',32)).toString('hex');
+  const legacy=Buffer.from(crypto.hkdfSync('sha256',stretched,Buffer.alloc(32),prefix+'authPW',32)).toString('hex');
+  assert.equal(expected,'caddbe0fe1ac15374d7b3e7b59e49b84110b7ca0b22acf9b96aabbb71b0595a2');
+  assert.equal(authPW('user@example.com','password'),expected);
+  // A one-byte zero key and a 32-byte zero key have the same HMAC padding.
+  assert.equal(expected,legacy);
+});
 test('Hawk signs the request path, payload and explicit port',()=>{
   const first=hawk('POST','https://api.accounts.firefox.com/v1/oauth/token','ab'.repeat(32),'{}',123,'nonce');
   assert.match(first,/^Hawk id="[a-f0-9]{64}", ts="123", nonce="nonce", mac="/);

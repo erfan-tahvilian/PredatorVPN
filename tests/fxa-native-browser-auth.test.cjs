@@ -84,6 +84,15 @@ test('Code fallback rejects invalid provider state before exchanging token',asyn
 });
 
 const {createNativeOAuthFlow,completeNativeOAuthCode,CLIENT,REDIRECT}=require('../src/lib/fxa-native-oauth-code.cjs');
+test('Desktop browser login starts with the same FxA entry point as Arman',()=>{
+ const {createLegacyBrowserSignInUrl}=require('../src/lib/fxa-native-oauth-code.cjs');
+ const url=new URL(createLegacyBrowserSignInUrl('person@example.invalid'));
+ assert.equal(url.origin,'https://accounts.firefox.com');
+ assert.equal(url.searchParams.get('context'),'fx_desktop_v3');
+ assert.equal(url.searchParams.get('service'),'sync');
+ assert.equal(url.searchParams.get('action'),'email');
+ assert.equal(url.searchParams.get('email'),'person@example.invalid');
+});
 test('Modern Firefox OAuth WebChannel URL uses native client and PKCE',()=>{
  const flow=createNativeOAuthFlow();
  const url=new URL(flow.url);

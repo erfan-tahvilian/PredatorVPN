@@ -6,6 +6,16 @@ const {exchangeAuthorization,readAuthorizedProfile}=require('./provider-browser-
 const CLIENT='5882386c6d801776';
 const REDIRECT='urn:ietf:wg:oauth:2.0:oob:oauth-redirect-webchannel';
 const SCOPE='profile https://identity.mozilla.com/apps/vpn';
+// Matches the provider-hosted desktop sign-in used by Arman's browser flow.
+// The user's password, MFA and challenges remain on the provider's page.
+function createLegacyBrowserSignInUrl(email=''){
+ const url=new URL('https://accounts.firefox.com/');
+ url.searchParams.set('context','fx_desktop_v3');
+ url.searchParams.set('service','sync');
+ url.searchParams.set('action','email');
+ if(email)url.searchParams.set('email',email);
+ return url.href;
+}
 function createNativeOAuthFlow(){
  const verifier=crypto.randomBytes(32).toString('base64url');
  const state=crypto.randomBytes(32).toString('base64url');
@@ -43,4 +53,4 @@ async function completeNativeOAuthCode({
    expiresAt:Date.now()+(Number(tokens.expires_in)||3600)*1000
  });
 }
-module.exports={createNativeOAuthFlow,completeNativeOAuthCode,CLIENT,REDIRECT};
+module.exports={createLegacyBrowserSignInUrl,createNativeOAuthFlow,completeNativeOAuthCode,CLIENT,REDIRECT};

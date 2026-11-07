@@ -8,9 +8,14 @@ const CLIENT='5882386c6d801776'; // Legacy compatibility with existing accounts
 const SCOPE='profile https://identity.mozilla.com/apps/vpn';
 const UNBLOCK_TTL=15*60*1000;
 const SESSION_TOKEN_HEX=/^[a-f0-9]{64}$/i;
-function hkdf(input,info,length){return Buffer.from(crypto.hkdfSync('sha256',input,Buffer.alloc(32),info,length));}
+function hkdf(input,info,length,salt=Buffer.alloc(32)){
+ return Buffer.from(crypto.hkdfSync('sha256',input,salt,info,length));
+}
 function authPW(email,password){
- return hkdf(crypto.pbkdf2Sync(password,PREFIX+'quickStretch:'+email,1000,32,'sha256'),PREFIX+'authPW',32).toString('hex');
+ // FxA's password-derived key uses a single zero-byte HKDF salt.
+ // Session-token HAWK expansion intentionally retains the default zero-filled salt.
+ return hkdf(crypto.pbkdf2Sync(password,PREFIX+'quickStretch:'+email,1000,32,'sha256'),
+   PREFIX+'authPW',32,Buffer.from([0])).toString('hex');
 }
 function hawk(method,url,session,body,now=Math.floor(Date.now()/1000),nonce=crypto.randomBytes(6).toString('hex')){
  if(!SESSION_TOKEN_HEX.test(session||''))throw Error('The account provider returned an invalid session token.');
