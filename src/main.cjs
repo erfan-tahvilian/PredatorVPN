@@ -146,7 +146,18 @@ async function signInViaNativeBrowser(){
         if(!message)return;
         if(message.kind==='query'){
           const data=message.command==='fxaccounts:fxa_status'
-            ?{capabilities:{},signedInUser:null}:{ok:true};
+            ?{
+              signedInUser:null,
+              clientId:'5882386c6d801776',
+              capabilities:{
+                multiService:true,
+                pairing:false,
+                choose_what_to_sync:false,
+                engines:['bookmarks','history','passwords','tabs']
+              }
+            }
+            :{ok:true};
+          log('info','Browser sign-in: WebChannel query '+message.command);
           popup.webContents.send('predator:fxa-webchannel-reply',{
             id:message.id,message:{messageId:message.messageId,command:message.command,data}
           });
@@ -179,6 +190,7 @@ async function signInViaNativeBrowser(){
           return;
         }
         if(message.kind!=='legacy-session'||message.sessionToken===lastToken)return;
+        log('info','Browser sign-in: WebChannel session received; completing account.');
         lastToken=message.sessionToken;
         const sequence=++sessionSeq;
         void followNativeBrowserSession({
