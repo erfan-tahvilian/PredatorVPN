@@ -3,7 +3,7 @@
 const crypto = require('node:crypto');
 const {parseChallengeInit} = require('./service-challenge.cjs');
 const UA = 'MozillaVPN/2.35.0 (sys:linux; iap:true)';
-const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
+const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0) Gecko/20100101 Firefox/145.0';
 const ALPHABET = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 // Translate only locally classified provider verification failures. Never return
 // raw third-party challenge contents, cookies, tokens or URLs to the renderer.
@@ -25,7 +25,7 @@ function describeVerificationFailure(cause) {
   if(stage==='challenge-discovery') {
     return {
       code:'ACCOUNT_VERIFICATION_UNAVAILABLE',
-      message:'The account provider did not offer a usable verification page. The login request was blocked by the provider (HTTP 406), before credentials could be checked.'
+      message:'The account provider rejected an account API request (HTTP 406) and did not supply a usable verification page. Browser sign-in may already have succeeded; the separate session or token request was not accepted.'
     };
   }
   if(cause?.code==='ACCOUNT_NETWORK_INTERRUPTED' || cause?.name==='TimeoutError' || cause?.name==='AbortError') {
@@ -46,14 +46,16 @@ function solvePow(base, hash) {
   throw Error('Unable to complete the server proof-of-work challenge.');
 }
 class Control {
-  constructor({transport = (...args)=>fetch(...args),captchaSolver=null} = {}) { this.cookies = new Map(); this.transport=transport;this.captchaSolver=captchaSolver; }
+  constructor({transport = (...args)=>fetch(...args),captchaSolver=null,browserManagedCookies=false} = {}) { this.cookies = new Map(); this.transport=transport;this.captchaSolver=captchaSolver;this.browserManagedCookies=browserManagedCookies; }
   async fetch(url, options = {}) {
     const u = new URL(url);
-    const cookies = [...this.cookies.values()].filter(c => u.hostname === c.domain || u.hostname.endsWith('.'+c.domain)).map(c => c.pair).join('; ');
+    // When using a real Electron session, let Chromium enforce cookie domain,
+    // path, expiry and SameSite rules. Do not override its Cookie header.
+    const cookies = this.browserManagedCookies ? '' : [...this.cookies.values()].filter(c => u.hostname === c.domain || u.hostname.endsWith('.'+c.domain)).map(c => c.pair).join('; ');
     // Keep account API and verification requests on a consistent client profile.
     const agent = ['api.accounts.firefox.com','accounts.firefox.com'].includes(u.hostname) ? BROWSER_UA : UA;
     const response = await this.transport(url, {...options, redirect:'error', signal:AbortSignal.timeout(30000), headers:{'User-Agent':agent, Accept:'application/json', ...(cookies ? {Cookie:cookies} : {}), ...options.headers}});
-    for (const raw of response.headers.getSetCookie()) {
+    if(!this.browserManagedCookies)for (const raw of response.headers.getSetCookie()) {
       const pair = raw.split(';')[0];
       const domain = (raw.match(/;\s*domain=([^;]+)/i)?.[1] || u.hostname).replace(/^\./,'');
       if (u.hostname === domain || u.hostname.endsWith('.'+domain)) this.cookies.set(domain+':'+pair.split('=')[0], {domain,pair});
@@ -61,7 +63,7 @@ class Control {
     return response;
   }
   async json(url, {method = 'GET', body, authorization} = {}) {
-    const options = {method,body,headers:{'Content-Type':'application/json', ...(authorization ? {Authorization:authorization}: {})}};
+    const options = {method,body,headers:{...(body===undefined?{}:{'Content-Type':'application/json'}), ...(authorization ? {Authorization:authorization}: {})}};
     let response = await this.fetch(url, options);
     // Fastly returns an EMPTY HTTP 406 from the account API while hosting its
     // interactive verification page on accounts.firefox.com. Checking only
@@ -103,9 +105,9 @@ class Control {
     this.verifying = (async()=>{
       // A previous clearance can hide the challenge page even when the API
       // rejects that clearance. Keep the main session while verifying afresh.
-      const solver = new Control({transport:this.transport,captchaSolver:this.captchaSolver});
+      const solver = new Control({transport:this.transport,captchaSolver:this.captchaSolver,browserManagedCookies:this.browserManagedCookies});
       await solver.solveChallenge();
-      for (const [key,cookie] of solver.cookies) this.cookies.set(key,cookie);
+      if(!this.browserManagedCookies)for (const [key,cookie] of solver.cookies) this.cookies.set(key,cookie);
     })();
     try { return await this.verifying; } finally { this.verifying=null; }
   }

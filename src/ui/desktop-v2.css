@@ -440,6 +440,10 @@ body.light input[type="checkbox"].switch:checked::after{background:#fff!importan
 /* Avoid a stale dark thumb color during theme changes, even offscreen. */
 body.light input[type="checkbox"].switch::after{transition:transform .18s ease!important;background:#fff!important}
 
+/* Browser-based OAuth uses a separate restricted provider window. */
+#signin-panel .browser-login-button{width:100%;margin:14px 0 8px}
+#signin-panel .browser-login-note{font-size:12px;line-height:1.5;margin:0 0 10px}
+#signin-panel #provider-login-help{display:inline;padding:0;border:0;background:none;color:var(--accent);font:inherit;font-weight:600;text-decoration:underline;text-underline-offset:2px}
 /* Keep the email/password sign-in layout aligned across themes. */
 #signin-panel .legacy-login-heading{font-size:14px;font-weight:650;margin:19px 0 14px;color:var(--text)}
 

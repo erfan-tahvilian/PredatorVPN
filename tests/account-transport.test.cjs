@@ -200,3 +200,22 @@ test('old browser accounts are preserved but cannot trigger discontinued OAuth r
  assert.equal(networkRequests,0);
  assert.equal(saved.refresh_token,'fixture-old-refresh');
 });
+
+test('an Electron-backed provider session retains exclusive control of browser cookies',async()=>{
+ const {Control}=require('../src/lib/control.cjs');
+ const requests=[];
+ const client=new Control({
+  browserManagedCookies:true,
+  transport:async(url,options)=>{
+   requests.push({url,options});
+   return new Response('{}',{headers:{'Set-Cookie':'clearance=value; Domain=firefox.com; Path=/; Secure'}});
+  }
+ });
+ client.cookies.set('firefox.com:old',{domain:'firefox.com',pair:'old=fixture'});
+ await client.fetch('https://oauth.accounts.firefox.com/v1/token',{method:'POST'});
+ assert.equal(requests.length,1);
+ assert.equal(Object.hasOwn(requests[0].options.headers,'Cookie'),false,
+  'Electron sessions should supply real browser cookies, not a manual Cookie header');
+ assert.equal(client.cookies.size,1,
+  'A browser-managed response must not be copied into the legacy manual cookie map');
+});
