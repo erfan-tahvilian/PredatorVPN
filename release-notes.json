@@ -8,6 +8,11 @@
     },
     {
       "platforms": ["win32", "darwin", "linux"],
+      "title": "Clearer service availability errors",
+      "description": "When the VPN service API is unavailable from the current network location (HTTP 451), Predator VPN shows a clear message and uses the system proxy for those API calls when one is configured."
+    },
+    {
+      "platforms": ["win32", "darwin", "linux"],
       "title": "Reliable account sign-in",
       "description": "Desktop sign-in uses a browser-matching TLS helper so the account edge accepts login and OAuth token exchange, with an in-app image CAPTCHA form when required."
     },

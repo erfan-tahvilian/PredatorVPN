@@ -48,6 +48,14 @@ function createAccountTransport({createSession,systemFetch}){
     const target=new URL(url);
     if(target.protocol!=='https:'||!APPROVED.has(target.hostname))throw Error('Unapproved account-service endpoint');
     await ready;
+    // Guardian API is geo-restricted in some networks. Prefer the OS proxy stack for
+    // vpn.mozilla.org so a system/upstream proxy outside the blocked region can reach it.
+    // Account (FxA) calls stay on an isolated direct session to avoid recursive VPN routes.
+    if(target.hostname==='vpn.mozilla.org'&&typeof isolated.setProxy==='function'){
+      try{await isolated.setProxy({mode:'system'});}catch{/* keep prior mode */}
+    }else if(typeof isolated.setProxy==='function'){
+      try{await isolated.setProxy({mode:'direct'});}catch{/* ignore */}
+    }
     const method=(options.method||'GET').toUpperCase();
     try {return await isolated.fetch(url,options);}
     catch(error){

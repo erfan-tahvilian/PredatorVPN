@@ -5,6 +5,7 @@ An independent VPN client for Windows, macOS, Linux and Android, built on third-
 ## Changes in 2.0.2
 
 - **Windows profile migration:** Moving the previous profile folder no longer fails with `EPERM` when files are briefly locked. The app copies the profile when rename is blocked so startup continues.
+- **Service availability (HTTP 451):** When the VPN service API is blocked for the current network location, the app reports a clear error and routes those API calls through the system proxy when one is configured.
 - **macOS profile migration:** Leftover legacy profile folders are still retired safely after Command-Q.
 - **Account sign-in:** Desktop login keeps the browser-matching TLS helper, in-app image CAPTCHA fallback, and OAuth token exchange from 2.0.1.
 

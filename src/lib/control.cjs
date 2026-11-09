@@ -158,7 +158,18 @@ class Control {
     }
     const raw = await response.text();
     let data; try { data = JSON.parse(raw || '{}'); } catch { throw Error(`The service returned an invalid response (HTTP ${response.status}).`); }
-    if (!response.ok) { const e = Error(data.message || `Service request failed (HTTP ${response.status}).`); e.status = response.status; e.errno = data.errno; if(typeof data.email==='string'&&data.email.length<320)e.providerEmail=data.email; e.quota={limit:response.headers.get('x-quota-limit'),remaining:response.headers.get('x-quota-remaining'),reset:response.headers.get('x-quota-reset')}; throw e; }
+    if (!response.ok) {
+      const regionBlocked=response.status===451||data?.error==='unavailable_in_region';
+      const message=regionBlocked
+        ? 'The VPN service API is not available from this network location (HTTP 451). Set a system or upstream proxy outside the restricted region, then retry connect or ping.'
+        : (data.message || `Service request failed (HTTP ${response.status}).`);
+      const e = Error(message);
+      e.status = response.status; e.errno = data.errno;
+      if(regionBlocked)e.code='SERVICE_UNAVAILABLE_IN_REGION';
+      if(typeof data.email==='string'&&data.email.length<320)e.providerEmail=data.email;
+      e.quota={limit:response.headers.get('x-quota-limit'),remaining:response.headers.get('x-quota-remaining'),reset:response.headers.get('x-quota-reset')};
+      throw e;
+    }
     return {data, headers:response.headers};
   }
   async syncCookiesFromSession() {
@@ -348,7 +359,14 @@ class Guardian {
   constructor(control, auth) { this.http = control; this.auth = auth; }
   async request(path, method = 'GET', retry = true) {
     try { return await this.http.json('https://vpn.mozilla.org/api/v1/fpn/'+path, {method, authorization:'Bearer '+await this.auth.token()}); }
-    catch(e) { if (e.status === 401 && retry) { await this.auth.token(true); return this.request(path,method,false); } throw e; }
+    catch(e) {
+      if (e.status === 401 && retry) { await this.auth.token(true); return this.request(path,method,false); }
+      if (e.status === 451 || e.code === 'SERVICE_UNAVAILABLE_IN_REGION') {
+        const err=Error(e.message||'The VPN service API is not available from this network location (HTTP 451). Set a system or upstream proxy outside the restricted region, then retry connect or ping.');
+        err.status=451;err.code='SERVICE_UNAVAILABLE_IN_REGION';err.cause=e;throw err;
+      }
+      throw e;
+    }
   }
   async pass() {
     let r;

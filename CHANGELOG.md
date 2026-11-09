@@ -3,6 +3,7 @@
 ## v2.0.2 - 2026-11-09
 
 - Windows profile migration falls back to copy when rename is blocked (fixes EPERM startup crash when the previous profile folder is locked).
+- Clearer handling when the VPN service API rejects the network location (HTTP 451); Guardian calls use the system proxy path when available.
 - Keeps the 2.0.1 desktop sign-in helper, image CAPTCHA fallback, and macOS legacy-profile retirement.
 
 ## v2.0.1 - 2026-11-09
