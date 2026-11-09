@@ -31,11 +31,16 @@ test('release publication requires every supported binary and rejects temporary 
 test('release cleanup selects only older versioned releases and preserves newer releases',()=>{
   assert.deepEqual(olderTags([{tag_name:'v1.0.0'},{tag_name:'v1.0.1'},{tag_name:'v1.0.2'},{tag_name:'v2.0.0'},{tag_name:'development'}],'1.0.1'),['v1.0.0']);
 });
-test('older releases retain their notes and all downloadable assets during a newer publication',()=>{
+test('older releases lose downloadable installers while keeping historical notes',()=>{
   const temp=fs.mkdtempSync(path.join(os.tmpdir(),'predator-rollback-')),calls=[];
-  const old={id:17,tag_name:'v1.0.3',draft:false,body:'# Predator VPN v1.0.3',assets:[{id:31},{id:32}]};
+  const old={id:17,tag_name:'v1.0.3',draft:false,body:'# Predator VPN v1.0.3\n\n## Downloads\n\n- file.exe',assets:[{id:31,name:'PredatorVPN-1.0.3-Windows-x64.exe'},{id:32,name:'SHA256SUMS.txt'}]};
   const outcome=archiveRelease('erfan-tahvilian/PredatorVPN',old,temp,(...args)=>calls.push(args));
-  assert.deepEqual(outcome,{preserved:true,tag:'v1.0.3'});
-  assert.deepEqual(calls,[],'Do not change old download assets or notes');
-  assert.equal(old.assets.length,2);
+  assert.deepEqual(outcome,{stripped:true,tag:'v1.0.3'});
+  assert.equal(calls.filter(args=>args[0]==='release'&&args[1]==='delete-asset').length,2);
+  const bodyCall=calls.find(args=>args[0]==='api'&&args[1]==='--method'&&args[2]==='PATCH');
+  assert(bodyCall);
+  assert.match(String(bodyCall[3]),/\/releases\/17$/);
+  const body=JSON.parse(fs.readFileSync(bodyCall[bodyCall.length-1],'utf8'));
+  assert.match(body.body,/Installers for older versions are no longer distributed/);
+  assert(!body.body.includes('## Downloads'));
 });
