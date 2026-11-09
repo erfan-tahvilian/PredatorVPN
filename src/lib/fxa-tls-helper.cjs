@@ -35,6 +35,18 @@ function helperPath(){
   return null;
 }
 
+/** Prefer the Firefox-TLS helper only in packaged desktop builds (or when forced). */
+function useFirefoxTlsHelper(){
+  if(process.env.FOX_USE_FXA_HELPER==='0')return false;
+  if(process.env.FOX_USE_FXA_HELPER==='1')return !!helperPath();
+  try{
+    const {app}=require('electron');
+    return !!(app&&app.isPackaged&&helperPath());
+  }catch{
+    return false;
+  }
+}
+
 function runHelper(payload,timeoutMs=180000){
   return new Promise((resolve,reject)=>{
     const bin=helperPath();
@@ -66,4 +78,4 @@ function runHelper(payload,timeoutMs=180000){
   });
 }
 
-module.exports={helperPath,runHelper};
+module.exports={helperPath,runHelper,useFirefoxTlsHelper};

@@ -275,14 +275,20 @@ class Control {
       const root = base+prefix;
       // Fastly often answers the first script.js request with an empty HTTP 400
       // immediately after the challenge page; a quick retry with the same state cookie succeeds.
-      let scriptResponse=null, script='';
+      let scriptResponse=null, script='', lastScriptStatus=0;
       for (let attempt=0; attempt<3; attempt++) {
         scriptResponse = await this.fetch(root+'/script.js?reload=true', {headers:scriptHeaders});
         if (scriptResponse.ok) { script = await scriptResponse.text(); break; }
+        lastScriptStatus=scriptResponse.status;
         await scriptResponse.arrayBuffer();
         scriptResponse=null;
       }
-      if (!scriptResponse) continue;
+      if (!scriptResponse) {
+        lastResponseError=Error('The account provider refused its verification script (HTTP '+(lastScriptStatus||0)+').');
+        lastResponseError.verificationStage='challenge-script';
+        lastResponseError.verificationStatus=lastScriptStatus||0;
+        continue;
+      }
       let {challenges,token} = parseChallengeInit(script,prefix);
       for(let round=0; round<5; round++) {
         const answers = [];

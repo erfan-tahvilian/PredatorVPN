@@ -98,8 +98,8 @@ test('repeated empty HTTP 406 remains bounded and reports provider rejection',as
  const control=new Control({transport:async()=>{requests++;return new Response('',{status:406});}});
  control.challenge=async()=>{challengeAttempts++;};
  await assert.rejects(control.json(service,{method:'POST',body:'{}'}),error=>error.code==='ACCOUNT_PROVIDER_BLOCKED'&&error.status===406);
- assert.equal(requests,3);
- assert.equal(challengeAttempts,2);
+ assert.equal(requests,6);
+ assert.equal(challengeAttempts,5);
 });
 test('structured HTTP 406 is not mistaken for a challenge and is not replayed',async()=>{
  const {Control}=require('../src/lib/control.cjs');

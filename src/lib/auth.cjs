@@ -3,7 +3,7 @@
 // Account sign-in: in-app email/password, unblock code, email/TOTP and OAuth.
 // No external browser redirect, password persistence or automated OTP replay.
 const crypto=require('node:crypto');
-const {runHelper,helperPath}=require('./fxa-tls-helper.cjs');
+const {runHelper,helperPath,useFirefoxTlsHelper}=require('./fxa-tls-helper.cjs');
 const PREFIX='identity.mozilla.com/picl/v1/';
 const CLIENT='5882386c6d801776'; // Legacy compatibility with existing accounts
 const SCOPE='profile https://identity.mozilla.com/apps/vpn';
@@ -34,7 +34,7 @@ class Auth {
   const url='https://api.accounts.firefox.com/v1'+path;
   const body=JSON.stringify(data);
   // Defer Hawk to each attempt so ts/mac stay valid after a challenge solve.
-  return (await this.http.json(url,{method:'POST',body,authorization:session?()=>hawk('POST',url,session,body):undefined})).data;
+  return (await this.http.json(url,{method:'POST',body,authorization:session?hawk('POST',url,session,body):undefined})).data;
  }
  async loginAttempt(email,password,originalEmail='',unblockCode=''){
   const fields={email,authPW:authPW(email,password),verificationMethod:'email-2fa'};
@@ -51,9 +51,8 @@ class Auth {
   email=normalizeEmail(email);
   if(!email||!password)throw Error('Enter your service account email and password.');
   this.cancel();
-  // Prefer Firefox-TLS Firefox TLS helper (utls). Chromium cannot complete
-  // /oauth/token through Fastly even after a solved challenge.
-  if(helperPath()){
+  // Packaged builds use the Firefox-TLS helper so /oauth/token is accepted.
+  if(useFirefoxTlsHelper()){
    try{
     const result=await runHelper({cmd:'login',email,password});
     return this.applyHelperResult(result,email,password);
@@ -118,7 +117,7 @@ class Auth {
  async verify(value){
   if(!this.pending)throw Error('Start account sign-in again.');
   const pending=this.pending;
-  if(pending.viaHelper&&pending.method!=='unblock-code'&&helperPath()){
+  if(pending.viaHelper&&pending.method!=='unblock-code'&&useFirefoxTlsHelper()){
    const code=normalizeCode(value);
    if(!code||code.length>32)throw Error('Enter the email or authenticator verification code.');
    const result=await runHelper({
@@ -136,7 +135,7 @@ class Auth {
    const code=normalizeCode(value).toUpperCase();
    if(!code||code.length>32)throw Error('Enter the unblock code from the provider email.');
    pending.attempts++;
-   if(pending.viaHelper&&helperPath()){
+   if(pending.viaHelper&&useFirefoxTlsHelper()){
     try{
      const result=await runHelper({cmd:'login',email:pending.email,password:pending.password,unblock_code:code});
      return this.applyHelperResult(result,pending.email,pending.password);
@@ -264,7 +263,7 @@ class Auth {
   if(!auth.refresh_token){this.store.setAuth(null);throw Error('Your session expired. Sign in again.');}
   let renewed;
   try{
-   if(helperPath()){
+   if(useFirefoxTlsHelper()){
     const result=await runHelper({cmd:'refresh',refresh_token:auth.refresh_token,email:auth.email});
     renewed={access_token:result.access_token,refresh_token:result.refresh_token||auth.refresh_token,
       expires_in:result.expires_in,token_type:result.token_type,scope:result.scope};

@@ -43,7 +43,7 @@ test('service verification uses a fresh cookie jar, consistent account agent and
 });
 test('an HTTP error loading verification is not reported as changed challenge syntax',async()=>{
   const c=new Control();c.fetch=async url=>new Response(url.endsWith('/')?'<title>Client Challenge</title>/_fs-ch-test':'',{status:url.endsWith('/')?200:400});
-  await assert.rejects(c.solveChallenge(),/could not load \(HTTP 400\)/);
+  await assert.rejects(c.solveChallenge(),/HTTP 400/);
 });
 const {DEFAULTS,validate,engineConfig}=require('../src/lib/settings.cjs');
 const {Store}=require('../src/lib/store.cjs');
@@ -71,7 +71,7 @@ test('unverified sign-in stores no token until email verification succeeds',asyn
   assert.deepEqual(await auth.login('user@example.com','secret'),{needsCode:true,verificationMethod:'email-2fa'});assert.equal(store.auth,null);
   await auth.verify('123456');assert.equal(store.auth.access_token,'access');assert.equal(auth.pending,null);
   assert(!JSON.stringify(calls).includes('secret'));
-  assert(calls[1].options.authorization.startsWith('Hawk '));
+  const authHdr=calls[1].options.authorization; assert.equal(typeof authHdr==='function'?authHdr().startsWith('Hawk '):String(authHdr||'').startsWith('Hawk '), true);
 });
 test('transient token renewal preserves session; permanent rejection clears it',async()=>{
   const store={auth:{access_token:'old',refresh_token:'refresh',expiresAt:0},setAuth(a){this.auth=a;}};
