@@ -14,8 +14,12 @@ test('account transport does not use the application proxy or persist Chromium a
   const result=transport(service,{method:'POST',body:'{}'});
   assert.deepEqual(events,[['proxy',{mode:'direct'}]]);
   accept();await result;
-  assert.equal(events.length,2);
-  assert.equal(events[1][0],'direct');
+  // Initial direct isolation, then per-request mode (still direct for FxA hosts).
+  assert.deepEqual(events.slice(0,2),[['proxy',{mode:'direct'}],['proxy',{mode:'direct'}]]);
+  assert.equal(events[2][0],'direct');
+  const guardian=transport('https://vpn.mozilla.org/api/v1/fpn/token',{method:'GET'});
+  await guardian;
+  assert.equal(events.some(e=>e[0]==='proxy'&&e[1]?.mode==='system'),true);
 });
 test('transient network failure retries only idempotent account-service reads',async()=>{
   const events=[],reset=Object.assign(new Error('net::ERR_CONNECTION_RESET'),{code:'ERR_CONNECTION_RESET'});

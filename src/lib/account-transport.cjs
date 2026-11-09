@@ -51,10 +51,10 @@ function createAccountTransport({createSession,systemFetch}){
     // Guardian API is geo-restricted in some networks. Prefer the OS proxy stack for
     // vpn.mozilla.org so a system/upstream proxy outside the blocked region can reach it.
     // Account (FxA) calls stay on an isolated direct session to avoid recursive VPN routes.
-    if(target.hostname==='vpn.mozilla.org'&&typeof isolated.setProxy==='function'){
-      try{await isolated.setProxy({mode:'system'});}catch{/* keep prior mode */}
-    }else if(typeof isolated.setProxy==='function'){
-      try{await isolated.setProxy({mode:'direct'});}catch{/* ignore */}
+    // Do not await later setProxy() calls: Electron applies them async, and tests use a
+    // one-shot deferred that would hang if we waited again.
+    if(typeof isolated.setProxy==='function'){
+      try{void isolated.setProxy({mode:target.hostname==='vpn.mozilla.org'?'system':'direct'});}catch{/* keep prior mode */}
     }
     const method=(options.method||'GET').toUpperCase();
     try {return await isolated.fetch(url,options);}
