@@ -1,4 +1,4 @@
-# Corresponding source
+﻿# Corresponding source
 
 Predator VPN is licensed under GPL-3.0-or-later. Release binaries are accompanied by free source access and build instructions.
 
@@ -27,7 +27,8 @@ The archive is approximately 0.66 MiB. It is a separate dependency, not a duplic
 
 The original v1.0.1 tag predates its later maintenance packages. Their exact exported source remains available at [maintenance commit 3dcbb26](https://github.com/erfan-tahvilian/PredatorVPN/tree/3dcbb26) and its [native tar.gz archive](https://github.com/erfan-tahvilian/PredatorVPN/archive/3dcbb26.tar.gz). Source history and existing tags are retained.
 
-## Firefox-TLS account helper
+## Account sign-in helper
 
-Desktop packages include a small `fxa-auth` helper that performs Firefox Accounts sign-in using a desktop-Firefox TLS ClientHello ([refraction-networking/utls](https://github.com/refraction-networking/utls)). Prebuilt helpers for each desktop OS/architecture ship under `tools/fxa-auth/`. The helper is invoked only for account login, verification, and token refresh.
+Desktop packages include a small `fxa-auth` helper that performs account provider sign-in using a desktop browser TLS ClientHello ([refraction-networking/utls](https://github.com/refraction-networking/utls)). Prebuilt helpers for each desktop OS/architecture ship under `tools/fxa-auth/`. The helper is invoked only for account login, verification, and token refresh.
+
 

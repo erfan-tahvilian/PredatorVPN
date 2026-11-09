@@ -2,7 +2,7 @@
 
 ## v2.0.1 - 2026-11-09
 
-- Desktop account sign-in uses a Firefox-TLS helper so login and OAuth token exchange are accepted by the account provider (fixes HTTP 406 after verification).
+- Desktop account sign-in uses a browser-matching TLS helper so login and OAuth token exchange are accepted by the account provider (fixes HTTP 406 after verification).
 - Challenge recovery, cookie handling, and OAuth fallbacks for Fastly edge checks on desktop.
 
 ## v2.0.0 - 2026-11-06
@@ -48,3 +48,4 @@
 - Preserved email and authenticator verification during sign-in.
 
 Initial release for Windows, macOS and Android.
+
