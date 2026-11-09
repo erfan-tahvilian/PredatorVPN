@@ -3,7 +3,13 @@
 // inheriting any proxy applied to the application window. An OS-level VPN route
 // is not bypassed by this setting; direct here means "no Chromium proxy".
 const TRANSIENT=/\b(?:ERR_CONNECTION_RESET|ERR_NETWORK_CHANGED|ERR_CONNECTION_CLOSED|ERR_TIMED_OUT|ETIMEDOUT|ECONNRESET|EPIPE)\b/i;
-const APPROVED=new Set(['api.accounts.firefox.com','accounts.firefox.com','vpn.mozilla.org','firefox.settings.services.mozilla.com']);
+const APPROVED=new Set(['api.accounts.firefox.com','accounts.firefox.com','oauth.accounts.firefox.com','vpn.mozilla.org','firefox.settings.services.mozilla.com']);
+const FXA_COOKIE_URLS=[
+  'https://api.accounts.firefox.com/',
+  'https://accounts.firefox.com/',
+  'https://oauth.accounts.firefox.com/',
+  'https://firefox.com/',
+];
 function isTransient(error) {
   const candidate=[error?.code,error?.message,error?.cause?.code,error?.cause?.message].filter(Boolean).join(' ');
   return TRANSIENT.test(candidate);
@@ -15,25 +21,73 @@ function friendlyAccountNetworkError(error) {
   e.cause=error;
   return e;
 }
+async function clearFxACookies(ses){
+  if(!ses?.cookies?.get||!ses?.cookies?.remove)return;
+  for(const url of FXA_COOKIE_URLS){
+    try{
+      const list=await ses.cookies.get({url});
+      for(const c of list){
+        try{await ses.cookies.remove(url,c.name);}catch{/* best-effort */}
+      }
+    }catch{/* best-effort */}
+  }
+  try{
+    const domainCookies=await ses.cookies.get({domain:'firefox.com'});
+    for(const c of domainCookies){
+      const host=(c.domain||'firefox.com').replace(/^\./,'');
+      const url=`https://${host}${c.path||'/'}`;
+      try{await ses.cookies.remove(url,c.name);}catch{/* best-effort */}
+    }
+  }catch{/* best-effort */}
+}
 function createAccountTransport({createSession,systemFetch}){
   const isolated=createSession();
   if(!isolated||typeof isolated.setProxy!=='function'||typeof isolated.fetch!=='function')throw Error('Isolated account session is unavailable');
   const ready=isolated.setProxy({mode:'direct'});
-  return async function accountFetch(url,options={}){
+  async function accountFetch(url,options={}){
     const target=new URL(url);
     if(target.protocol!=='https:'||!APPROVED.has(target.hostname))throw Error('Unapproved account-service endpoint');
     await ready;
     const method=(options.method||'GET').toUpperCase();
     try {return await isolated.fetch(url,options);}
     catch(error){
-      // Only idempotent reads can safely be retried on another network stack.
-      // POST (verification codes, sign-in, token refresh) must NOT be replayed.
       if(isTransient(error)&&(method==='GET'||method==='HEAD')){
         try{return await systemFetch(url,options);}
         catch(fallback){throw friendlyAccountNetworkError(fallback);}
       }
       throw friendlyAccountNetworkError(error);
     }
+  }
+  // Shared jar helpers: challenge must clear stale Fastly cookies on the SAME
+  // session the API uses (shared-session model: shared transport, fresh jar).
+  accountFetch.clearFxACookies=()=>clearFxACookies(isolated);
+  accountFetch.session=isolated;
+  /** Install name=value pairs onto every FxA origin (Domain=.firefox.com style). */
+  accountFetch.installFxACookies=async(pairs=[])=>{
+    if(!isolated?.cookies?.set||!pairs.length)return;
+    const expires=Math.floor(Date.now()/1000)+3600;
+    for(const pair of pairs){
+      const eq=pair.indexOf('=');
+      if(eq<=0)continue;
+      const name=pair.slice(0,eq);
+      const value=pair.slice(eq+1);
+      for(const url of FXA_COOKIE_URLS){
+        try{
+          await isolated.cookies.set({
+            url,
+            name,
+            value,
+            path:'/',
+            domain:'.firefox.com',
+            secure:true,
+            httpOnly:true,
+            sameSite:'no_restriction',
+            expirationDate:expires,
+          });
+        }catch{/* best-effort per origin */}
+      }
+    }
   };
+  return accountFetch;
 }
 module.exports={createAccountTransport,isTransient,friendlyAccountNetworkError};

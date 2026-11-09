@@ -3,6 +3,7 @@
 // Account sign-in: in-app email/password, unblock code, email/TOTP and OAuth.
 // No external browser redirect, password persistence or automated OTP replay.
 const crypto=require('node:crypto');
+const {runHelper,helperPath}=require('./fxa-tls-helper.cjs');
 const PREFIX='identity.mozilla.com/picl/v1/';
 const CLIENT='5882386c6d801776'; // Legacy compatibility with existing accounts
 const SCOPE='profile https://identity.mozilla.com/apps/vpn';
@@ -32,7 +33,8 @@ class Auth {
  async request(path,data,session){
   const url='https://api.accounts.firefox.com/v1'+path;
   const body=JSON.stringify(data);
-  return (await this.http.json(url,{method:'POST',body,authorization:session?hawk('POST',url,session,body):undefined})).data;
+  // Defer Hawk to each attempt so ts/mac stay valid after a challenge solve.
+  return (await this.http.json(url,{method:'POST',body,authorization:session?()=>hawk('POST',url,session,body):undefined})).data;
  }
  async loginAttempt(email,password,originalEmail='',unblockCode=''){
   const fields={email,authPW:authPW(email,password),verificationMethod:'email-2fa'};
@@ -49,6 +51,17 @@ class Auth {
   email=normalizeEmail(email);
   if(!email||!password)throw Error('Enter your service account email and password.');
   this.cancel();
+  // Prefer Firefox-TLS Firefox TLS helper (utls). Chromium cannot complete
+  // /oauth/token through Fastly even after a solved challenge.
+  if(helperPath()){
+   try{
+    const result=await runHelper({cmd:'login',email,password});
+    return this.applyHelperResult(result,email,password);
+   }catch(err){
+    // Fall through to legacy Chromium path only if the helper binary is missing.
+    if(err?.code!=='FXA_HELPER_MISSING')throw err;
+   }
+  }
   let actualEmail=email,originalEmail='',response,error;
   try{response=await this.loginAttempt(email,password);}
   catch(err){error=err;}
@@ -68,6 +81,29 @@ class Auth {
   if(error)throw error;
   return this.startVerifiedSession(response,actualEmail);
  }
+ applyHelperResult(result,email,password=''){
+  const actualEmail=result.email||email;
+  if(result.needsCode){
+   this.clearTimer();
+   if(result.verificationMethod==='unblock-code'){
+    this.pending={method:'unblock-code',email:actualEmail,originalEmail:'',password,attempts:0,
+      expiresAt:Date.now()+UNBLOCK_TTL,viaHelper:true};
+    this.unblockTimer=setTimeout(()=>this.cancel(),UNBLOCK_TTL);
+    this.unblockTimer.unref?.();
+   }else{
+    this.pending={session:result.sessionToken,email:actualEmail,
+      method:result.verificationMethod||'email-2fa',verified:false,viaHelper:true};
+   }
+   return {needsCode:true,verificationMethod:result.verificationMethod||'email-2fa'};
+  }
+  if(!result.access_token)throw Error('The account provider did not return an access token.');
+  this.store.setAuth({access_token:result.access_token,refresh_token:result.refresh_token,
+    token_type:result.token_type||'bearer',scope:result.scope||SCOPE,
+    expires_in:result.expires_in,email:actualEmail,
+    expiresAt:Date.now()+(result.expires_in||86400)*1000});
+  this.cancel();
+  return {needsCode:false};
+ }
  async startVerifiedSession(response,email){
   if(!response?.sessionToken)throw Error('The account provider did not return a sign-in session.');
   this.clearTimer();
@@ -82,12 +118,33 @@ class Auth {
  async verify(value){
   if(!this.pending)throw Error('Start account sign-in again.');
   const pending=this.pending;
+  if(pending.viaHelper&&pending.method!=='unblock-code'&&helperPath()){
+   const code=normalizeCode(value);
+   if(!code||code.length>32)throw Error('Enter the email or authenticator verification code.');
+   const result=await runHelper({
+    cmd:'verify',
+    session_token:pending.session,
+    code,
+    email:pending.email,
+    verification_method:pending.method,
+   });
+   return this.applyHelperResult(result,pending.email);
+  }
   if(pending.method==='unblock-code'){
    if(Date.now()>=pending.expiresAt){this.cancel();throw Error('The unblock code expired. Start sign-in again.');}
    if(pending.attempts>=5) {this.cancel();throw Error('Too many incorrect unblock codes. Start sign-in again.');}
    const code=normalizeCode(value).toUpperCase();
    if(!code||code.length>32)throw Error('Enter the unblock code from the provider email.');
    pending.attempts++;
+   if(pending.viaHelper&&helperPath()){
+    try{
+     const result=await runHelper({cmd:'login',email:pending.email,password:pending.password,unblock_code:code});
+     return this.applyHelperResult(result,pending.email,pending.password);
+    }catch(err){
+     if(err.errno===125||err.errno===127)throw Error('The unblock code was not accepted. Check the latest email and try again.');
+     throw err;
+    }
+   }
    let response;
    try{response=await this.loginAttempt(pending.email,pending.password,pending.originalEmail,code);}
    catch(err){
@@ -103,21 +160,91 @@ class Auth {
   if(!code||code.length>32)throw Error('Enter the email or authenticator verification code.');
   if(!pending.verified){
    const totp=pending.method==='totp-2fa';
+   // OTP is often entered after clearance cookies expired. Refresh before the
+   // first verify call so Fastly does not 406 the Hawk-authenticated request.
+   if(typeof this.http.ensureFxAClearance==='function')await this.http.ensureFxAClearance();
    const response=await this.request(totp?'/session/verify/totp':'/session/verify_code',{code},pending.session);
    if(totp&&response?.success===false)throw Error('The authenticator code was not accepted.');
    pending.verified=true; // never submit the already-consumed code twice
   }
   return this.complete();
  }
+ /** OAuth authorization-code fallback: when /oauth/token keeps returning Fastly 406 after a solved
+  *  challenge, obtain tokens via session-authenticated authorization code + PKCE
+  *  against oauth.accounts.firefox.com. */
+ async oauthCodeExchange(session){
+  const verifier=crypto.randomBytes(32).toString('base64url');
+  const challenge=crypto.createHash('sha256').update(verifier).digest('base64url');
+  const state=crypto.randomBytes(16).toString('hex');
+  const authorizeURL='https://api.accounts.firefox.com/v1/oauth/authorization';
+  const authorizeBody=JSON.stringify({
+   client_id:CLIENT,
+   response_type:'code',
+   scope:SCOPE,
+   state,
+   access_type:'offline',
+   code_challenge:challenge,
+   code_challenge_method:'S256',
+  });
+  if(typeof this.http.ensureFxAClearance==='function')await this.http.ensureFxAClearance();
+  const authz=(await this.http.json(authorizeURL,{
+   method:'POST',
+   body:authorizeBody,
+   authorization:()=>hawk('POST',authorizeURL,session,authorizeBody),
+  })).data;
+  if(!authz?.code||authz.state!==state)throw Error('The account provider returned an invalid OAuth authorization.');
+  const tokenURL='https://oauth.accounts.firefox.com/v1/token';
+  const tokenBody=JSON.stringify({
+   client_id:CLIENT,
+   grant_type:'authorization_code',
+   code:authz.code,
+   code_verifier:verifier,
+  });
+  if(typeof this.http.ensureFxAClearance==='function')await this.http.ensureFxAClearance();
+  return (await this.http.json(tokenURL,{method:'POST',body:tokenBody})).data;
+ }
  async complete(){
   if(!this.pending?.session)throw Error('Start account sign-in again.');
   const session=this.pending.session;
-  const token=await this.request('/oauth/token',{client_id:CLIENT,grant_type:'fxa-credentials',
-    scope:SCOPE,access_type:'offline'},session);
+  let token;
+  const payload={client_id:CLIENT,grant_type:'fxa-credentials',scope:SCOPE,access_type:'offline'};
+  const body=JSON.stringify(payload);
+  const tokenURL='https://api.accounts.firefox.com/v1/oauth/token';
+  try{
+   if(typeof this.http.ensureFxAClearance==='function')await this.http.ensureFxAClearance();
+   // One challenge only — Fastly keeps 406 on this path for non-Firefox TLS;
+   // page-context / authorization-code recovery follows immediately.
+   token=(await this.http.json(tokenURL,{
+     method:'POST',body,
+     authorization:()=>hawk('POST',tokenURL,session,body),
+     maxChallengeAttempts:1,
+   })).data;
+  }catch(err){
+   if(err?.code!=='ACCOUNT_PROVIDER_BLOCKED'&&err?.status!==406)throw err;
+   // 1) Page-context fetch (same session jar, real Sec-Fetch from a document).
+   if(typeof this.http.oauthTokenFromPage==='function'){
+    try{
+     if(typeof this.http.ensureFxAClearance==='function')await this.http.ensureFxAClearance();
+     const authorization=hawk('POST',tokenURL,session,body);
+     const page=await this.http.oauthTokenFromPage({authorization,body});
+     if(page?.status===200&&page.text){
+      token=JSON.parse(page.text);
+     }else if(page?.status&&page.status!==406){
+      let data={};try{data=JSON.parse(page.text||'{}');}catch{}
+      const e=Error(data.message||'OAuth token request failed (HTTP '+page.status+').');
+      e.status=page.status;e.errno=data.errno;throw e;
+     }
+    }catch(pageErr){
+     if(pageErr?.status&&pageErr.status!==406)throw pageErr;
+     // fall through to authorization-code recovery
+    }
+   }
+   // 2) Firefox-TLS authorization-code + PKCE recovery.
+   if(!token?.access_token)token=await this.oauthCodeExchange(session);
+  }
   if(!token?.access_token)throw Error('The account provider did not return an access token.');
   this.store.setAuth({...token,email:this.pending.email,expiresAt:Date.now()+(token.expires_in||86400)*1000});
   this.cancel();
-  // A completed sign-in no longer needs the short-lived FxA session.
   try{await this.request('/session/destroy',{},session);}catch{/* OAuth credentials are already stored. */}
   return {needsCode:false};
  }
@@ -136,9 +263,16 @@ class Auth {
  async refresh(auth){
   if(!auth.refresh_token){this.store.setAuth(null);throw Error('Your session expired. Sign in again.');}
   let renewed;
-  try{renewed=await this.request('/oauth/token',{client_id:CLIENT,grant_type:'refresh_token',
-    refresh_token:auth.refresh_token,scope:SCOPE});}
-  catch(err){if([400,401,403].includes(err.status)&&this.store.auth===auth)this.store.setAuth(null);throw err;}
+  try{
+   if(helperPath()){
+    const result=await runHelper({cmd:'refresh',refresh_token:auth.refresh_token,email:auth.email});
+    renewed={access_token:result.access_token,refresh_token:result.refresh_token||auth.refresh_token,
+      expires_in:result.expires_in,token_type:result.token_type,scope:result.scope};
+   }else{
+    renewed=await this.request('/oauth/token',{client_id:CLIENT,grant_type:'refresh_token',
+      refresh_token:auth.refresh_token,scope:SCOPE});
+   }
+  }catch(err){if([400,401,403].includes(err.status)&&this.store.auth===auth)this.store.setAuth(null);throw err;}
   if(!renewed.access_token)throw Error('Token refresh returned no access token.');
   if(this.store.auth!==auth)throw Error('Account changed while refreshing the session.');
   this.store.setAuth({...auth,...renewed,refresh_token:renewed.refresh_token||auth.refresh_token,

@@ -17,13 +17,22 @@ const {profileMigration,verifyMigratedProfile,NEW_DIR}=require('./lib/profile-mi
 // account verification, sign-in and token renewal. Do not mix it with Node fetch.
 const {session}=require('electron');
 const {createAccountTransport}=require('./lib/account-transport.cjs');
+const {oauthTokenFromPage}=require('./lib/oauth-page.cjs');
 let authSessionSequence=0,captchaPrompt=null;
 function makeControl({interactive=false}={}){
-  const transport=createAccountTransport({
+  const createTransport=()=>createAccountTransport({
     createSession:()=>session.fromPartition('predator-auth-'+(++authSessionSequence)),
     systemFetch:(...args)=>electronNet.fetch(...args)
   });
-  return new Control({transport,captchaSolver:interactive?image=>captchaPrompt.ask(image):null});
+  const transport=createTransport();
+  const control=new Control({
+    transport,
+    createTransport,
+    captchaSolver:interactive?image=>captchaPrompt.ask(image):null,
+  });
+  // /oauth/token is Fastly-blocked for session.fetch even after challenge; page context works.
+  control.oauthTokenFromPage=(args)=>oauthTokenFromPage(transport.session,args);
+  return control;
 }
 const {Auth}=require('./lib/auth.cjs');
 const {CaptchaPrompt}=require('./lib/captcha-prompt.cjs');

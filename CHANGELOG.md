@@ -1,4 +1,14 @@
-# Changelog
+﻿# Changelog
+
+## v2.0.1 - 2026-11-09
+
+- Desktop account sign-in uses a Firefox-TLS helper so login and OAuth token exchange are accepted by the account provider (fixes HTTP 406 after verification).
+- Challenge recovery, cookie handling, and OAuth fallbacks for Fastly edge checks on desktop.
+
+## v2.0.0 - 2026-11-06
+
+- Redesigned desktop and Android interfaces.
+- Ten accent palettes and refreshed connection controls.
 
 ## v1.0.3 - 2026-11-05
 
@@ -38,15 +48,3 @@
 - Preserved email and authenticator verification during sign-in.
 
 Initial release for Windows, macOS and Android.
-
-- Native Windows x64, x86 and ARM64 packages.
-- Native macOS Intel and Apple Silicon packages.
-- Android ARM64, ARM, x86_64, x86 and universal APKs.
-- Android Quick Settings connection controls and persistent notification.
-- System VPN, split tunneling and proxy-only mode.
-- service account authentication and encrypted session storage.
-- Automatic and manual server selection.
-- Configurable DNS and upstream proxy support.
-- Connection diagnostics and system tray controls.
-
-See [README.md](README.md) for supported platforms, installation and network limitations.

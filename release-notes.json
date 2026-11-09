@@ -1,61 +1,25 @@
 {
-  "version": "2.0.0",
+  "version": "2.0.1",
   "items": [
     {
-      "platforms": [
-        "win32",
-        "darwin",
-        "linux",
-        "android"
-      ],
-      "title": "Known limitation: account sign-in may fail",
-      "description": "The external account provider may reject new sign-ins with HTTP 406 before password verification. Browser sign-in has been removed. Existing saved account data is preserved."
+      "platforms": ["win32", "darwin", "linux"],
+      "title": "Reliable account sign-in",
+      "description": "Desktop sign-in now uses a Firefox-TLS helper so Mozilla's account edge accepts login and OAuth token exchange instead of rejecting them with HTTP 406."
     },
     {
-      "platforms": [
-        "win32",
-        "darwin",
-        "linux",
-        "android"
-      ],
+      "platforms": ["win32", "darwin", "linux", "android"],
       "title": "A redesigned Predator VPN",
       "description": "Purpose-built desktop and phone interfaces with clearer connection, account, location, and diagnostics controls."
     },
     {
-      "platforms": [
-        "win32",
-        "darwin",
-        "linux",
-        "android"
-      ],
+      "platforms": ["win32", "darwin", "linux", "android"],
       "title": "Ten cohesive accent palettes",
       "description": "Orange remains the default; Gold and eight other color choices now apply throughout the interface, including the connection button."
     },
     {
-      "platforms": [
-        "win32",
-        "darwin",
-        "linux"
-      ],
+      "platforms": ["win32", "darwin", "linux"],
       "title": "More resilient proxy credentials",
-      "description": "Authorization refresh uses single-flight requests, controlled backoff, and avoids repeated connection retries during temporary service errors."
-    },
-    {
-      "platforms": [
-        "android"
-      ],
-      "title": "Phone-first interface and Quick Settings tile",
-      "description": "Touch-friendly bottom navigation, adaptive cards, and the newly supplied monochrome Quick Settings icon."
-    },
-    {
-      "platforms": [
-        "win32",
-        "darwin",
-        "linux",
-        "android"
-      ],
-      "title": "Existing accounts and settings preserved",
-      "description": "Keeps prior app identifiers and secure saved credentials to support in-place upgrades."
+      "description": "Proxy-pass renewal recovers more reliably when the service is briefly unavailable."
     }
   ]
 }
