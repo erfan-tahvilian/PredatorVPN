@@ -1,7 +1,7 @@
-{
+﻿{
   "name": "predator-vpn",
   "productName": "Predator VPN",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Independent cross-platform VPN client with private DNS and split tunneling",
   "author": "Erfan Tahvilian",
   "license": "GPL-3.0-or-later",

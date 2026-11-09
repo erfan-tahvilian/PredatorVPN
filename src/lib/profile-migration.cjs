@@ -8,10 +8,41 @@ const {createHash}=require('node:crypto');
 const OLD_DIR='Fox VPN';
 const NEW_DIR='Predator VPN';
 function fileSha(file){return createHash('sha256').update(fs.readFileSync(file)).digest('hex');}
+function isRetryableMoveError(error){
+  return error&&['EPERM','EACCES','EBUSY','EXDEV','EEXIST'].includes(error.code);
+}
+function copyDirectorySync(source,destination){
+  fs.mkdirSync(destination,{recursive:true});
+  for(const name of fs.readdirSync(source)){
+    const from=path.join(source,name),to=path.join(destination,name);
+    const stat=fs.lstatSync(from);
+    if(stat.isSymbolicLink())continue;
+    if(stat.isDirectory())copyDirectorySync(from,to);
+    else fs.copyFileSync(from,to);
+  }
+}
+// Prefer an atomic rename. On Windows a locked Chromium/antivirus handle often
+// returns EPERM; fall back to copy + best-effort remove so startup never dies.
+function moveDirectory(source,destination){
+  try{
+    fs.renameSync(source,destination);
+    return 'renamed';
+  }catch(error){
+    if(!isRetryableMoveError(error))throw error;
+    if(fs.existsSync(destination)){
+      const entries=fs.readdirSync(destination);
+      if(entries.length)throw error;
+      fs.rmdirSync(destination);
+    }
+    copyDirectorySync(source,destination);
+    try{fs.rmSync(source,{recursive:true,force:true});}catch{}
+    return 'copied';
+  }
+}
 function retireDirectory(dir,suffix='.migrated'){
   const backup=dir+suffix;
   if(fs.existsSync(backup))fs.rmSync(backup,{recursive:true,force:true});
-  fs.renameSync(dir,backup);
+  moveDirectory(dir,backup);
   return backup;
 }
 function profileMigration(appData,{legacyName=OLD_DIR,productName=NEW_DIR}={}){
@@ -30,42 +61,41 @@ function profileMigration(appData,{legacyName=OLD_DIR,productName=NEW_DIR}={}){
      // Identical vaults: keep the product profile and retire the leftover legacy
      // tree so a later vault update cannot turn this into a hard conflict.
      if(hasOld&&hasNew&&fileSha(oldVault)===fileSha(newVault)){
-       retireDirectory(legacy);
+       try{retireDirectory(legacy);}catch{}
        return {status:'already-copied',target,legacy};
      }
      // Only the active product profile holds accounts. Retire stale legacy files
      // left behind after a previous successful copy or partial rename.
      if(hasNew&&!hasOld){
-       retireDirectory(legacy);
+       try{retireDirectory(legacy);}catch{}
        return {status:'prefer-new',target,legacy};
      }
      // Legacy still owns the vault; the product directory is only Chromium noise
      // or an empty seed from a failed earlier launch. Replace the seed.
      if(hasOld&&!hasNew){
        fs.rmSync(target,{recursive:true,force:true});
-       fs.renameSync(legacy,target);
+       moveDirectory(legacy,target);
        return {status:'moved',target,legacy};
      }
      // Different vaults in both places: keep the newer vault as the live profile.
      if(hasOld&&hasNew){
        const oldTime=fs.statSync(oldVault).mtimeMs,newTime=fs.statSync(newVault).mtimeMs;
        if(newTime>=oldTime){
-         retireDirectory(legacy);
+         try{retireDirectory(legacy);}catch{}
          return {status:'prefer-new',target,legacy};
        }
-       retireDirectory(target,'.superseded');
-       fs.renameSync(legacy,target);
+       try{retireDirectory(target,'.superseded');}catch{fs.rmSync(target,{recursive:true,force:true});}
+       moveDirectory(legacy,target);
        return {status:'moved',target,legacy};
      }
      // Neither directory has an account vault. Prefer the product path.
-     retireDirectory(legacy);
+     try{retireDirectory(legacy);}catch{}
      return {status:'prefer-new',target,legacy};
    }
    fs.rmdirSync(target); // only verified-empty directory
  }
- // Same-volume rename is atomic: transfer the entire encrypted vault, Chromium
- // Local State, update caches, saved tunnel settings and any future profile files.
- fs.renameSync(legacy,target);
+ // Same-volume rename is preferred; Windows may require a copy when files are locked.
+ moveDirectory(legacy,target);
  return {status:'moved',target,legacy};
 }
 function verifyMigratedProfile({target,legacy,status},safeStorage){
@@ -78,10 +108,10 @@ function verifyMigratedProfile({target,legacy,status},safeStorage){
  }catch{
    // Only undo an atomic move. Never overwrite or remove other data.
    if(status==='moved'&&legacy&&!fs.existsSync(legacy)){
-     try{fs.renameSync(target,legacy);}catch{}
+     try{moveDirectory(target,legacy);}catch{}
    }
    throw Error('The migrated encrypted account vault could not be verified. Existing account data was preserved; sign-in settings have not been reset.');
  }
  return {verified:true,hasVault:true};
 }
-module.exports={profileMigration,verifyMigratedProfile,retireDirectory,OLD_DIR,NEW_DIR};
+module.exports={profileMigration,verifyMigratedProfile,retireDirectory,moveDirectory,OLD_DIR,NEW_DIR};

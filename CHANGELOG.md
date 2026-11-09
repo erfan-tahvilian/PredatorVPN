@@ -1,5 +1,10 @@
 ﻿# Changelog
 
+## v2.0.2 - 2026-11-09
+
+- Windows profile migration falls back to copy when rename is blocked (fixes EPERM startup crash when the previous profile folder is locked).
+- Keeps the 2.0.1 desktop sign-in helper, image CAPTCHA fallback, and macOS legacy-profile retirement.
+
 ## v2.0.1 - 2026-11-09
 
 - Desktop account sign-in uses a browser-matching TLS helper so login and OAuth token exchange are accepted by the account provider (fixes HTTP 406 after verification).

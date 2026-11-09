@@ -25,11 +25,20 @@ function archivedNotes(body){
   const notice='Installers for older versions are no longer distributed. Download the [latest release](https://github.com/erfan-tahvilian/PredatorVPN/releases/latest).';
   const notes=lines.join('\n').trim();return notes+(notes.includes(notice)?'\n':'\n\n'+notice+'\n');
 }
-// Preserve historical release assets, notes and Git tags for rollback.
-// This is especially important while v2.0.0 has a documented account-login issue.
+// Remove installers from older published releases so only the latest version
+// exposes download links. Keep the release record and source tags for history.
 function archiveRelease(repo,release,temporary,invoke=gh){
   assert(Number.isSafeInteger(release.id)&&release.id>0);assert(!release.draft);
-  return {preserved:true,tag:release.tag_name};
+  for(const asset of release.assets||[]){
+    try{invoke('release','delete-asset',release.tag_name,asset.name,'--repo',repo,'--yes');}catch{}
+  }
+  const safe=release.tag_name.replace(/[^a-zA-Z0-9._-]/g,'_');
+  const notesFile=path.join(temporary,`notes-${safe}.md`);
+  fs.writeFileSync(notesFile,archivedNotes(release.body||''));
+  const bodyFile=path.join(temporary,`body-${safe}.json`);
+  fs.writeFileSync(bodyFile,JSON.stringify({body:fs.readFileSync(notesFile,'utf8')}));
+  invoke('api','--method','PATCH',`repos/${repo}/releases/${release.id}`,'--input',bodyFile);
+  return {stripped:true,tag:release.tag_name};
 }
 
 function gh(...args){return execFileSync('gh',args,{encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();}
@@ -79,7 +88,7 @@ async function main(){
   validateRelease(latest,version);
   const releases=api(`repos/${repo}/releases?per_page=100`),old=olderTags(releases,version);
   for(const oldTag of old)archiveRelease(repo,releases.find(r=>r.tag_name===oldTag),temporary);
-  console.log(`Published and verified ${tag}; historical releases and download assets were retained.`);
+  console.log(`Published and verified ${tag}; older release installers were removed from download links.`);
 }
 if(require.main===module)main().catch(error=>{console.error(error.message);process.exitCode=1;});
 module.exports={binaries,validateRelease,olderTags,archivedNotes,archiveRelease,pollRelease};

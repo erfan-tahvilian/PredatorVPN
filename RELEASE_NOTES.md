@@ -1,13 +1,12 @@
-# Predator VPN v2.0.1 — Windows, macOS, Linux & Android
+# Predator VPN v2.0.2 — Windows, macOS, Linux & Android
 
 An independent VPN client for Windows, macOS, Linux and Android, built on third-party VPN infrastructure and remote VPN edge servers.
 
-## Changes in 2.0.1
+## Changes in 2.0.2
 
-- **Account sign-in fix:** Desktop login and OAuth token exchange use a browser-matching TLS helper so the account provider accepts verification instead of returning HTTP 406 after a successful challenge.
-- **Image CAPTCHA:** When the provider requires an image CAPTCHA, the in-app form collects the answer and token exchange still uses the TLS helper.
-- **macOS profile migration:** Leftover legacy profile folders are retired safely so Command-Q and relaunch no longer hit a dual-profile startup error.
-- **Challenge recovery:** Improved edge-challenge handling, cookie coverage, and token refresh on desktop packages.
+- **Windows profile migration:** Moving the previous profile folder no longer fails with `EPERM` when files are briefly locked. The app copies the profile when rename is blocked so startup continues.
+- **macOS profile migration:** Leftover legacy profile folders are still retired safely after Command-Q.
+- **Account sign-in:** Desktop login keeps the browser-matching TLS helper, in-app image CAPTCHA fallback, and OAuth token exchange from 2.0.1.
 
 ## Included features
 

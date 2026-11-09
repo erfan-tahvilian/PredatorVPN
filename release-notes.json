@@ -1,10 +1,15 @@
 {
-  "version": "2.0.1",
+  "version": "2.0.2",
   "items": [
     {
       "platforms": ["win32", "darwin", "linux"],
+      "title": "Profile migration that survives locked files",
+      "description": "Windows can no longer block startup when the previous profile folder is briefly locked. The profile is copied when rename is refused, and leftover legacy folders are retired on macOS."
+    },
+    {
+      "platforms": ["win32", "darwin", "linux"],
       "title": "Reliable account sign-in",
-      "description": "Desktop sign-in now uses a Firefox-TLS helper so Mozilla's account edge accepts login and OAuth token exchange instead of rejecting them with HTTP 406."
+      "description": "Desktop sign-in uses a browser-matching TLS helper so the account edge accepts login and OAuth token exchange, with an in-app image CAPTCHA form when required."
     },
     {
       "platforms": ["win32", "darwin", "linux", "android"],
@@ -15,11 +20,6 @@
       "platforms": ["win32", "darwin", "linux", "android"],
       "title": "Ten cohesive accent palettes",
       "description": "Orange remains the default; Gold and eight other color choices now apply throughout the interface, including the connection button."
-    },
-    {
-      "platforms": ["win32", "darwin", "linux"],
-      "title": "More resilient proxy credentials",
-      "description": "Proxy-pass renewal recovers more reliably when the service is briefly unavailable."
     }
   ]
 }
