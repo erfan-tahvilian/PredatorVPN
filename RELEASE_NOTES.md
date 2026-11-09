@@ -5,6 +5,7 @@ An independent VPN client for Windows, macOS, Linux and Android, built on third-
 ## Changes in 2.0.1
 
 - **Account sign-in fix:** Desktop login and OAuth token exchange use a browser-matching TLS helper so the account provider accepts verification instead of returning HTTP 406 after a successful challenge.
+- **Image CAPTCHA:** When the provider requires an image CAPTCHA, the in-app form collects the answer and token exchange still uses the TLS helper.
 - **Challenge recovery:** Improved edge-challenge handling, cookie coverage, and token refresh on desktop packages.
 
 ## Included features

@@ -26,6 +26,9 @@ function normalizeCode(value){
   .replace(/[\s\u200b-\u200f\u2060\ufeff]/g,'');
 }
 function normalizeEmail(value){return String(value||'').replace(/[\s\u200b-\u200f\u2060\ufeff]/g,'');}
+function isCaptchaRequired(err){
+ return /captcha|image captcha/i.test(String(err?.message||err||''))||err?.code==='ACCOUNT_PROVIDER_CAPTCHA';
+}
 class Auth {
  constructor(http,store){this.http=http;this.store=store;this.pending=null;this.unblockTimer=null;}
  cancel(){this.clearTimer();this.pending=null;}
@@ -51,14 +54,15 @@ class Auth {
   email=normalizeEmail(email);
   if(!email||!password)throw Error('Enter your service account email and password.');
   this.cancel();
-  // Packaged builds use the Firefox-TLS helper so /oauth/token is accepted.
+  // Packaged builds prefer the Firefox-TLS helper so /oauth/token is accepted.
+  // When Fastly demands an image CAPTCHA the helper cannot answer it; fall through
+  // to the in-app CAPTCHA UI (Chromium path), then finish OAuth via the helper.
   if(useFirefoxTlsHelper()){
    try{
     const result=await runHelper({cmd:'login',email,password});
     return this.applyHelperResult(result,email,password);
    }catch(err){
-    // Fall through to legacy Chromium path only if the helper binary is missing.
-    if(err?.code!=='FXA_HELPER_MISSING')throw err;
+    if(err?.code!=='FXA_HELPER_MISSING'&&!isCaptchaRequired(err))throw err;
    }
   }
   let actualEmail=email,originalEmail='',response,error;
@@ -205,6 +209,21 @@ class Auth {
  async complete(){
   if(!this.pending?.session)throw Error('Start account sign-in again.');
   const session=this.pending.session;
+  // Prefer Firefox-TLS helper for the OAuth token exchange (Chromium TLS often 406s).
+  if(useFirefoxTlsHelper()){
+   try{
+    const result=await runHelper({cmd:'oauth',session_token:session,email:this.pending.email});
+    if(result?.access_token){
+     this.store.setAuth({access_token:result.access_token,refresh_token:result.refresh_token,
+       token_type:result.token_type||'bearer',scope:result.scope||SCOPE,
+       expires_in:result.expires_in,email:this.pending.email,
+       expiresAt:Date.now()+(result.expires_in||86400)*1000});
+     this.cancel();
+     try{await this.request('/session/destroy',{},session);}catch{/* tokens already stored */}
+     return {needsCode:false};
+    }
+   }catch{/* fall through to Chromium OAuth recovery paths */}
+  }
   let token;
   const payload={client_id:CLIENT,grant_type:'fxa-credentials',scope:SCOPE,access_type:'offline'};
   const body=JSON.stringify(payload);

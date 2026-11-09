@@ -3,7 +3,8 @@
 ## v2.0.1 - 2026-11-09
 
 - Desktop account sign-in uses a browser-matching TLS helper so login and OAuth token exchange are accepted by the account provider (fixes HTTP 406 after verification).
-- Challenge recovery, cookie handling, and OAuth fallbacks for Fastly edge checks on desktop.
+- When the account provider requires an image CAPTCHA, sign-in falls back to the in-app CAPTCHA form and still completes token exchange with the TLS helper.
+- Challenge recovery, cookie handling, and OAuth fallbacks for edge checks on desktop.
 
 ## v2.0.0 - 2026-11-06
 
