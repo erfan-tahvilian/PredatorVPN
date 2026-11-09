@@ -1,0 +1,4 @@
+﻿# PredatorVPN bootstrap node list
+# Auto-refreshed by .github/workflows/bootstrap-refresh.yml from:
+# https://config.blackpredator.dpdns.org/sub/fvRkIJUpaza9bok2hLUIuzd6wabSgOyBDKl5gr195GUHXzWFO0cafiV3
+# Paste or mirror share links below (vless:// vmess:// trojan:// ss:// socks5://), one per line.
