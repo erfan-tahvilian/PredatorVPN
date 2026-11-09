@@ -367,11 +367,14 @@ else {
   app.on('before-quit',event=>{
     event.preventDefault();if(quitting)return;quitting=true;
     captchaPrompt?.cancel();loginGuardian?.auth.cancel();
+    // Close the window immediately so macOS Command-Q cannot leave a hidden
+    // BrowserWindow cancelling a later quit cycle after migration/profile work.
+    try{if(window&&!window.isDestroyed()){window.removeAllListeners('close');window.destroy();}}catch{}
+    window=null;
     let finished=false;
     const finish=()=>{if(finished)return;finished=true;clearTimeout(deadline);try{trayPopup?.destroy();}catch{}trayPopup=null;try{if(tray&&!tray.isDestroyed())tray.destroy();}catch{}tray=null;app.exit(0);};
-    // A second quit cycle can be cancelled by a window; exit once cleanup has
-    // finished instead. Bound cleanup so a hung child cannot retain the app.
-    const deadline=setTimeout(finish,10000);
+    // Bound cleanup so a hung tunnel child cannot retain the process after Cmd+Q.
+    const deadline=setTimeout(finish,8000);
     Promise.resolve().then(disconnect).catch(()=>{}).finally(finish);
   });
   app.on('activate',()=>{showWindow();});

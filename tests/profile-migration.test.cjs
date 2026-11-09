@@ -28,23 +28,7 @@ test('atomic directory rename preserves complete profile, encrypted vault and ne
  assert.deepEqual(verifyMigratedProfile(result,safe),{verified:true,hasVault:true});
  assert.equal(profileMigration(root).status,'already-new');
 }));
-test('encrypted vault conflicts do not overwrite old or new accounts',()=>sandbox(root=>{
- const old=path.join(root,OLD_DIR),dest=path.join(root,NEW_DIR);
- fs.mkdirSync(old);fs.mkdirSync(dest);
- fs.writeFileSync(path.join(old,'vault.bin'),JSON.stringify({activeAccountId:'legacy'}));
- fs.writeFileSync(path.join(dest,'vault.bin'),JSON.stringify({activeAccountId:'new'}));
- assert.throws(()=>profileMigration(root),/Automatic migration stopped/);
- assert.equal(JSON.parse(fs.readFileSync(path.join(old,'vault.bin'))).activeAccountId,'legacy');
- assert.equal(JSON.parse(fs.readFileSync(path.join(dest,'vault.bin'))).activeAccountId,'new');
-}));
-test('legacy data is restored on migration validation failure when possible',()=>sandbox(root=>{
- const old=path.join(root,OLD_DIR);fs.mkdirSync(old);
- fs.writeFileSync(path.join(old,'vault.bin'),'corrupted fixture');
- const result=profileMigration(root);
- assert.throws(()=>verifyMigratedProfile(result,safe),/could not be verified/);
- assert.equal(fs.readFileSync(path.join(old,'vault.bin'),'utf8'),'corrupted fixture');
-}));
-test('matched legacy vaults preserve both directories without deleting live user data',()=>sandbox(root=>{
+test('matched legacy vaults retire the leftover legacy directory after keeping the product profile',()=>sandbox(root=>{
  const old=path.join(root,OLD_DIR),dest=path.join(root,NEW_DIR);
  fs.mkdirSync(old);fs.mkdirSync(dest);
  const payload=JSON.stringify({activeAccountId:'shared'});
@@ -53,8 +37,40 @@ test('matched legacy vaults preserve both directories without deleting live user
  const result=profileMigration(root);
  assert.equal(result.status,'already-copied');
  assert.deepEqual(verifyMigratedProfile(result,safe),{verified:true,hasVault:true});
- assert(fs.existsSync(old));
- assert(fs.existsSync(dest));
+ assert.equal(fs.existsSync(old),false);
+ assert.equal(fs.existsSync(old+'.migrated'),true);
+ assert.equal(fs.existsSync(dest),true);
+ assert.equal(profileMigration(root).status,'already-new');
+}));
+test('newer product vault wins when both profiles differ after a later sign-in',()=>sandbox(root=>{
+ const old=path.join(root,OLD_DIR),dest=path.join(root,NEW_DIR);
+ fs.mkdirSync(old);fs.mkdirSync(dest);
+ fs.writeFileSync(path.join(old,'vault.bin'),JSON.stringify({activeAccountId:'legacy'}));
+ const now=Date.now();
+ fs.utimesSync(path.join(old,'vault.bin'),new Date(now-60_000),new Date(now-60_000));
+ fs.writeFileSync(path.join(dest,'vault.bin'),JSON.stringify({activeAccountId:'new'}));
+ fs.utimesSync(path.join(dest,'vault.bin'),new Date(now),new Date(now));
+ const result=profileMigration(root);
+ assert.equal(result.status,'prefer-new');
+ assert.equal(fs.existsSync(old),false);
+ assert.equal(JSON.parse(fs.readFileSync(path.join(dest,'vault.bin'))).activeAccountId,'new');
+}));
+test('legacy vault replaces product seed that has no accounts',()=>sandbox(root=>{
+ const old=path.join(root,OLD_DIR),dest=path.join(root,NEW_DIR);
+ fs.mkdirSync(old);fs.mkdirSync(dest);
+ fs.writeFileSync(path.join(old,'vault.bin'),JSON.stringify({activeAccountId:'legacy'}));
+ fs.writeFileSync(path.join(dest,'Local State'),'chromium seed');
+ const result=profileMigration(root);
+ assert.equal(result.status,'moved');
+ assert.equal(fs.existsSync(old),false);
+ assert.equal(JSON.parse(fs.readFileSync(path.join(dest,'vault.bin'))).activeAccountId,'legacy');
+}));
+test('legacy data is restored on migration validation failure when possible',()=>sandbox(root=>{
+ const old=path.join(root,OLD_DIR);fs.mkdirSync(old);
+ fs.writeFileSync(path.join(old,'vault.bin'),'corrupted fixture');
+ const result=profileMigration(root);
+ assert.throws(()=>verifyMigratedProfile(result,safe),/could not be verified/);
+ assert.equal(fs.readFileSync(path.join(old,'vault.bin'),'utf8'),'corrupted fixture');
 }));
 test('profile migration never follows symlinked legacy directories',()=>sandbox(root=>{
  const real=path.join(root,'actual'),legacy=path.join(root,OLD_DIR);
