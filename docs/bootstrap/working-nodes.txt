@@ -1,5 +1,4 @@
-# auto-refreshed 2026-11-09T23:38:47Z
-# source: https://config.blackpredator.dpdns.org/sub/fvRkIJUpaza9bok2hLUIuzd6wabSgOyBDKl5gr195GUHXzWFO0cafiV3
+# manual seed for app bootstrap test
 vless://e4a03fd6-5348-7bea-df94-32ba3f9f708b@122.8.46.7:8443?security=reality&type=grpc&serviceName=TunService&mode=gun&sni=download.nvidia.com&fp=chrome&pbk=wcOBPSgoOKptWa9ZHpFpmbrPfLqobBNpCgLH88Ptjhk#%F0%9F%87%A8%F0%9F%87%B3%20CN-01%20%E2%9C%85%F0%9F%9B%9C%F0%9F%93%B6%20%E2%96%B7%20%E2%AD%90%F0%9F%85%BD%20%D6%8E%20%E1%AF%A4
 vless://e4a03fd6-5348-7bea-df94-32ba3f9f708b@122.8.46.7:443?security=reality&type=xhttp&path=%2F&sni=download.nvidia.com&fp=chrome&pbk=wcOBPSgoOKptWa9ZHpFpmbrPfLqobBNpCgLH88Ptjhk#%F0%9F%87%A8%F0%9F%87%B3%20CN-01%20%E2%9A%A1%F0%9F%9B%9C%F0%9F%93%B6%20%E2%96%B7%20%E2%AD%90%F0%9F%85%BD%20%D6%8E%20%E1%AF%A4
 vless://e4a03fd6-5348-7bea-df94-32ba3f9f708b@122.8.46.9:8443?security=reality&type=grpc&serviceName=TunService&mode=gun&sni=cdn.steamstatic.com&fp=chrome&pbk=sRTNjrosfFSiuQX7Yt7Ub5DJvFznfHSC3nlzFQ3H2WU#%F0%9F%87%A9%F0%9F%87%AA%20DE-01%20%E2%9C%85%F0%9F%9B%9C%F0%9F%93%B6%20%E2%96%B7%20%E2%AD%90%F0%9F%85%BD%20%D6%8E%20%E1%AF%A4
