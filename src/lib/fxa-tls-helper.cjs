@@ -22,9 +22,6 @@ function helperCandidates(){
       if(dir&&name)out.push(path.join(dir,name));
     }
   }
-  // Development fallback on the workstation that built the helper.
-  out.push('D:\\GitHub\\FoxVPN\\tools\\fxa-auth\\fxa-auth-windows-amd64.exe');
-  out.push('D:\\GitHub\\FoxVPN\\tools\\bin\\fxa-auth.exe');
   return out;
 }
 
