@@ -36,3 +36,5 @@ __pycache__/
 /docs/releases/*-size-report.*
 /docs/releases/*-asset-audit.md
 /docs/development/package-size.md
+
+test-out.txt
