@@ -26,8 +26,8 @@ jobs:
         run: |
           gofmt -w mobile engine cmd tools.go
           go mod tidy
-          go test -race -timeout 90s -v ./mobile
-          go vet ./mobile
+          go test -tags with_utls -race -timeout 90s -v ./mobile
+          go vet -tags with_utls ./mobile
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -78,7 +78,7 @@ jobs:
           export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.0.13004108"
           gomobile init
           mkdir -p ../app/libs
-          gomobile bind -v -target android -androidapi 26 -javapkg=com.foxvpn.nativebridge -libname=foxvpn -trimpath -tags with_gvisor,with_clash_api,with_conntrack -ldflags '-X github.com/sagernet/sing-box/constant.Version=1.12.0 -s -w -buildid= -extldflags=-Wl,-z,max-page-size=16384' -o ../app/libs/foxvpn.aar ./mobile github.com/sagernet/sing-box/experimental/libbox
+          gomobile bind -v -target android -androidapi 26 -javapkg=com.foxvpn.nativebridge -libname=foxvpn -trimpath -tags with_gvisor,with_clash_api,with_conntrack,with_utls -ldflags '-X github.com/sagernet/sing-box/constant.Version=1.12.0 -s -w -buildid= -extldflags=-Wl,-z,max-page-size=16384' -o ../app/libs/foxvpn.aar ./mobile github.com/sagernet/sing-box/experimental/libbox
       - uses: actions/cache/save@v4
         if: steps.native-cache.outputs.cache-hit != 'true'
         with:
