@@ -69,6 +69,9 @@ func hawk(method, address, session, body string, ts int64, nonce string) (string
 	return fmt.Sprintf(`Hawk id="%s", ts="%d", nonce="%s", mac="%s", hash="%s"`, hex.EncodeToString(expanded[:32]), ts, nonce, base64.StdEncoding.EncodeToString(mac.Sum(nil)), encoded), nil
 }
 func (b *Backend) fetch(ctx context.Context, address, method string, body []byte, headers http.Header) ([]byte, http.Header, int, error) {
+	return b.fetchUsing(ctx,b.client,address,method,body,headers)
+}
+func (b *Backend) fetchUsing(ctx context.Context, client *http.Client, address, method string, body []byte, headers http.Header) ([]byte, http.Header, int, error) {
 	req, err := http.NewRequestWithContext(ctx, method, address, bytes.NewReader(body))
 	if err != nil {
 		return nil, nil, 0, err
@@ -82,7 +85,7 @@ func (b *Backend) fetch(ctx context.Context, address, method string, body []byte
 	for k, v := range headers {
 		req.Header[k] = v
 	}
-	response, err := b.client.Do(req)
+	response, err := client.Do(req)
 	if err != nil {
 		return nil, nil, 0, err
 	}
@@ -106,6 +109,10 @@ func (b *Backend) jsonRequest(ctx context.Context, address, method string, body 
 		raw, h, status, err := b.fetch(ctx, address, method, encoded, headers)
 		if err != nil {
 			return nil, nil, err
+		}
+		if status == http.StatusUnavailableForLegalReasons && guardianRecoveryURL(address) {
+			raw, h, status, err = b.retryGuardian451(ctx,address,method,encoded,headers)
+			if err != nil {return nil,h,err}
 		}
 		if status == 406 && attempt < 3 {
 			if err = b.challenge(ctx); err != nil {
