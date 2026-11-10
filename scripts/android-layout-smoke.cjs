@@ -28,8 +28,15 @@ app.whenReady().then(async()=>{
    await win.setSize(width,844);await delay(100);
    const result=await evaluate(()=>{
     const home=document.querySelector('#home');
-    const hero=home.querySelector('.connection-card').getBoundingClientRect();
-    const selected=home.querySelector('.selected-panel').getBoundingClientRect();
+    const heroCard=home.querySelector('.connection-card');
+    const hero=heroCard.getBoundingClientRect();
+    const selectedPanel=home.querySelector('.selected-panel');
+    const selected=selectedPanel.getBoundingClientRect();
+    const orbital=heroCard.querySelector('.orbital').getBoundingClientRect();
+    const row=selectedPanel.querySelector('.server-selector').getBoundingClientRect();
+    const flag=selectedPanel.querySelector('.location-symbol').getBoundingClientRect();
+    const ping=selectedPanel.querySelector('#ping-selected').getBoundingClientRect();
+    const latency=selectedPanel.querySelector('#selected-latency').getBoundingClientRect();
     const details=home.querySelector('.network-card').getBoundingClientRect();
     const recommended=home.querySelector('.recommended-panel').getBoundingClientRect();
     const metrics=document.getElementById('traffic-metrics');
@@ -44,8 +51,11 @@ app.whenReady().then(async()=>{
     const emblem=document.querySelector('#connection-health .health-emblem').getBoundingClientRect();
     const recArrow=getComputedStyle(document.querySelector('#locations .recommended>span'),'::after').content;
     return {
-     width:innerWidth,selectedGap:selected.top-hero.bottom,
-     detailGap:details.top-selected.bottom,recGap:recommended.top-details.bottom,
+     width:innerWidth,selectedInConnect:heroCard.contains(selectedPanel),
+     selectedGap:selected.top-orbital.bottom,
+     sameRow:Math.abs((flag.top+flag.bottom)/2-(ping.top+ping.bottom)/2)<15&&Math.abs((latency.top+latency.bottom)/2-(ping.top+ping.bottom)/2)<15,
+     controlsInBounds:ping.right<=row.right+1,
+     detailGap:details.top-hero.bottom,recGap:recommended.top-details.bottom,
      locLayout:getComputedStyle(home.querySelector('.destination-grid')).display,
      overflow:document.documentElement.scrollWidth-innerWidth,
      themeDX:Math.abs(themeButton.left+themeButton.width/2-themeIcon.left-themeIcon.width/2),
@@ -58,8 +68,10 @@ app.whenReady().then(async()=>{
     };
    });
    assert.equal(result.locLayout,'contents',JSON.stringify(result));
-   assert(result.selectedGap>=8&&result.selectedGap<=28,'Selected location must immediately follow hero: '+JSON.stringify(result));
-   assert(result.detailGap>=8,'Connection details must follow location: '+JSON.stringify(result));
+   assert(result.selectedInConnect,'Selected location must be inside the Connect card: '+JSON.stringify(result));
+   assert(result.selectedGap>=-2&&result.selectedGap<=32,'Selected location must immediately follow the power button: '+JSON.stringify(result));
+   assert(result.sameRow&&result.controlsInBounds,'Flag, location, latency and Ping must share one row: '+JSON.stringify(result));
+   assert(result.detailGap>=8,'Connection details must follow the Connect card: '+JSON.stringify(result));
    assert(result.recGap>=8,'Recommended location must follow details: '+JSON.stringify(result));
    assert(result.overflow<=2,'No horizontal overflow: '+JSON.stringify(result));
    assert(Math.abs(result.navBottom)<3,'Bottom navigation must stay fixed: '+JSON.stringify(result));

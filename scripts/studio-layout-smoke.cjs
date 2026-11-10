@@ -58,7 +58,7 @@ async function desktop(){
   assert.equal(checks.layout,'grid');assert(checks.navWidth>=130);assert(checks.cards>=6,'All live preference cards must remain available');
   assert.equal(checks.swatches,10);assert(!checks.overflow);assert(checks.gap>=9,'Accent cards must have visible gap');
   assert(checks.switchWidth>=46&&checks.switchHeight>=26,'Native switch geometry must remain stable');
-  assert.equal(checks.navItems,6);
+  assert.equal(checks.navItems,7,'Bootstrap subscriptions add a seventh settings section');
   fs.writeFileSync(path.join(out,'studio-settings-dark.png'),(await w.webContents.capturePage()).toPNG());
   await inspect(w,"document.querySelector('[data-accent=gold]').click()");
   await wait(75);
@@ -124,8 +124,11 @@ async function mobile(){
   await w.loadFile(path.join(root,'android/app/src/main/assets/src/ui/index.html'));await wait(200);
   const state={version:'2.0.0',platform:'android',latencies:{},pinging:false,pingingIds:[],activeServer:null,settings:structuredClone(DEFAULTS),signedIn:false,email:'',servers:[],logs:[],connection:'disconnected',startedAt:null,exit:null,quota:null,lastError:null,up:0,down:0,systemDark:true,busy:false};
   await inspect(w,'window.fox.receive('+JSON.stringify(state)+')');await wait(150);
-  const result=await inspect(w,"(()=>{const home=document.querySelector('#home'),dest=home.querySelector('.destination-grid'),cards=[...dest.querySelectorAll('.destination-panel')],r=cards.map(e=>e.getBoundingClientRect()),nav=document.querySelector('.sidebar'),btn=document.getElementById('connect').getBoundingClientRect();return {dest:cards.length,grid:getComputedStyle(dest).display,stackGap:r[1].top-r[0].bottom,overflow:document.documentElement.scrollWidth-innerWidth,navBottom:Math.round(nav.getBoundingClientRect().bottom-innerHeight),powerSize:btn.width,quickTileSetting:!!document.querySelector('#quick-tile-setting')}})()");
-  assert.equal(result.dest,2);assert.equal(result.grid,'contents');assert(result.stackGap>=8);
+  const result=await inspect(w,"(()=>{const home=document.querySelector('#home'),hero=home.querySelector('.connection-card'),dest=home.querySelector('.destination-grid'),selected=home.querySelector('.selected-panel'),recommended=home.querySelector('.recommended-panel'),nav=document.querySelector('.sidebar'),btn=document.getElementById('connect').getBoundingClientRect(),row=selected.querySelector('.server-selector').getBoundingClientRect(),flag=selected.querySelector('.location-symbol').getBoundingClientRect(),ping=selected.querySelector('#ping-selected').getBoundingClientRect(),latency=selected.querySelector('#selected-latency').getBoundingClientRect();return {insideHero:hero.contains(selected),afterOrbital:selected.previousElementSibling?.classList.contains('orbital'),remainingDest:dest.querySelectorAll('.destination-panel').length,grid:getComputedStyle(dest).display,stackGap:recommended.getBoundingClientRect().top-hero.getBoundingClientRect().bottom,oneRow:Math.abs((flag.top+flag.bottom)/2-(ping.top+ping.bottom)/2)<12&&Math.abs((latency.top+latency.bottom)/2-(ping.top+ping.bottom)/2)<12,controlsFit:ping.right<=row.right+1,overflow:document.documentElement.scrollWidth-innerWidth,navBottom:Math.round(nav.getBoundingClientRect().bottom-innerHeight),powerSize:btn.width,quickTileSetting:!!document.querySelector('#quick-tile-setting')}})()");
+  assert(result.insideHero,'Selected location must be inside the Connect card');
+  assert(result.afterOrbital,'Selected location should follow the power button immediately');
+  assert.equal(result.remainingDest,1);assert.equal(result.grid,'contents');assert(result.stackGap>=8);
+  assert(result.oneRow&&result.controlsFit,'Selected location and Ping must fit on one row');
   assert(result.overflow<=2,'Mobile document may not overflow horizontally');
   assert(Math.abs(result.navBottom)<3,'Mobile navigation stays docked');
   assert(result.powerSize>=85,'Mobile connect tap target is usable');
