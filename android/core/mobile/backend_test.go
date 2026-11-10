@@ -40,6 +40,7 @@ func (*testHost) Changed(string)       {}
 func (*testHost) Protect(int32) bool   { return true }
 func (*testHost) DNSAddress() string   { return "127.0.0.1" }
 func (*testHost) Certificates() string { return "" }
+func (*testHost) BootstrapNodes() string { return "" }
 func TestDesktopAuthenticationCompatibility(t *testing.T) {
 	if result := passwordHash("user@example.com", "sample password"); result != "e07930e948638b7bda1b8a7916a8392af7ca2783dd00c36dd474fb93521318eb" {
 		t.Fatal(result)

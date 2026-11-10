@@ -24,6 +24,7 @@ type Host interface {
 	Protect(fd int32) bool
 	DNSAddress() string
 	Certificates() string
+	BootstrapNodes() string
 }
 type object = map[string]any
 
@@ -95,6 +96,7 @@ type Backend struct {
 	pingEpoch                                        uint64
 	updates                                          releaseUpdates
 	authRefresh                                      sync.Mutex
+	bootstrapMu                                      sync.Mutex
 }
 
 func NewBackend(host Host, vault string) *Backend {
