@@ -43,6 +43,45 @@ function renderLatency(element,server,s) {
   element.title=result?.ms==null&&result?.reason==='timeout'?(result.phase==='setup'?'The VPN transport did not connect before the timeout.':'The HTTPS delay check timed out through this location.'):'Real delay: HTTPS response through the authenticated VPN tunnel';
 }
 function automaticServer(server) {return /recom+end|anycast/i.test(server.country+' '+server.city)||server.code==='REC';}
+function readBootstrapSources(){
+  return [...document.querySelectorAll("#bootstrap-source-list input[data-bootstrap-url]")]
+    .map(input=>input.value.trim()).filter(Boolean);
+}
+function renderBootstrapSources(urls){
+  const container=$("bootstrap-source-list");if(!container)return;
+  container.replaceChildren();
+  const list=Array.isArray(urls)?urls:[];
+  list.forEach((value,index)=>{
+    const row=document.createElement("div");row.className="bootstrap-source-row";
+    const label=document.createElement("label");label.textContent="Source "+(index+1);
+    const input=document.createElement("input");input.type="url";input.dataset.bootstrapUrl="true";
+    input.placeholder="https://example.com/subscription.txt";input.value=value;
+    input.setAttribute("aria-label","Bootstrap subscription "+(index+1));
+    label.append(input);
+    const controls=document.createElement("div");controls.className="bootstrap-source-actions";
+    for(const [caption,action] of [["Up","up"],["Down","down"],["Remove","remove"]]){
+      const button=document.createElement("button");button.type="button";button.textContent=caption;
+      button.className="bootstrap-source-action";button.dataset.action=action;
+      button.disabled=(action==="up"&&index===0)||(action==="down"&&index===list.length-1);
+      button.addEventListener("click",()=>{
+        // Read unsaved input before reordering or removing rows.
+        const current=[...container.querySelectorAll("input[data-bootstrap-url]")].map(x=>x.value);
+        if(action==="remove")current.splice(index,1);
+        else if(action==="up") [current[index-1],current[index]]=[current[index],current[index-1]];
+        else if(action==="down") [current[index],current[index+1]]=[current[index+1],current[index]];
+        renderBootstrapSources(current);
+      });
+      controls.append(button);
+    }
+    row.append(label,controls);container.append(row);
+  });
+}
+$("bootstrap-add-source").addEventListener("click",()=>{
+  renderBootstrapSources([...document.querySelectorAll("#bootstrap-source-list input[data-bootstrap-url]")].map(x=>x.value).concat(""));
+  const inputs=[...document.querySelectorAll("#bootstrap-source-list input[data-bootstrap-url]")];
+  inputs[inputs.length-1]?.focus();
+});
+
 function fillSettings(s) {
   if($('transport'))$('transport').value=s.transport||'auto';
   for(const key of ['theme','bind','socksPort','doh','customDns','edge'])$(key).value=s[key];
@@ -50,6 +89,7 @@ function fillSettings(s) {
   for(const key of ['proxyOnly'])$(key).checked=s[key];
   $('excludedApps').value=s.excludedApps.join('\n');
   $('upstreamEnabled').checked=s.upstream.enabled;
+  renderBootstrapSources(s.bootstrapSubUrls||[s.bootstrapSubUrl].filter(Boolean));
   for(const key of ['type','host','port','username'])$('upstream'+key[0].toUpperCase()+key.slice(1)).value=s.upstream[key];
   $('upstreamPassword').value='';
 }
@@ -293,6 +333,7 @@ function readSettings(){
   for(const key of ['theme','accentColor','bind','doh','customDns','edge'])settings[key]=$(key).value.trim();
   settings.socksPort=Number($('socksPort').value);for(const key of ['proxyOnly'])settings[key]=$(key).checked;
   settings.excludedApps=[...new Set($('excludedApps').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean))];
+   settings.bootstrapSubUrls=readBootstrapSources();
   settings.upstream={enabled:$('upstreamEnabled').checked,type:$('upstreamType').value,host:$('upstreamHost').value.trim(),port:Number($('upstreamPort').value),username:$('upstreamUsername').value,password:$('upstreamPassword').value};
   settings.clearUpstreamPassword=$('clearUpstreamPassword').checked;
   return settings;

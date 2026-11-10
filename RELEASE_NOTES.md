@@ -1,26 +1,22 @@
-# Predator VPN v2.0.2 — Windows, macOS, Linux & Android
+Predator VPN 2.0.3 improves account usage reporting, phone navigation, and connection recovery.
 
-An independent VPN client for Windows, macOS, Linux and Android, built on third-party VPN infrastructure and remote VPN edge servers.
+## Changes in 2.0.3
 
-## Changes in 2.0.2
-
-- **Windows profile migration:** Moving the previous profile folder no longer fails with `EPERM` when files are briefly locked. The app copies the profile when rename is blocked so startup continues.
-- **Service availability (HTTP 451):** When the VPN service API is blocked for the current network location, the app reports a clear error and routes those API calls through the system proxy when one is configured.
-- **macOS profile migration:** Leftover legacy profile folders are still retired safely after Command-Q.
-- **Account sign-in:** Desktop login keeps the browser-matching TLS helper, in-app image CAPTCHA fallback, and OAuth token exchange from 2.0.1.
+- **Android Overview:** The selected location now appears inside the main connection card immediately beneath the power button. The flag, destination name, measured latency, Ping and location selector remain aligned in a single compact row.
+- **Data Allowance:** Refresh now handles status and quota retrieval as a complete operation. Android no longer silently accepts an incomplete quota response as a successful refresh; desktop account requests automatically use a temporary bootstrap on HTTP 451.
+- **Bootstrap subscriptions:** Add, remove and reorder as many subscription URLs as needed. Two sources are preconfigured: the automatically refreshed PredatorVPN GitHub Raw list and the public 0xRadikal top100 list.
+- **Ping and account services:** Desktop Ping, account usage, pass renewal and other Guardian API requests share the HTTP 451 recovery path; temporary bootstrap proxies are cleaned up after use.
+- **Stability:** Network checks prevent overlapping connection and Ping operations, and automated coverage includes subscription fallback, quota handling and concurrent requests.
 
 ## Included features
 
-- **Account sign-in:** Email/password with email or authenticator verification codes when required.
-- **Multiple service accounts:** Choose the active account or switch automatically after confirmed data-allowance exhaustion.
-- **Persistent traffic statistics:** Monthly allowance, last-session transfers and cumulative traffic on this device.
-- **Flexible app routing:** Selected-app and exclusion modes with a searchable app picker.
-- **Connection controls:** Real HTTPS delay checks, saved locations, and IPv4/IPv6 when available.
-- **Adaptive transport:** HTTP/2 over TLS or HTTP/3 over QUIC with automatic healthy-path selection.
-- **Android Quick Settings:** Connect from the tile with live transfer information in the notification.
+- Multiple accounts with usage summaries and session statistics.
+- Automatic or manually selected locations with measured HTTPS latency.
+- HTTP/2 and HTTP/3 transport options with private DNS and split tunneling.
+- Android Quick Settings tile and notification-based connection controls.
 
-Licensed under the GNU General Public License, version 3 or later. Independent dependencies retain their original licenses and notices.
+Licensed under the GNU General Public License, version 3 or later. Independent dependencies retain their licenses.
 
 ## Downloads
 
-Download the versioned assets for your platform below.
+Use the versioned installation packages attached to this release. Older release assets are retired only after the complete new release has been validated.

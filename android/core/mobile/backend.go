@@ -62,7 +62,7 @@ func copyObject(m object) object {
 }
 func millis() int64 { return time.Now().UnixMilli() }
 func defaults() object {
-	return object{"transport": "auto", "theme": "system", "accentColor": "orange", "proxyOnly": false, "bind": "127.0.0.1", "socksPort": 1080, "doh": "automatic", "customDns": "", "edge": "", "exitCheck": true, "excludedApps": []any{}, "upstream": object{"enabled": false, "type": "socks5", "host": "", "port": 1080, "username": "", "password": ""}, "serverId": "REC"}
+	return object{"transport": "auto", "theme": "system", "accentColor": "orange", "proxyOnly": false, "bind": "127.0.0.1", "socksPort": 1080, "doh": "automatic", "customDns": "", "edge": "", "exitCheck": true, "excludedApps": []any{}, "upstream": object{"enabled": false, "type": "socks5", "host": "", "port": 1080, "username": "", "password": ""}, "serverId": "REC", "bootstrapSubUrl": "https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt", "bootstrapSubUrls": []any{"https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt", "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt"}}
 }
 
 type Backend struct {
@@ -103,6 +103,13 @@ func NewBackend(host Host, vault string) *Backend {
 	if json.Unmarshal([]byte(vault), &saved) == nil {
 		if s := obj(saved, "settings"); len(s) > 0 {
             if str(s, "accentColor") == "" { s["accentColor"] = "orange" }
+            if _,ok:=s["bootstrapSubUrls"];!ok{
+                first:=str(s,"bootstrapSubUrl")
+                if first=="" || first=="https://cdn.jsdelivr.net/gh/erfan-tahvilian/PredatorVPN@main/docs/bootstrap/working-nodes.txt"{
+                    first="https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt"
+                }
+                s["bootstrapSubUrls"]=[]any{first,"https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt"}
+            }
             if validate(s) == nil { b.settings = s }
         }
 		b.servers = cachedServers(list(saved, "servers"))
@@ -926,11 +933,19 @@ func (b *Backend) refreshProfile(ctx context.Context) (any, error) {
 	if err == nil {
 		d, _ := result.(map[string]any)
 		if yes(d, "limited_bandwidth") {
-			_, headers, e := b.pass(ctx)
-			if e == nil {
-				d["quotaRemaining"] = headers.Get("x-quota-remaining")
-				d["quotaLimit"] = headers.Get("x-quota-limit")
-				d["quotaReset"] = headers.Get("x-quota-reset")
+			// Never record a successful refresh without obtaining the remaining-data value.
+			if str(d, "quotaRemaining") == "" {
+				_, headers, passErr := b.pass(ctx)
+				if passErr != nil {
+					err = fmt.Errorf("Could not refresh data remaining: %w", passErr)
+				} else {
+					d["quotaRemaining"] = headers.Get("x-quota-remaining")
+					d["quotaLimit"] = headers.Get("x-quota-limit")
+					d["quotaReset"] = headers.Get("x-quota-reset")
+				}
+			}
+			if err == nil && str(d, "quotaRemaining") == "" {
+				err = errors.New("The service returned no remaining-data value. Please try refreshing again.")
 			}
 		}
 	}

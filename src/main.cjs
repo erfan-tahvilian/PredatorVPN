@@ -56,7 +56,7 @@ const {PassRenewer}=require('./lib/pass-renewal.cjs');
 const {ProxyPassRecovery}=require('./lib/proxy-pass-recovery.cjs');
 const {WindowsEngine}=require('./lib/windows-engine.cjs');
 function makeTunnel(settings,log,onFatal){return new AdaptiveTunnel(settings,log,onFatal,path.join(engineDir(),process.platform==='win32'?'fox-h3.exe':'fox-h3'));}
-const {measure,measureAll}=require('./lib/latency.cjs');
+const {measure,measureAll,prepareLatencyPass}=require('./lib/latency.cjs');
 const {engineConfig}=require('./lib/settings.cjs');
 const {MacEngine,networkDns:macNetworkDns}=require('./lib/mac-engine.cjs');
 const {LinuxEngine,networkDns:linuxNetworkDns}=require('./lib/linux-engine.cjs');
@@ -67,11 +67,47 @@ const mac=process.platform==='darwin',linux=process.platform==='linux';
 const osName=mac?'macOS':linux?'Linux':'Windows';
 const multiAccount=true;
 let accountCoordinator,traffic,loginGuardian,loginAccountId,switchingAccount=false,trafficSaveWarning=false;const accountGuardians=new Map();
-function accountGuardian(id){if(!accountGuardians.has(id)){const http=makeControl();accountGuardians.set(id,new Guardian(http,new Auth(http,store.accountStore(id))));}return accountGuardians.get(id);}
+function createGuardian(http,auth){
+  const g=new Guardian(http,auth);
+  g.getBootstrapOptions=()=>bootstrapOptions(g);
+  return g;
+}
+function accountGuardian(id){
+  if(!accountGuardians.has(id)){
+    const http=makeControl();
+    accountGuardians.set(id,createGuardian(http,new Auth(http,store.accountStore(id))));
+  }
+  return accountGuardians.get(id);
+}
 function syncGuardian(){if(multiAccount&&store.activeAccountId)guardian=accountGuardian(store.activeAccountId);}
 function observeTraffic(){if(multiAccount&&traffic&&tunnel)traffic.observe(tunnel.up,tunnel.down);}
 async function refreshAccount(id){const data=await accountCoordinator.refresh(id);if(store.activeAccountId===id)quota=store.activeAccount?.quota||null;emit();return data;}
-function beginLogin(){loginAccountId=null;const http=makeControl({interactive:true}),sink={auth:null,setAuth(auth){if(!auth)return;loginAccountId=store.addAccount(auth,connection==='disconnected');this.auth=auth;}};loginGuardian=new Guardian(http,new Auth(http,sink));return loginGuardian.auth;}
+function bootstrapOptions(g){
+  return {
+    log,
+    enginePath:path.join(engineDir(),process.platform==="win32"?"sing-box.exe":"sing-box"),
+    engineCwd:engineDir(),
+    subUrls:store.settings.bootstrapSubUrls,
+    localPaths:[
+      path.join(app.getAppPath(),"assets","bootstrap-nodes.txt"),
+      path.join(__dirname,"..","assets","bootstrap-nodes.txt"),
+      path.join(engineDir(),"..","assets","bootstrap-nodes.txt")
+    ],
+    applyUpstream:async upstream=>{
+      const setProxy=g?.http?.transport?.setBootstrapProxy;
+      if(typeof setProxy!=="function")throw Error("Guardian account proxy is unavailable");
+      if(!upstream?.enabled)throw Error("Bootstrap returned no upstream");
+      await setProxy("socks5://"+upstream.host+":"+upstream.port);
+    },
+    clearUpstream:async()=>{
+      const setProxy=g?.http?.transport?.setBootstrapProxy;
+      if(typeof setProxy==="function")await setProxy(null);
+    }
+  };
+}
+// All Guardian API calls, including this pass, handle HTTP 451 in Guardian.request.
+function obtainBootstrapPass(targetGuardian){return (targetGuardian||guardian).pass();}
+function beginLogin(){loginAccountId=null;const http=makeControl({interactive:true}),sink={auth:null,setAuth(auth){if(!auth)return;loginAccountId=store.addAccount(auth,connection==='disconnected');this.auth=auth;}};loginGuardian=createGuardian(http,new Auth(http,sink));return loginGuardian.auth;}
 function completeLogin(result){if(loginAccountId){syncGuardian();if(connection==='disconnected')quota=store.activeAccount?.quota||null;const id=loginAccountId;loginGuardian=null;loginAccountId=null;if(store.activeAccountId!==id)void refreshAccount(id).catch(()=>{});}return result;}
 let macEngine;
 let window,tray,trayPopup,store,guardian,tunnel,pendingTunnel,engine,passRenewer,recoveryController,busy=false,quitting=false,generation=0;
@@ -254,7 +290,11 @@ async function connect({resumeTraffic=false,prepared=null,automaticRecovery=fals
     const list=require('./lib/h3-tunnel.cjs').connectionCandidates(servers,id);
     if(!list.length)throw Error('This server is no longer available. Choose another location.');
     // The official REC edge provides anycast selection on Windows.
-    const pass=multiAccount?(prepared||await accountCoordinator.prepare()).pass:await guardian.pass();syncGuardian();quota={limit:pass.quotaLimit,remaining:pass.quotaRemaining,reset:pass.quotaReset};
+    // Prefer normal pass; on HTTP 451 try a temporary SOCKS5 bootstrap upstream once.
+    let pass;
+    if(multiAccount) pass=(prepared||await accountCoordinator.prepare()).pass;
+    else pass=await obtainBootstrapPass(guardian);
+    syncGuardian();quota={limit:pass.quotaLimit,remaining:pass.quotaRemaining,reset:pass.quotaReset};
     check();
     let selected;
     for(const candidate of list.slice(0,5)) {
@@ -303,8 +343,8 @@ else {
     store=new Store(app.getPath('userData'),safeStorage);
     if(profileMove&&store.loadError)throw Error('Migrated account data could not be read. No account files were deleted.');
     captchaPrompt=new CaptchaPrompt(()=>emit());
-    servers=store.servers;if(multiAccount){traffic=new TrafficLedger(store.traffic,value=>store.setTraffic(value));accountCoordinator=new AccountCoordinator(store,accountGuardian);quota=store.activeAccount?.quota||null;}
-    const control=makeControl({interactive:true});guardian=new Guardian(control,new Auth(control,store));
+    servers=store.servers;if(multiAccount){traffic=new TrafficLedger(store.traffic,value=>store.setTraffic(value));accountCoordinator=new AccountCoordinator(store,accountGuardian,{obtainPass:(g)=>obtainBootstrapPass(g)});quota=store.activeAccount?.quota||null;}
+    const control=makeControl({interactive:true});guardian=createGuardian(control,new Auth(control,store));
     const updates=new Updates({version:APP_VERSION,target:updateTarget(process.platform,process.arch,app.getPath('exe')),fetch:(...args)=>electronNet.fetch(...args),cacheFile:path.join(app.getPath('userData'),'release-cache.json')});
     syncGuardian();createWindow();tray=new Tray(mac||linux?nativeImage.createFromPath(icon).resize({width:22,height:22}):icon);tray.setToolTip('Predator VPN');
     trayPopup=new TrayPopup({state:trayState,command:trayCommand,bounds:()=>{const bounds=tray.getBounds();if(mac)return bounds;const point=screen.getCursorScreenPoint();return point.x>=bounds.x-8&&point.x<=bounds.x+bounds.width+8&&point.y>=bounds.y-8&&point.y<=bounds.y+bounds.height+8?bounds:{...point,width:0,height:0};}});
@@ -323,20 +363,35 @@ else {
     handle('servers',refreshServers);
     handle('ping',async id=>{
       if(!store.auth)throw Error('Sign in before checking real delay.');
-      const pass=await guardian.pass();
-      const pingSettings=structuredClone(store.settings);
-      const probe=server=>measure(server,structuredClone(pingSettings),pass,5000,makeTunnel);
-      if(id!==undefined){
-        const server=servers.find(s=>s.id===id);if(!server)throw Error('Unknown location.');
-        if(pinging||pingingIds.has(id))throw Error('A latency check is already running for this location.');
-        pingingIds.add(id);delete latencies[id];emit();
-        try{const result=await probe(server);if(store.settings.transport===pingSettings.transport)latencies[id]=result;return result;}
-        finally{pingingIds.delete(id);emit();}
+      if(busy||connection==='connecting'||connection==='disconnecting')throw Error('Wait for the current connection operation.');
+      if(pinging||pingingIds.size)throw Error('A latency check is already running.');
+      if(id===undefined)pinging=true;
+      else {pingingIds.add(id);delete latencies[id];}
+      emit();
+      try{
+        if(!servers.length)await refreshServers();
+        const server=id===undefined?null:servers.find(s=>s.id===id);
+        if(id!==undefined&&!server)throw Error('Unknown location.');
+        // A first-time Ping must acquire a pass through exactly the Connect bootstrap path.
+        const pass=await prepareLatencyPass({coordinator:multiAccount?accountCoordinator:null,guardian,bootstrap:obtainBootstrapPass});
+        syncGuardian();
+        const pingSettings=structuredClone(store.settings);
+        const probe=entry=>measure(entry,structuredClone(pingSettings),pass,5000,makeTunnel);
+        if(server){
+          const result=await probe(server);
+          if(store.settings.transport===pingSettings.transport)latencies[id]=result;
+          return result;
+        }
+        latencies={};
+        await measureAll([...servers],(serverId,result)=>{
+          if(store.settings.transport===pingSettings.transport)latencies[serverId]=result;
+          emit();
+        },3,probe);
+        return latencies;
+      }finally{
+        if(id===undefined)pinging=false;else pingingIds.delete(id);
+        emit();
       }
-      if(pinging||pingingIds.size)throw Error('Wait for the current location latency checks.');
-      pinging=true;latencies={};emit();
-      try{if(!servers.length)await refreshServers();await measureAll([...servers],(id,result)=>{if(store.settings.transport===pingSettings.transport)latencies[id]=result;emit();},3,probe);return latencies;}
-      finally{pinging=false;emit();}
     });
     handle('account',()=>multiAccount?refreshAccount(store.activeAccountId):guardian.account());
     if(multiAccount){
@@ -353,7 +408,7 @@ else {
     handle('select',id=>{if(connection!=='disconnected')throw Error('Disconnect before choosing another server.');if(id!=='REC'&&!servers.some(s=>s.id===id))throw Error('Unknown server.');store.setSettings({...store.settings,serverId:id});emit();});
     handle('theme',theme=>{store.setSettings({...store.settings,theme});emit();});
     handle('accentColor',accentColor=>{store.setSettings({...store.settings,accentColor});emit();});
-    handle('connect',async()=>{if(busy)throw Error('Wait for the current operation.');busy=true;emit();try{await connect();}finally{busy=false;emit();}});
+    handle('connect',async()=>{if(busy||pinging||pingingIds.size)throw Error('Wait for the current operation or latency check.');busy=true;emit();try{await connect();}finally{busy=false;emit();}});
     handle('disconnect',async()=>{if(busy&&!switchingAccount)throw Error('Wait for the current operation.');await disconnect();});
     handle('cancel',async()=>{if(connection==='connecting')await disconnect();});
     handle('exit',async()=>{if(connection!=='connected')throw Error('Connect before verifying your connection.');const active=tunnel,epoch=generation;const result=await active.exit(store.settings.serverId==='REC'?null:active.candidate.code);if(tunnel!==active||epoch!==generation)throw Error('Connection changed while checking.');exit=result;emit();void refreshAddresses(active,epoch);return result;});
