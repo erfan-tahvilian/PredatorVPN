@@ -56,7 +56,7 @@ function renderBootstrapSources(urls){
     const label=document.createElement("label");label.textContent="Source "+(index+1);
     const input=document.createElement("input");input.type="url";input.dataset.bootstrapUrl="true";
     input.placeholder="https://example.com/subscription.txt";input.value=value;
-    input.setAttribute("aria-label","Bootstrap subscription "+(index+1));
+    input.setAttribute("aria-label","Subscription source "+(index+1));
     label.append(input);
     const controls=document.createElement("div");controls.className="bootstrap-source-actions";
     for(const [caption,action] of [["Up","up"],["Down","down"],["Remove","remove"]]){

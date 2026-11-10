@@ -93,7 +93,7 @@
           <button type="button" data-settings-jump="settings-connection" class="settings-rail-item">Connection</button>
           <button type="button" data-settings-jump="settings-dns" class="settings-rail-item">Private DNS</button>
           <button type="button" data-settings-jump="split-tunneling" class="settings-rail-item">Split tunneling</button>
-          <button type="button" data-settings-jump="settings-bootstrap" class="settings-rail-item">Bootstrap</button><button type="button" data-settings-jump="settings-upstream" class="settings-rail-item">Upstream proxy</button>
+          <button type="button" data-settings-jump="settings-bootstrap" class="settings-rail-item">Subscriptions</button><button type="button" data-settings-jump="settings-upstream" class="settings-rail-item">Upstream proxy</button>
           <button type="button" data-settings-jump="settings-license" class="settings-rail-item">About & license</button>
           <span class="rail-note">Changes to network preferences may require reconnecting.</span>
         </nav>
@@ -104,9 +104,9 @@
       <section class="settings-card" id="settings-dns"><h3>Private DNS</h3><p>Resolve names through the encrypted tunnel.</p><div class="field-grid"><label>DNS over HTTPS<select id="doh"><option value="automatic">Automatic</option><option value="cloudflare">Cloudflare</option><option value="google">Google</option><option value="quad9">Quad9</option><option value="off">Off · System resolver in VPN mode</option></select></label><label>Custom DNS IP <span class="optional">Optional</span><input id="customDns" placeholder="e.g. 1.1.1.1"><small>Overrides DoH; uses DNS over TCP inside the tunnel.</small></label></div></section>
       <div class="settings-card" id="split-tunneling"><h3>Split tunneling</h3><p>These applications use your regular network connection.</p><label>Excluded executable names<textarea id="excludedApps" rows="3"></textarea><small>One executable name per line. Applies to system VPN mode.</small></label></div>
       <section class="settings-card" id="settings-bootstrap">
-  <h3>Bootstrap subscriptions</h3>
+  <h3>Subscriptions</h3>
   <p>On a service region restriction (HTTP 451), Predator tries these sources in order, starts a temporary proxy to authenticate, then shuts it down. Add or remove as many subscriptions as needed.</p>
-  <div id="bootstrap-source-list" class="bootstrap-source-list" aria-label="Bootstrap subscription URLs"></div>
+  <div id="bootstrap-source-list" class="bootstrap-source-list" aria-label="Subscription URLs"></div>
   <button type="button" id="bootstrap-add-source" class="bootstrap-add-source">+ Add subscription URL</button>
   <p class="muted">The first default is updated automatically from your subscription every six hours in GitHub. The second default uses the public 0xRadikal list. If none can connect, Predator also checks bundled nodes and a mirror. Only supported sing-box transports are used.</p>
 </section>
