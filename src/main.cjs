@@ -83,6 +83,7 @@ function syncGuardian(){if(multiAccount&&store.activeAccountId)guardian=accountG
 function observeTraffic(){if(multiAccount&&traffic&&tunnel)traffic.observe(tunnel.up,tunnel.down);}
 async function refreshAccount(id){const data=await accountCoordinator.refresh(id);if(store.activeAccountId===id)quota=store.activeAccount?.quota||null;emit();return data;}
 function bootstrapOptions(g){
+  if(!store.settings.subscriptionsEnabled)return null;
   return {
     log,
     enginePath:path.join(engineDir(),process.platform==="win32"?"sing-box.exe":"sing-box"),

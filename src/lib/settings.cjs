@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Erfan Tahvilian
 const net = require('node:net');
 const DEFAULT_BOOTSTRAP_URLS=['https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt','https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt'];
-const DEFAULTS={transport:'auto',theme:'system',accentColor:'orange',locationSort:'ping-asc',splitMode:'exclude',proxyOnly:false,bind:'127.0.0.1',socksPort:1080,doh:'automatic',customDns:'',edge:'',exitCheck:true,excludedApps:[],upstream:{enabled:false,type:'socks5',host:'',port:1080,username:'',password:''},serverId:'REC',bootstrapSubUrl:'https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt',bootstrapSubUrls:[...DEFAULT_BOOTSTRAP_URLS]};
+const DEFAULTS={transport:'auto',theme:'system',accentColor:'orange',locationSort:'ping-asc',splitMode:'exclude',proxyOnly:false,bind:'127.0.0.1',socksPort:1080,doh:'automatic',customDns:'',edge:'',exitCheck:true,excludedApps:[],upstream:{enabled:false,type:'socks5',host:'',port:1080,username:'',password:''},serverId:'REC',bootstrapSubUrl:'https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt',bootstrapSubUrls:[...DEFAULT_BOOTSTRAP_URLS],subscriptionsEnabled:false};
 function host(value) {return typeof value==='string' && value.length<=253 && (net.isIP(value)>0 || /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/i.test(value));}
 function port(value) {return Number.isInteger(value)&&value>0&&value<=65535;}
 function validate(input, platform=process.platform) {
@@ -27,6 +27,7 @@ function validate(input, platform=process.platform) {
     seen.add(value);return value;
   }).filter(Boolean);
   normalized.bootstrapSubUrl=normalized.bootstrapSubUrls[0]||"";
+  if(normalized.subscriptionsEnabled===undefined)normalized.subscriptionsEnabled=false;
   const s={...DEFAULTS,...normalized,exitCheck:true,upstream:{...DEFAULTS.upstream,...input.upstream}};
   if(JSON.stringify(s.bootstrapSubUrls).length>1024*1024)throw Error("Bootstrap subscriptions are too large.");
   if(!['auto','h2','h3'].includes(s.transport))throw Error('Choose a valid connection protocol.');
@@ -42,7 +43,7 @@ function validate(input, platform=process.platform) {
   if(!['socks5','http'].includes(s.upstream.type)||!port(s.upstream.port))throw Error('Invalid upstream proxy type or port.');
   if(s.upstream.enabled&&!host(s.upstream.host))throw Error('Enter a valid upstream proxy hostname.');
   if(!Array.isArray(s.excludedApps)||s.excludedApps.length>100||s.excludedApps.some(p=>typeof p!=='string'||!(platform!=='win32'?/^[-\p{L}\p{N}_ .()+]+$/u:/^[-\p{L}\p{N}_ .()+]+\.exe$/iu).test(p)))throw Error('One or more selected apps have an unsupported process name.');
-  for(const key of ['proxyOnly','exitCheck'])if(typeof s[key]!=='boolean')throw Error('Invalid setting.');
+  for(const key of ['proxyOnly','exitCheck','subscriptionsEnabled'])if(typeof s[key]!=='boolean')throw Error('Invalid setting.');
   if(typeof s.upstream.enabled!=='boolean'||typeof s.upstream.username!=='string'||typeof s.upstream.password!=='string')throw Error('Invalid upstream credentials.');
   if(typeof s.serverId!=='string'||s.serverId.length>512)throw Error('Invalid server selection.');
   return s;

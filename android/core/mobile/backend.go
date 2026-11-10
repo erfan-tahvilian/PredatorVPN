@@ -63,7 +63,7 @@ func copyObject(m object) object {
 }
 func millis() int64 { return time.Now().UnixMilli() }
 func defaults() object {
-	return object{"transport": "auto", "theme": "system", "accentColor": "orange", "proxyOnly": false, "bind": "127.0.0.1", "socksPort": 1080, "doh": "automatic", "customDns": "", "edge": "", "exitCheck": true, "excludedApps": []any{}, "upstream": object{"enabled": false, "type": "socks5", "host": "", "port": 1080, "username": "", "password": ""}, "serverId": "REC", "bootstrapSubUrl": "https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt", "bootstrapSubUrls": []any{"https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt", "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt"}}
+	return object{"transport": "auto", "theme": "system", "accentColor": "orange", "proxyOnly": false, "bind": "127.0.0.1", "socksPort": 1080, "doh": "automatic", "customDns": "", "edge": "", "exitCheck": true, "excludedApps": []any{}, "upstream": object{"enabled": false, "type": "socks5", "host": "", "port": 1080, "username": "", "password": ""}, "serverId": "REC", "subscriptionsEnabled":false, "bootstrapSubUrl": "https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt", "bootstrapSubUrls": []any{"https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt", "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt"}}
 }
 
 type Backend struct {
@@ -112,6 +112,7 @@ func NewBackend(host Host, vault string) *Backend {
                 }
                 s["bootstrapSubUrls"]=[]any{first,"https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt"}
             }
+            if _,ok:=s["subscriptionsEnabled"];!ok{s["subscriptionsEnabled"]=false}
             if validate(s) == nil { b.settings = s }
         }
 		b.servers = cachedServers(list(saved, "servers"))
@@ -272,6 +273,8 @@ func validate(s object) error {
 	if str(s, "serverId") == "" || len(str(s, "serverId")) > 512 {
 		return errors.New("Invalid location")
 	}
+	if _,ok:=s["subscriptionsEnabled"];!ok{s["subscriptionsEnabled"]=false}
+	if _,ok:=s["subscriptionsEnabled"].(bool);!ok{return errors.New("Invalid subscription setting")}
 	return nil
 }
 func envelope(data any, err error) string {

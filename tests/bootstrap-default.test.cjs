@@ -15,6 +15,10 @@ const OLD='https://cdn.jsdelivr.net/gh/erfan-tahvilian/PredatorVPN@main/docs/boo
 
 test('two subscriptions default; old settings migrate and unlimited custom lists preserve order',()=>{
  assert.deepEqual(DEFAULTS.bootstrapSubUrls,[RAW,OTHER]);
+ assert.equal(DEFAULTS.subscriptionsEnabled,false);
+ assert.equal(validate({subscriptionsEnabled:true}).subscriptionsEnabled,true);
+ assert.equal(validate({}).subscriptionsEnabled,false);
+ assert.throws(()=>validate({subscriptionsEnabled:'true'}),/setting|Invalid/i);
  assert.equal(DEFAULT_SUB_URL,RAW);
  assert.deepEqual(validate({bootstrapSubUrl:OLD}).bootstrapSubUrls,[RAW,OTHER]);
  assert.deepEqual(validate({bootstrapSubUrl:''}).bootstrapSubUrls,[RAW,OTHER]);
@@ -88,7 +92,7 @@ test('Data Allowance status 451 starts one bootstrap, returns quota and cleans u
  assert.equal(data.quotaLimit,'1000');
  assert.equal(stats().start,1);assert.equal(stats().stopped,1);
  assert.equal(stats().cleared,1);assert.equal(stats().proxied,false);
- assert.deepEqual(requests.map(x=>x.endpoint),['status','status','token']);
+ assert.deepEqual(requests.map(x=>x.endpoint),['status','status','status','token']);
 });
 
 test('Data Allowance token-only 451 also retries entire status/quota transaction',async()=>{
@@ -96,7 +100,7 @@ test('Data Allowance token-only 451 also retries entire status/quota transaction
  const data=await g.account();
  assert.equal(data.quotaRemaining,'410');
  assert.equal(stats().start,1);assert.equal(stats().cleared,1);
- assert.deepEqual(requests.map(x=>x.endpoint),['status','token','status','token']);
+ assert.deepEqual(requests.map(x=>x.endpoint),['status','token','token','status','token']);
 });
 
 test('Pass refresh and account activation use shared 451 recovery and cleanup',async()=>{
@@ -128,4 +132,27 @@ test('concurrent Guardian operations serialize Bootstrap sessions',async()=>{
  const [a,b]=await Promise.all([make().account(),make().account()]);
  assert.equal(a.limited_bandwidth,false);assert.equal(b.limited_bandwidth,false);
  assert.equal(peak,1);assert.equal(active,0);
+});
+
+test('Arman double-leading-slash retries with identical method and bearer auth',async()=>{
+ const calls=[];
+ const guardian=new Guardian({json:async(url,opts)=>{
+   calls.push({url,method:opts.method,authorization:opts.authorization});
+   if(!url.includes("//api/v1/fpn/")){const error=Error("region restricted");error.status=451;throw error;}
+   return {data:{ok:true}};
+ }},{token:async()=>"fixture-access"});
+ const result=await guardian.request('activate','POST');
+ assert.equal(result.data.ok,true);
+ assert.deepEqual(calls.map(x=>new URL(x.url).pathname),["/api/v1/fpn/activate","//api/v1/fpn/activate"]);
+ assert.deepEqual(calls.map(x=>x.method),["POST","POST"]);
+ assert(calls.every(x=>x.authorization==="Bearer fixture-access"));
+});
+
+test('subscriptions disabled does not start a temporary proxy if double slash is blocked',async()=>{
+ const calls=[];
+ const guardian=new Guardian({json:async url=>{calls.push(url);const error=Error("HTTP 451");error.status=451;throw error;}},{token:async()=>"fixture"});
+ guardian.getBootstrapOptions=()=>null;
+ await assert.rejects(()=>guardian.request('status'),{status:451});
+ assert.equal(calls.length,2);
+ assert.equal(new URL(calls[1]).pathname,"//api/v1/fpn/status");
 });

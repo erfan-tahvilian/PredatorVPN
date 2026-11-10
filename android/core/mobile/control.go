@@ -111,8 +111,19 @@ func (b *Backend) jsonRequest(ctx context.Context, address, method string, body 
 			return nil, nil, err
 		}
 		if status == http.StatusUnavailableForLegalReasons && guardianRecoveryURL(address) {
-			raw, h, status, err = b.retryGuardian451(ctx,address,method,encoded,headers)
-			if err != nil {return nil,h,err}
+			// Arman-compatible path variation is tried once before any optional proxy.
+			if alternate,ok:=doubleSlashGuardianURL(address);ok {
+				if data,respHeaders,code,retryErr:=b.fetch(ctx,alternate,method,encoded,headers);retryErr==nil {
+					raw,h,status=data,respHeaders,code
+				}
+			}
+			if status == http.StatusUnavailableForLegalReasons {
+				b.mu.Lock();enabled:=yes(b.settings,"subscriptionsEnabled");b.mu.Unlock()
+				if enabled {
+					raw,h,status,err=b.retryGuardian451(ctx,address,method,encoded,headers)
+					if err!=nil{return nil,h,err}
+				}
+			}
 		}
 		if status == 406 && attempt < 3 {
 			if err = b.challenge(ctx); err != nil {

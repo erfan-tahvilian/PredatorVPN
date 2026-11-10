@@ -89,6 +89,7 @@ function fillSettings(s) {
   for(const key of ['proxyOnly'])$(key).checked=s[key];
   $('excludedApps').value=s.excludedApps.join('\n');
   $('upstreamEnabled').checked=s.upstream.enabled;
+  $('subscriptionsEnabled').checked=s.subscriptionsEnabled===true;
   renderBootstrapSources(s.bootstrapSubUrls||[s.bootstrapSubUrl].filter(Boolean));
   for(const key of ['type','host','port','username'])$('upstream'+key[0].toUpperCase()+key.slice(1)).value=s.upstream[key];
   $('upstreamPassword').value='';
@@ -333,7 +334,8 @@ function readSettings(){
   for(const key of ['theme','accentColor','bind','doh','customDns','edge'])settings[key]=$(key).value.trim();
   settings.socksPort=Number($('socksPort').value);for(const key of ['proxyOnly'])settings[key]=$(key).checked;
   settings.excludedApps=[...new Set($('excludedApps').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean))];
-   settings.bootstrapSubUrls=readBootstrapSources();
+  settings.subscriptionsEnabled=$('subscriptionsEnabled').checked;
+  settings.bootstrapSubUrls=readBootstrapSources();
   settings.upstream={enabled:$('upstreamEnabled').checked,type:$('upstreamType').value,host:$('upstreamHost').value.trim(),port:Number($('upstreamPort').value),username:$('upstreamUsername').value,password:$('upstreamPassword').value};
   settings.clearUpstreamPassword=$('clearUpstreamPassword').checked;
   return settings;

@@ -1,41 +1,42 @@
 {
-    "version":  "2.0.3",
-    "items":  [
-                  {
-                      "platforms":  [
-                                        "win32",
-                                        "darwin",
-                                        "linux",
-                                        "android"
-                                    ],
-                      "title":  "Account usage refresh you can trust",
-                      "description":  "Android no longer silently marks an incomplete quota lookup successful; desktop data allowance and account requests share the temporary regional bootstrap when needed."
-                  },
-                  {
-                      "platforms":  [
-                                        "android"
-                                    ],
-                      "title":  "Compact location controls inside Connect",
-                      "description":  "The chosen flag, country, latency, Ping and location picker now stay on one row inside the main connection card, immediately under the power control."
-                  },
-                  {
-                      "platforms":  [
-                                        "win32",
-                                        "darwin",
-                                        "linux",
-                                        "android"
-                                    ],
-                      "title":  "Editable bootstrap source list",
-                      "description":  "Two default GitHub Raw subscriptions plus add, remove and reorder controls for extra sources."
-                  },
-                  {
-                      "platforms":  [
-                                        "win32",
-                                        "darwin",
-                                        "linux"
-                                    ],
-                      "title":  "Automatic Guardian recovery",
-                      "description":  "Ping, account status, quota, activation and pass renewal use one safe temporary bootstrap path for HTTP 451."
-                  }
-              ]
+  "version": "2.0.4",
+  "items": [
+    {
+      "platforms": [
+        "win32",
+        "darwin",
+        "linux",
+        "android"
+      ],
+      "title": "Automatic Guardian HTTP 451 double-slash retry",
+      "description": "Retry region-blocked Guardian API calls via the Arman-compatible double-leading-slash path. This is conditional and does not rewrite unrelated URLs."
+    },
+    {
+      "platforms": [
+        "win32",
+        "darwin",
+        "linux",
+        "android"
+      ],
+      "title": "Subscriptions disabled by default",
+      "description": "Optional temporary proxy recovery can be enabled in Subscriptions. Two preconfigured GitHub Raw URLs remain editable, with unlimited added sources and ordering controls."
+    },
+    {
+      "platforms": [
+        "android"
+      ],
+      "title": "Android reliability fixes retained",
+      "description": "Improved data allowance refresh, uTLS-backed VLESS Reality/gRPC recovery when explicitly enabled, and a compact selected location inside the Connect card."
+    },
+    {
+      "platforms": [
+        "win32",
+        "darwin",
+        "linux",
+        "android"
+      ],
+      "title": "Consistent multi-platform updates",
+      "description": "New installable version 2.0.4 across all supported processor architectures."
+    }
+  ]
 }
