@@ -31,4 +31,9 @@ async function measureAll(servers,onResult,concurrency=3,probe) {
     while(index<servers.length){const server=servers[index++];const result=await probe(server);onResult(server.id,result);}
   }));
 }
-module.exports={measure,measureAll};
+async function prepareLatencyPass({coordinator,guardian,bootstrap}) {
+  // Same account selection and HTTP-451 bootstrap path used by Connect.
+  if(coordinator)return (await coordinator.prepare()).pass;
+  return bootstrap(guardian);
+}
+module.exports={measure,measureAll,prepareLatencyPass};

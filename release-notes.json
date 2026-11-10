@@ -1,30 +1,41 @@
 {
-  "version": "2.0.2",
-  "items": [
-    {
-      "platforms": ["win32", "darwin", "linux"],
-      "title": "Profile migration that survives locked files",
-      "description": "Windows can no longer block startup when the previous profile folder is briefly locked. The profile is copied when rename is refused, and leftover legacy folders are retired on macOS."
-    },
-    {
-      "platforms": ["win32", "darwin", "linux"],
-      "title": "Clearer service availability errors",
-      "description": "When the VPN service API is unavailable from the current network location (HTTP 451), Predator VPN shows a clear message and uses the system proxy for those API calls when one is configured."
-    },
-    {
-      "platforms": ["win32", "darwin", "linux"],
-      "title": "Reliable account sign-in",
-      "description": "Desktop sign-in uses a browser-matching TLS helper so the account edge accepts login and OAuth token exchange, with an in-app image CAPTCHA form when required."
-    },
-    {
-      "platforms": ["win32", "darwin", "linux", "android"],
-      "title": "A redesigned Predator VPN",
-      "description": "Purpose-built desktop and phone interfaces with clearer connection, account, location, and diagnostics controls."
-    },
-    {
-      "platforms": ["win32", "darwin", "linux", "android"],
-      "title": "Ten cohesive accent palettes",
-      "description": "Orange remains the default; Gold and eight other color choices now apply throughout the interface, including the connection button."
-    }
-  ]
+    "version":  "2.0.3",
+    "items":  [
+                  {
+                      "platforms":  [
+                                        "win32",
+                                        "darwin",
+                                        "linux",
+                                        "android"
+                                    ],
+                      "title":  "Account usage refresh you can trust",
+                      "description":  "Android no longer silently marks an incomplete quota lookup successful; desktop data allowance and account requests share the temporary regional bootstrap when needed."
+                  },
+                  {
+                      "platforms":  [
+                                        "android"
+                                    ],
+                      "title":  "Compact location controls inside Connect",
+                      "description":  "The chosen flag, country, latency, Ping and location picker now stay on one row inside the main connection card, immediately under the power control."
+                  },
+                  {
+                      "platforms":  [
+                                        "win32",
+                                        "darwin",
+                                        "linux",
+                                        "android"
+                                    ],
+                      "title":  "Editable bootstrap source list",
+                      "description":  "Two default GitHub Raw subscriptions plus add, remove and reorder controls for extra sources."
+                  },
+                  {
+                      "platforms":  [
+                                        "win32",
+                                        "darwin",
+                                        "linux"
+                                    ],
+                      "title":  "Automatic Guardian recovery",
+                      "description":  "Ping, account status, quota, activation and pass renewal use one safe temporary bootstrap path for HTTP 451."
+                  }
+              ]
 }

@@ -44,22 +44,22 @@ function createAccountTransport({createSession,systemFetch}){
   const isolated=createSession();
   if(!isolated||typeof isolated.setProxy!=='function'||typeof isolated.fetch!=='function')throw Error('Isolated account session is unavailable');
   const ready=isolated.setProxy({mode:'direct'});
+  let bootstrapProxyRules=null;
   async function accountFetch(url,options={}){
     const target=new URL(url);
     if(target.protocol!=='https:'||!APPROVED.has(target.hostname))throw Error('Unapproved account-service endpoint');
     await ready;
-    // Guardian API is geo-restricted in some networks. Prefer the OS proxy stack for
-    // vpn.mozilla.org so a system/upstream proxy outside the blocked region can reach it.
-    // Account (FxA) calls stay on an isolated direct session to avoid recursive VPN routes.
-    // Do not await later setProxy() calls: Electron applies them async, and tests use a
-    // one-shot deferred that would hang if we waited again.
-    if(typeof isolated.setProxy==='function'){
-      try{void isolated.setProxy({mode:target.hostname==='vpn.mozilla.org'?'system':'direct'});}catch{/* keep prior mode */}
-    }
+    // The temporary proxy is for Guardian only. FxA token refresh remains direct.
+    // Await Chromium's proxy change before starting the request; otherwise the
+    // first Guardian call may escape through the previous direct route (HTTP 451).
+    const useBootstrap=Boolean(bootstrapProxyRules)&&['vpn.mozilla.org','firefox.settings.services.mozilla.com'].includes(target.hostname);
+    await isolated.setProxy(useBootstrap
+      ? {mode:'fixed_servers',proxyRules:bootstrapProxyRules}
+      : {mode:target.hostname==='vpn.mozilla.org'?'system':'direct'});
     const method=(options.method||'GET').toUpperCase();
     try {return await isolated.fetch(url,options);}
     catch(error){
-      if(isTransient(error)&&(method==='GET'||method==='HEAD')){
+      if(!useBootstrap&&isTransient(error)&&(method==='GET'||method==='HEAD')){
         try{return await systemFetch(url,options);}
         catch(fallback){throw friendlyAccountNetworkError(fallback);}
       }
@@ -68,6 +68,12 @@ function createAccountTransport({createSession,systemFetch}){
   }
   // Shared jar helpers: challenge must clear stale Fastly cookies on the SAME
   // session the API uses (shared-session model: shared transport, fresh jar).
+  accountFetch.setBootstrapProxy=async(proxyRules)=>{
+    bootstrapProxyRules=proxyRules||null;
+    if(!isolated?.setProxy)return;
+    if(bootstrapProxyRules)await isolated.setProxy({mode:'fixed_servers',proxyRules:bootstrapProxyRules});
+    else await isolated.setProxy({mode:'direct'});
+  };
   accountFetch.clearFxACookies=()=>clearFxACookies(isolated);
   accountFetch.session=isolated;
   /** Install name=value pairs onto every FxA origin (Domain=.firefox.com style). */

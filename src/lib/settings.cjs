@@ -1,11 +1,34 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Erfan Tahvilian
 const net = require('node:net');
-const DEFAULTS={transport:'auto',theme:'system',accentColor:'orange',locationSort:'ping-asc',splitMode:'exclude',proxyOnly:false,bind:'127.0.0.1',socksPort:1080,doh:'automatic',customDns:'',edge:'',exitCheck:true,excludedApps:[],upstream:{enabled:false,type:'socks5',host:'',port:1080,username:'',password:''},serverId:'REC'};
+const DEFAULT_BOOTSTRAP_URLS=['https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt','https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt'];
+const DEFAULTS={transport:'auto',theme:'system',accentColor:'orange',locationSort:'ping-asc',splitMode:'exclude',proxyOnly:false,bind:'127.0.0.1',socksPort:1080,doh:'automatic',customDns:'',edge:'',exitCheck:true,excludedApps:[],upstream:{enabled:false,type:'socks5',host:'',port:1080,username:'',password:''},serverId:'REC',bootstrapSubUrl:'https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt',bootstrapSubUrls:[...DEFAULT_BOOTSTRAP_URLS]};
 function host(value) {return typeof value==='string' && value.length<=253 && (net.isIP(value)>0 || /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/i.test(value));}
 function port(value) {return Number.isInteger(value)&&value>0&&value<=65535;}
 function validate(input, platform=process.platform) {
-  const s={...DEFAULTS,...input,exitCheck:true,upstream:{...DEFAULTS.upstream,...input.upstream}};
+  const normalized={...input};
+  // Migrate legacy single-link vaults. New arrays remain authoritative, including [].
+  if(!Array.isArray(normalized.bootstrapSubUrls)){
+    const legacy=typeof normalized.bootstrapSubUrl==="string"?normalized.bootstrapSubUrl.trim():"";
+    const first=!legacy||legacy==="https://cdn.jsdelivr.net/gh/erfan-tahvilian/PredatorVPN@main/docs/bootstrap/working-nodes.txt"?DEFAULT_BOOTSTRAP_URLS[0]:legacy;
+    normalized.bootstrapSubUrls=[first,DEFAULT_BOOTSTRAP_URLS[1]];
+  }
+  if(!Array.isArray(normalized.bootstrapSubUrls))throw Error("Invalid Bootstrap URL list.");
+  const seen=new Set();
+  normalized.bootstrapSubUrls=normalized.bootstrapSubUrls.map(u=>{
+    if(typeof u!=="string")throw Error("Bootstrap subscriptions must be links.");
+    const value=u.trim();
+    if(!value)return "";
+    if(value.length>2048)throw Error("Bootstrap URL is too long.");
+    let parsed;try{parsed=new URL(value);}catch{throw Error("Invalid Bootstrap URL.");}
+    if(!["https:","http:"].includes(parsed.protocol)||parsed.username||parsed.password)
+      throw Error("Bootstrap subscription must be an http(s) URL without embedded credentials.");
+    if(seen.has(value))return "";
+    seen.add(value);return value;
+  }).filter(Boolean);
+  normalized.bootstrapSubUrl=normalized.bootstrapSubUrls[0]||"";
+  const s={...DEFAULTS,...normalized,exitCheck:true,upstream:{...DEFAULTS.upstream,...input.upstream}};
+  if(JSON.stringify(s.bootstrapSubUrls).length>1024*1024)throw Error("Bootstrap subscriptions are too large.");
   if(!['auto','h2','h3'].includes(s.transport))throw Error('Choose a valid connection protocol.');
   if(!['dark','light','system'].includes(s.theme))throw Error('Choose a valid theme.');
   if(!['orange','gold','blue','teal','emerald','red','purple','pink','indigo','cyan'].includes(s.accentColor))throw Error('Choose a valid accent color.');

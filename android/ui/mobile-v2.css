@@ -628,3 +628,58 @@ header .header-actions #theme-toggle svg use{transform:none}
  #home .recent-activity .activity-heading{grid-template-columns:1fr}
  #home .recent-activity .activity-heading .text-button{justify-content:flex-start}
 }
+
+/* 2.0.3: selected location is physically inside the connection card on Android. */
+#home.active .connection-card>.mobile-connection-location{
+ order:initial;width:100%;margin:0 0 12px;padding:10px 11px;
+ border:1px solid var(--accent-hairline);border-radius:15px;
+ background:var(--card-alt);box-shadow:none;min-width:0;
+}
+#home.active .connection-card>.mobile-connection-location .destination-panel-head{display:none}
+#home.active .connection-card>.mobile-connection-location .server-selector{
+ display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;
+ align-items:center!important;justify-content:space-between;
+ width:100%;min-width:0;min-height:44px;padding:0;margin:0;
+ gap:6px!important;grid-template-columns:none!important;grid-template-rows:none!important;
+}
+#home.active .connection-card>.mobile-connection-location .selected-location-choice{
+ display:flex!important;flex:1 1 auto!important;min-width:0!important;
+ align-items:center!important;gap:7px!important;
+ grid-column:auto!important;grid-row:auto!important;
+}
+#home.active .connection-card>.mobile-connection-location .location-symbol{
+ flex:0 0 36px!important;min-width:36px!important;width:36px!important;height:36px!important;
+ border-radius:10px;
+}
+#home.active .connection-card>.mobile-connection-location .selected-location-copy{
+ display:flex;flex-direction:column;flex:1 1 0;min-width:0;overflow:hidden;
+}
+#home.active .connection-card>.mobile-connection-location .selected-location-copy strong{
+ display:block;white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis;
+ font-size:12px;line-height:1.3;
+}
+#home.active .connection-card>.mobile-connection-location .selected-location-copy em{
+ display:block;white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis;
+ font-size:9px;margin-top:3px;
+}
+#home.active .connection-card>.mobile-connection-location #selected-latency{
+ display:flex;align-items:center;justify-content:center;
+ flex:0 1 auto;min-width:0;max-width:55px;min-height:29px;
+ white-space:nowrap;grid-column:auto!important;grid-row:auto!important;
+ margin:0!important;padding:5px 4px!important;font-size:10px;
+}
+#home.active .connection-card>.mobile-connection-location #ping-selected,
+#home.active .connection-card>.mobile-connection-location #choose-location-arrow{
+ display:grid;place-items:center;flex:0 0 33px!important;
+ width:33px!important;min-width:33px!important;height:38px!important;min-height:38px!important;
+ padding:6px!important;grid-column:auto!important;grid-row:auto!important;
+}
+#home.active .connection-card>.mobile-connection-location .server-ping svg,
+#home.active .connection-card>.mobile-connection-location .server-select svg{width:17px;height:17px}
+@media(max-width:360px){
+ #home.active .connection-card>.mobile-connection-location{padding:8px 8px}
+ #home.active .connection-card>.mobile-connection-location .server-selector{gap:4px!important}
+ #home.active .connection-card>.mobile-connection-location .location-symbol{flex-basis:31px!important;width:31px!important;min-width:31px!important;height:33px!important}
+ #home.active .connection-card>.mobile-connection-location #ping-selected,
+ #home.active .connection-card>.mobile-connection-location #choose-location-arrow{flex-basis:30px!important;min-width:30px!important;width:30px!important}
+}

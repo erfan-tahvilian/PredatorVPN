@@ -83,6 +83,26 @@
     const source=document.getElementById('source');source.className='secondary';
     about.append(heading,version,source);const footer=document.querySelector('.settings-footer');footer.parentElement.insertBefore(about,footer);
     document.querySelector('.account-story>p').textContent='A private connection, wherever you are.';
+    // Android-only hierarchy: the chosen location belongs to the Connect card.
+    const connectionCard=document.querySelector("#home .connection-card");
+    const selectedPanel=document.querySelector("#home .destination-panel.selected-panel");
+    const orbital=connectionCard?.querySelector(".orbital");
+    if(connectionCard&&selectedPanel&&orbital){
+      orbital.after(selectedPanel);
+      selectedPanel.classList.add("mobile-connection-location");
+    }
+    // Android preferences save on change, including source reorder and removal.
+    form.addEventListener("click",event=>{
+      if(!event.target.closest(".bootstrap-source-action"))return;
+      queueMicrotask(()=>{
+        const input=form.querySelector("#bootstrap-source-list input")||form.querySelector("#transport");
+        input?.dispatchEvent(new Event("change",{bubbles:true}));
+      });
+    });
+    const sourceList=form.querySelector("#bootstrap-source-list");
+    sourceList?.addEventListener("focusout",event=>{
+      if(event.target.matches("input[data-bootstrap-url]"))event.target.dispatchEvent(new Event("change",{bubbles:true}));
+    });
     document.getElementById('connect').setAttribute('aria-label','Connect VPN');
     if(currentState)updateSettingsState(currentState);
   });

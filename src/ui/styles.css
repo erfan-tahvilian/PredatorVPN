@@ -70,3 +70,14 @@ dialog::backdrop{background:#0008;backdrop-filter:blur(5px)}
 
 /* 2.0 desktop logo: 50% of its previous 154px width. */
 @media(min-width:701px){.sidebar .brand{min-height:96px;justify-content:center;align-items:center;margin:0 0 34px}.sidebar .brand img{width:77px;height:77px;max-width:77px;max-height:77px;object-fit:contain}}
+
+/* Editable, ordered bootstrap subscription list */
+.bootstrap-source-list{display:flex;flex-direction:column;gap:12px;margin:14px 0;}
+.bootstrap-source-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end;}
+.bootstrap-source-row label{min-width:0;display:flex;flex-direction:column;gap:5px;font-size:13px;}
+.bootstrap-source-row input{width:100%;box-sizing:border-box;min-width:0;}
+.bootstrap-source-actions{display:flex;gap:5px;flex-wrap:wrap;}
+.bootstrap-source-action,.bootstrap-add-source{padding:9px 11px;border:1px solid var(--border,#5b606a);border-radius:9px;background:transparent;color:inherit;cursor:pointer;}
+.bootstrap-source-action:disabled{opacity:.35;cursor:default;}
+.bootstrap-source-action:hover:not(:disabled),.bootstrap-add-source:hover{border-color:var(--accent,#f5a623);}
+@media(max-width:700px){.bootstrap-source-row{grid-template-columns:1fr;}}

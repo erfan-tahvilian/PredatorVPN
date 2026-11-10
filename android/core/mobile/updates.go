@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+﻿// SPDX-License-Identifier: GPL-3.0-or-later
 package mobile
 
 import (
@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-const appVersion = "2.0.2"
+const appVersion = "2.0.3"
 
 var stableVersion = regexp.MustCompile(`^(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})\.(0|[1-9][0-9]{0,5})$`)
 var updateDigest = regexp.MustCompile(`^sha256:[a-f0-9]{64}$`)

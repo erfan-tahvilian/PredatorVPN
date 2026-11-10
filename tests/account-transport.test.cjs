@@ -5,9 +5,13 @@ const {createAccountTransport,isTransient}=require('../src/lib/account-transport
 const {Auth}=require('../src/lib/auth.cjs');
 const service='https://api.accounts.firefox.com/v1/account/login';
 test('account transport does not use the application proxy or persist Chromium auth sessions',async()=>{
-  const events=[];let accept;
+  const events=[];let accept,initial=true;
   const transport=createAccountTransport({
-    createSession:()=>({setProxy:opts=>{events.push(['proxy',opts]);return new Promise(resolve=>{accept=resolve;});},
+    createSession:()=>({setProxy:opts=>{
+      events.push(['proxy',opts]);
+      if(initial){initial=false;return new Promise(resolve=>{accept=resolve;});}
+      return Promise.resolve();
+    },
       fetch:async(url,opts)=>{events.push(['direct',url,opts.method]);return new Response('{}');}}),
     systemFetch:async()=>{events.push(['system']);return new Response('{}');}
   });

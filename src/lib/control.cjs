@@ -355,31 +355,99 @@ function candidates(records) {
   }
   return output;
 }
+// The bootstrap engine is a shared temporary singleton. Serialize operations across
+// accounts and background requests so one request cannot kill another SOCKS session.
+let guardianBootstrapQueue=Promise.resolve();
+function queueGuardianBootstrap(job){
+  const next=guardianBootstrapQueue.then(job,job);
+  guardianBootstrapQueue=next.then(()=>undefined,()=>undefined);
+  return next;
+}
 class Guardian {
-  constructor(control, auth) { this.http = control; this.auth = auth; }
-  async request(path, method = 'GET', retry = true) {
-    try { return await this.http.json('https://vpn.mozilla.org/api/v1/fpn/'+path, {method, authorization:'Bearer '+await this.auth.token()}); }
-    catch(e) {
-      if (e.status === 401 && retry) { await this.auth.token(true); return this.request(path,method,false); }
-      if (e.status === 451 || e.code === 'SERVICE_UNAVAILABLE_IN_REGION') {
-        const err=Error(e.message||'The VPN service API is not available from this network location (HTTP 451). Set a system or upstream proxy outside the restricted region, then retry connect or ping.');
-        err.status=451;err.code='SERVICE_UNAVAILABLE_IN_REGION';err.cause=e;throw err;
+  constructor(control,auth) { this.http=control;this.auth=auth;this.getBootstrapOptions=null; }
+  async request(path,method="GET",retry=true,allowBootstrap=true) {
+    try { return await this.http.json("https://vpn.mozilla.org/api/v1/fpn/"+path, {method,authorization:"Bearer "+await this.auth.token()}); }
+    catch(e){
+      if(e.status===401&&retry){await this.auth.token(true);return this.request(path,method,false,allowBootstrap);}
+      if(e.status===451||e.code==="SERVICE_UNAVAILABLE_IN_REGION"){
+        if(allowBootstrap&&typeof this.getBootstrapOptions==="function"){
+          return this.withBootstrapRequest(()=>this.request(path,method,retry,false),this.getBootstrapOptions());
+        }
+        const err=Error(e.message||"The VPN service API is unavailable in this region (HTTP 451).");
+        err.status=451;err.code="SERVICE_UNAVAILABLE_IN_REGION";err.cause=e;throw err;
       }
       throw e;
     }
   }
-  async pass() {
-    let r;
-    try { r = await this.request('token'); } catch(e) { if(e.status!==403) throw e; await this.request('activate','POST'); r = await this.request('token'); }
-    if(!r.data.token) throw Error('Guardian returned no proxy pass.');
-    const expiry = (()=>{try{return JSON.parse(Buffer.from(r.data.token.split('.')[1],'base64url')).exp;}catch{return undefined;}})();
-    return {token:r.data.token, expiresAt:(r.data.expires_at || expiry || Math.floor(Date.now()/1000)+3600)*1000,quotaLimit:r.headers.get('x-quota-limit'),quotaRemaining:r.headers.get('x-quota-remaining'),quotaReset:r.headers.get('x-quota-reset')};
+  async withBootstrapRequest(work,options={}){
+    return queueGuardianBootstrap(async()=>{
+      const {resolveBootstrapUpstream,stopBootstrapSession}=require("./bootstrap-proxy.cjs");
+      const {applyUpstream,clearUpstream,log=()=>{},enginePath,engineCwd,subUrl,subUrls,localPaths}=options;
+      if(typeof applyUpstream!=="function")throw Error("Bootstrap session proxy is unavailable");
+      let resolved;
+      try{
+        const resolver=typeof options.resolveUpstream==="function"?options.resolveUpstream:resolveBootstrapUpstream;
+        resolved=await resolver({log,enginePath,engineCwd,subUrl,subUrls,localPaths});
+      }catch(bootErr){
+        const error=Error(bootErr?.message||"No working bootstrap proxy found for the VPN API.");
+        error.status=451;error.code="SERVICE_UNAVAILABLE_IN_REGION";error.cause=bootErr;throw error;
+      }
+      try{
+        await applyUpstream(resolved.upstream);
+        return await work();
+      }finally{
+        // Clear proxy even when activation failed; never retain temporary routing.
+        try{if(typeof clearUpstream==="function")await clearUpstream();}
+        finally{
+          try{if(resolved.stop)await resolved.stop();else await stopBootstrapSession();}
+          catch(stopError){log("warn","Bootstrap cleanup failed: "+(stopError.message||stopError));}
+        }
+      }
+    });
   }
-  async servers() { return candidates((await this.http.json('https://firefox.settings.services.mozilla.com/v1/buckets/main/collections/vpn-serverlist/records')).data.data || []); }
-  async account() {
-    const data=(await this.request('status')).data;
-    if(data.limited_bandwidth)try{const pass=await this.pass();data.quotaRemaining=pass.quotaRemaining;data.quotaLimit=pass.quotaLimit;data.quotaReset=pass.quotaReset;}catch{/* Entitlement can still be shown while quota is unavailable. */}
-    return data;
+  async pass(allowBootstrap=true) {
+    let r;
+    try{r=await this.request("token","GET",true,allowBootstrap);}
+    catch(e){if(e.status!==403)throw e;await this.request("activate","POST",true,allowBootstrap);r=await this.request("token","GET",true,allowBootstrap);}
+    if(!r.data.token)throw Error("Guardian returned no proxy pass.");
+    const expiry=(()=>{try{return JSON.parse(Buffer.from(r.data.token.split(".")[1],"base64url")).exp;}catch{return undefined;}})();
+    return {token:r.data.token,expiresAt:(r.data.expires_at||expiry||Math.floor(Date.now()/1000)+3600)*1000,quotaLimit:r.headers.get("x-quota-limit"),quotaRemaining:r.headers.get("x-quota-remaining"),quotaReset:r.headers.get("x-quota-reset")};
+  }
+  // Retained for callers that explicitly configure one-shot bootstrap.
+  async passWithBootstrap(options={}){
+    try{return await this.pass(false);}
+    catch(e){
+      if(!(e.status===451||e.code==="SERVICE_UNAVAILABLE_IN_REGION"))throw e;
+      return this.withBootstrapRequest(()=>this.pass(false),options);
+    }
+  }
+  async servers(allowBootstrap=true) {
+    try{return candidates((await this.http.json('https://firefox.settings.services.mozilla.com/v1/buckets/main/collections/vpn-serverlist/records')).data.data || []);}
+    catch(e){
+      if((e.status===451||e.code==='SERVICE_UNAVAILABLE_IN_REGION')&&allowBootstrap&&this.getBootstrapOptions)
+        return this.withBootstrapRequest(()=>this.servers(false),this.getBootstrapOptions());
+      throw e;
+    }
+  }
+  async account(allowBootstrap=true) {
+    // Read status and allowance in one temporary bootstrap session if either endpoint is blocked.
+    try{
+      const data=(await this.request('status','GET',true,false)).data;
+      if(data.limited_bandwidth)try{
+        const pass=await this.pass(false);
+        data.quotaRemaining=pass.quotaRemaining;
+        data.quotaLimit=pass.quotaLimit;
+        data.quotaReset=pass.quotaReset;
+      }catch(e){
+        if(e.status===451||e.code==='SERVICE_UNAVAILABLE_IN_REGION')throw e;
+        // Preserve status when quota lookup fails for reasons other than region-blocking.
+      }
+      return data;
+    }catch(e){
+      if((e.status===451||e.code==='SERVICE_UNAVAILABLE_IN_REGION')&&allowBootstrap&&this.getBootstrapOptions)
+        return this.withBootstrapRequest(()=>this.account(false),this.getBootstrapOptions());
+      throw e;
+    }
   }
 }
 module.exports = {Control, Guardian, candidates, solvePow, describeVerificationFailure};
