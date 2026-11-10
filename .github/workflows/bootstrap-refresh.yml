@@ -8,50 +8,75 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: predator-bootstrap-refresh
+  cancel-in-progress: false
+
 jobs:
   refresh:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch subscription and write full node list
+      - name: Refresh Raw list from private subscription
         env:
-          SUB_URL: https://config.blackpredator.dpdns.org/sub/fvRkIJUpaza9bok2hLUIuzd6wabSgOyBDKl5gr195GUHXzWFO0cafiV3
+          BOOTSTRAP_SUB_URL: ${{ secrets.PREDATOR_BOOTSTRAP_SUB_URL }}
         run: |
           set -euo pipefail
-          mkdir -p docs/bootstrap
-          BODY=$(curl -fsSL --max-time 60 -A 'PredatorVPN-Bootstrap/1.1' "$SUB_URL" || true)
-          if [ -z "$BODY" ]; then
-            echo "Empty subscription body from $SUB_URL" >&2
-            exit 0
+          if [ -z "$BOOTSTRAP_SUB_URL" ]; then
+            echo "GitHub Actions secret PREDATOR_BOOTSTRAP_SUB_URL is missing." >&2
+            exit 1
           fi
-          # Decode base64 payloads (common for clash/v2ray subs)
-          if printf '%s' "$BODY" | tr -d '\r\n\t ' | grep -qE '^[A-Za-z0-9+/=]+$' && ! printf '%s' "$BODY" | grep -q '://'; then
-            DECODED=$(printf '%s' "$BODY" | tr -d '\r\n\t ' | base64 -d 2>/dev/null || true)
-            if [ -n "$DECODED" ]; then
-              BODY="$DECODED"
-            fi
-          fi
-          {
-            echo "# auto-refreshed $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-            echo "# source: $SUB_URL"
-            printf '%s\n' "$BODY" | tr -d '\r' | sed '/^[[:space:]]*$/d' | sed '/^#/d' | grep -E '^(vless|vmess|trojan|ss|ssr|socks5?|hy2|hysteria2?|tuic)://' | head -n 200 || true
-          } > docs/bootstrap/working-nodes.txt
-          echo "lines=$(wc -l < docs/bootstrap/working-nodes.txt)"
-          echo "sample:"
-          head -n 5 docs/bootstrap/working-nodes.txt
+          python3 - <<'PY'
+          import base64
+          import os
+          from pathlib import Path
+          from urllib.request import Request, urlopen
 
-      - name: Commit and push if changed
+          url = os.environ['BOOTSTRAP_SUB_URL']
+          request = Request(url, headers={'User-Agent': 'PredatorVPN-Bootstrap-Refresh/2'})
+          with urlopen(request, timeout=50) as response:
+              payload = response.read(1024 * 1024 + 1)
+          if len(payload) > 1024 * 1024:
+              raise SystemExit('Subscription too large; refusing to overwrite working nodes')
+          text = payload.decode('utf-8-sig').strip()
+          if '://' not in text:
+              try:
+                  text = base64.b64decode(''.join(text.split()), validate=True).decode('utf-8-sig')
+              except Exception as exc:
+                  raise SystemExit('Invalid subscription format; preserving working nodes') from exc
+          protocols = ('vless://', 'vmess://', 'trojan://', 'ss://', 'socks://', 'socks5://')
+          nodes = []
+          seen = set()
+          for raw_line in text.splitlines():
+              line = raw_line.strip()
+              if line.lower().startswith(protocols) and line not in seen:
+                  nodes.append(line)
+                  seen.add(line)
+          if not nodes:
+              raise SystemExit('Subscription returned no supported nodes; preserving working nodes')
+          if len(nodes) > 200:
+              nodes = nodes[:200]
+          destination = Path('docs/bootstrap/working-nodes.txt')
+          destination.parent.mkdir(parents=True, exist_ok=True)
+          updated = '# PredatorVPN Bootstrap nodes (automatically refreshed)\n' + '\n'.join(nodes) + '\n'
+          if destination.exists() and destination.read_text(encoding='utf-8') == updated:
+              print(f'No changes; {len(nodes)} nodes')
+          else:
+              destination.write_text(updated, encoding='utf-8')
+              print(f'Updated Raw list: {len(nodes)} nodes')
+          PY
+
+      - name: Commit updated node list if changed
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/bootstrap/working-nodes.txt
-          if git diff --staged --quiet; then
-            echo "No changes"
+          if git diff --cached --quiet; then
+            echo "Node list unchanged"
             exit 0
           fi
-          git commit -m "chore(bootstrap): refresh node list from subscription"
-          # Avoid race with concurrent pushes on main
+          git commit -m "chore(bootstrap): synchronize node subscription"
           git pull --rebase origin main
           git push origin main
