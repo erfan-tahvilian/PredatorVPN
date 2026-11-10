@@ -70,8 +70,10 @@ jobs:
       - name: Commit updated node list if changed
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Attribute automated subscription updates to the repository owner.
+          # GITHUB_TOKEN still authenticates the push; the commit message identifies automation.
+          git config user.name "erfan-tahvilian"
+          git config user.email "198095948+erfan-tahvilian@users.noreply.github.com"
           git add docs/bootstrap/working-nodes.txt
           if git diff --cached --quiet; then
             echo "Node list unchanged"

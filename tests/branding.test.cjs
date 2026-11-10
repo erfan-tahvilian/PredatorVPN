@@ -17,6 +17,13 @@ test('public documentation and interface avoid upstream brand promotion',()=>{
     assert.match(content,/assets\/logo\.png/,name);
   }
 });
+test('automated bootstrap list refresh never commits as github-actions bot',()=>{
+  const workflow=read('.github/workflows/bootstrap-refresh.yml');
+  assert.match(workflow,/git config user\.name "erfan-tahvilian"/);
+  assert.match(workflow,/git config user\.email "198095948\+erfan-tahvilian@users\.noreply\.github\.com"/);
+  assert.doesNotMatch(workflow,/git config user\.(?:name|email) [^\n]*github-actions\[bot\]/);
+});
+
 test('registration and provider-account outbound links are absent, transport identity remains intact',()=>{
   const html=read('src/ui/index.html'),renderer=read('src/ui/app.js'),main=read('src/main.cjs');
   assert.doesNotMatch(html,/id="create-account"|id="manage-account"/);
