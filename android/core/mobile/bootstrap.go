@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Android's short-lived, control-plane-only HTTP-451 recovery.
-// No double-slash URL rewriting is used in this version.
+// Double-leading-slash retry is confined to the Guardian API.
 package mobile
 
 import (
@@ -115,6 +115,7 @@ func (b *Backend) bootstrapSources() []string {
  b.mu.Lock()
  settings:=copyObject(b.settings)
  b.mu.Unlock()
+ if !yes(settings,"subscriptionsEnabled"){return nil}
  sources:=make([]string,0)
  seen:=make(map[string]bool)
  for _,item:=range list(settings,"bootstrapSubUrls"){
@@ -164,6 +165,16 @@ func startBootstrapBox(node bootstrapNode,port int) (*box.Box,error){
  return engine,nil
 }
 
+// Arman compatibility workaround: two slashes immediately after vpn.mozilla.org.
+// Do not rewrite arbitrary URLs, and never modify FxA token/authentication routes.
+func doubleSlashGuardianURL(address string) (string,bool) {
+ u,err:=url.Parse(address)
+ if err!=nil || u.Scheme!="https" || !strings.EqualFold(u.Hostname(),"vpn.mozilla.org") ||
+  u.Port()!="" || u.User!=nil || !strings.HasPrefix(u.Path,"/api/v1/fpn/") || strings.HasPrefix(u.Path,"//") {return "",false}
+ u.Path="/"+u.Path
+ u.RawPath=""
+ return u.String(),true
+}
 func guardianRecoveryURL(address string) bool {
  u,err:=url.Parse(address)
  return err==nil && u.Scheme=="https" &&

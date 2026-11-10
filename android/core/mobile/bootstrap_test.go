@@ -34,7 +34,7 @@ func TestBootstrapSubscriptionParserRealityGRPC(t *testing.T) {
    t.Fatalf("sing-box rejects bootstrap config: %v",err)
  }
 }
-func TestBootstrapExactURLScopeNoDoubleSlash(t *testing.T){
+func TestBootstrapDoubleSlashScope(t *testing.T){
  for _,tc:=range []struct{u string;allow bool}{
   {"https://vpn.mozilla.org/api/v1/fpn/status",true},
   {"https://vpn.mozilla.org/api/v1/fpn/token",true},
@@ -45,9 +45,13 @@ func TestBootstrapExactURLScopeNoDoubleSlash(t *testing.T){
   {"https://other.example/api/v1/fpn/status",false},
  }{
   if guardianRecoveryURL(tc.u)!=tc.allow{t.Fatalf("unexpected scope: %s",tc.u)}
+  path,ok:=doubleSlashGuardianURL(tc.u)
+  should:=tc.allow && strings.Contains(tc.u,"vpn.mozilla.org")
+  if ok!=should{t.Fatalf("wrong double slash eligibility: %s",tc.u)}
+  if ok && !strings.Contains(path,"vpn.mozilla.org//api/v1/fpn/"){t.Fatalf("wrong URL: %s",path)}
  }
 }
-func TestGuardian451DoesNotUseDoubleSlashWhenNoNodes(t *testing.T){
+func TestGuardian451UsesDoubleSlashOnlyWhenSubscriptionsDisabled(t *testing.T){
  b:=NewBackend(&testHost{},"{}")
  b.mu.Lock()
  b.settings["bootstrapSubUrls"]=[]any{}
@@ -55,8 +59,8 @@ func TestGuardian451DoesNotUseDoubleSlashWhenNoNodes(t *testing.T){
  trans:=&blockedGuardianTransport{}
  b.client=&http.Client{Transport:trans}
  _,_,err:=b.jsonRequest(context.Background(),"https://vpn.mozilla.org/api/v1/fpn/token","GET",nil,"Bearer example")
- if err==nil||!strings.Contains(err.Error(),"region-blocked"){t.Fatalf("wrong 451 recovery error: %v",err)}
- if len(trans.paths)!=1||trans.paths[0]!="/api/v1/fpn/token"{
+ if err==nil||!strings.Contains(err.Error(),"Region unavailable"){t.Fatalf("wrong 451 recovery error: %v",err)}
+ if len(trans.paths)!=2||trans.paths[0]!="/api/v1/fpn/token"||trans.paths[1]!="//api/v1/fpn/token"{
   t.Fatalf("request path changed or unexpected retries: %v",trans.paths)
  }
 }

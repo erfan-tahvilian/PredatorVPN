@@ -365,18 +365,29 @@ function queueGuardianBootstrap(job){
 }
 class Guardian {
   constructor(control,auth) { this.http=control;this.auth=auth;this.getBootstrapOptions=null; }
+  // Retry a region-blocked Guardian API request using the Arman double-leading-slash route.
+  // Keep the same method, bearer credentials, and request body. Other URLs are untouched.
   async request(path,method="GET",retry=true,allowBootstrap=true) {
-    try { return await this.http.json("https://vpn.mozilla.org/api/v1/fpn/"+path, {method,authorization:"Bearer "+await this.auth.token()}); }
-    catch(e){
-      if(e.status===401&&retry){await this.auth.token(true);return this.request(path,method,false,allowBootstrap);}
-      if(e.status===451||e.code==="SERVICE_UNAVAILABLE_IN_REGION"){
-        if(allowBootstrap&&typeof this.getBootstrapOptions==="function"){
-          return this.withBootstrapRequest(()=>this.request(path,method,retry,false),this.getBootstrapOptions());
-        }
-        const err=Error(e.message||"The VPN service API is unavailable in this region (HTTP 451).");
-        err.status=451;err.code="SERVICE_UNAVAILABLE_IN_REGION";err.cause=e;throw err;
+    const authorization="Bearer "+await this.auth.token();
+    const canonical="https://vpn.mozilla.org/api/v1/fpn/"+path;
+    const doubleSlash="https://vpn.mozilla.org//api/v1/fpn/"+path;
+    const perform=url=>this.http.json(url,{method,authorization});
+    try{return await perform(canonical);}
+    catch(initial){
+      let error=initial;
+      if(error.status===451||error.code==="SERVICE_UNAVAILABLE_IN_REGION"){
+        try{return await perform(doubleSlash);}
+        catch(fallbackError){error=fallbackError;}
       }
-      throw e;
+      if(error.status===401&&retry){await this.auth.token(true);return this.request(path,method,false,allowBootstrap);}
+      if(error.status===451||error.code==="SERVICE_UNAVAILABLE_IN_REGION"){
+        const options=allowBootstrap&&typeof this.getBootstrapOptions==="function"?this.getBootstrapOptions():null;
+        if(options)return this.withBootstrapRequest(()=>this.request(path,method,retry,false),options);
+        const blocked=Error(error.message||"The VPN service API is unavailable in this region (HTTP 451).");
+        blocked.status=451;blocked.code="SERVICE_UNAVAILABLE_IN_REGION";blocked.cause=error;
+        throw blocked;
+      }
+      throw error;
     }
   }
   async withBootstrapRequest(work,options={}){
@@ -424,8 +435,10 @@ class Guardian {
   async servers(allowBootstrap=true) {
     try{return candidates((await this.http.json('https://firefox.settings.services.mozilla.com/v1/buckets/main/collections/vpn-serverlist/records')).data.data || []);}
     catch(e){
-      if((e.status===451||e.code==='SERVICE_UNAVAILABLE_IN_REGION')&&allowBootstrap&&this.getBootstrapOptions)
-        return this.withBootstrapRequest(()=>this.servers(false),this.getBootstrapOptions());
+      if(e.status===451||e.code==='SERVICE_UNAVAILABLE_IN_REGION'){
+        const options=allowBootstrap&&this.getBootstrapOptions?.();
+        if(options)return this.withBootstrapRequest(()=>this.servers(false),options);
+      }
       throw e;
     }
   }
@@ -444,8 +457,10 @@ class Guardian {
       }
       return data;
     }catch(e){
-      if((e.status===451||e.code==='SERVICE_UNAVAILABLE_IN_REGION')&&allowBootstrap&&this.getBootstrapOptions)
-        return this.withBootstrapRequest(()=>this.account(false),this.getBootstrapOptions());
+      if(e.status===451||e.code==='SERVICE_UNAVAILABLE_IN_REGION'){
+        const options=allowBootstrap&&this.getBootstrapOptions?.();
+        if(options)return this.withBootstrapRequest(()=>this.account(false),options);
+      }
       throw e;
     }
   }

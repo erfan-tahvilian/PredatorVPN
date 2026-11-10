@@ -105,7 +105,8 @@
       <div class="settings-card" id="split-tunneling"><h3>Split tunneling</h3><p>These applications use your regular network connection.</p><label>Excluded executable names<textarea id="excludedApps" rows="3"></textarea><small>One executable name per line. Applies to system VPN mode.</small></label></div>
       <section class="settings-card" id="settings-bootstrap">
   <h3>Subscriptions</h3>
-  <p>On a service region restriction (HTTP 451), Predator tries these sources in order, starts a temporary proxy to authenticate, then shuts it down. Add or remove as many subscriptions as needed.</p>
+  <div class="setting-row"><div><label for="subscriptionsEnabled">Enable subscriptions</label><small>Off by default. Use these sources as an optional fallback if the automatic request still returns HTTP 451.</small></div><input type="checkbox" id="subscriptionsEnabled" class="switch"></div>
+  <p>When enabled, Predator tries these sources in order, starts a temporary proxy for the restricted service request, then shuts it down. Add or remove as many subscriptions as needed.</p>
   <div id="bootstrap-source-list" class="bootstrap-source-list" aria-label="Subscription URLs"></div>
   <button type="button" id="bootstrap-add-source" class="bootstrap-add-source">+ Add subscription URL</button>
   <p class="muted">The first default is updated automatically from your subscription every six hours in GitHub. The second default uses the public 0xRadikal list. If none can connect, Predator also checks bundled nodes and a mirror. Only supported sing-box transports are used.</p>

@@ -1,22 +1,10 @@
-Predator VPN 2.0.3 improves account usage reporting, phone navigation, and connection recovery.
+Predator VPN 2.0.4 improves service reachability using the Arman-compatible double-leading-slash Guardian API request retry. Subscriptions are opt-in and disabled by default.
 
-## Changes in 2.0.3
+## Version 2.0.4 — Regional access and subscription controls
 
-- **Android Overview:** The selected location now appears inside the main connection card immediately beneath the power button. The flag, destination name, measured latency, Ping and location selector remain aligned in a single compact row.
-- **Data Allowance:** Refresh now handles status and quota retrieval as a complete operation. Android no longer silently accepts an incomplete quota response as a successful refresh; desktop account requests automatically use a temporary bootstrap on HTTP 451.
-- **Bootstrap subscriptions:** Add, remove and reorder as many subscription URLs as needed. Two sources are preconfigured: the automatically refreshed PredatorVPN GitHub Raw list and the public 0xRadikal top100 list.
-- **Ping and account services:** Desktop Ping, account usage, pass renewal and other Guardian API requests share the HTTP 451 recovery path; temporary bootstrap proxies are cleaned up after use.
-- **Stability:** Network checks prevent overlapping connection and Ping operations, and automated coverage includes subscription fallback, quota handling and concurrent requests.
+- Guardian HTTP 451: retry the affected Guardian endpoint once using the Arman-compatible double leading slash (//api/v1/fpn/...) with the same HTTPS method and credentials. This workaround depends on service behavior and is not guaranteed.
+- Subscriptions: new opt-in Enable subscriptions switch, disabled by default, with two preconfigured links and unlimited additional sources. When enabled, a failed double-slash request can use the temporary subscription proxy.
+- Android: retains previous data allowance, first-Ping improvements, and compact selected-location controls; VLESS Reality/gRPC temporary transport supports uTLS.
+- Windows, macOS, Linux and Android: unified region-retry behavior and versioned release packages.
 
-## Included features
-
-- Multiple accounts with usage summaries and session statistics.
-- Automatic or manually selected locations with measured HTTPS latency.
-- HTTP/2 and HTTP/3 transport options with private DNS and split tunneling.
-- Android Quick Settings tile and notification-based connection controls.
-
-Licensed under the GNU General Public License, version 3 or later. Independent dependencies retain their licenses.
-
-## Downloads
-
-Use the versioned installation packages attached to this release. Older release assets are retired only after the complete new release has been validated.
+Full installers and architecture-specific packages are included in the v2.0.4 release. On an HTTP 451 response, the client first retries the same API call via the double-leading-slash path. If Subscriptions is enabled and still blocked, a temporary secure connection may be used. No permanent proxy is retained.
