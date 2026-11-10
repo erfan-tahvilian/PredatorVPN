@@ -2,13 +2,13 @@
 package mobile
 
 import (
-  "context"
-  "io"
-  "net/http"
-  "strings"
-  "testing"
+ "context"
+ "io"
+ "net/http"
+ "strings"
+ "testing"
 
-  "github.com/sagernet/sing-box/experimental/libbox"
+ "github.com/sagernet/sing-box/experimental/libbox"
 )
 
 const fixtureVLESS = "vless://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee@example.net:443?security=reality&sni=www.example.com&fp=chrome&pbk=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&type=grpc&serviceName=TunService#test"
@@ -16,15 +16,10 @@ const fixtureVLESS = "vless://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee@example.net:4
 type blockedGuardianTransport struct{ paths []string }
 func (s *blockedGuardianTransport) RoundTrip(req *http.Request)(*http.Response,error){
  s.paths=append(s.paths,req.URL.Path)
- return &http.Response{StatusCode:451,Header:make(http.Header),Body:io.NopCloser(strings.NewReader(`{"message":"Region unavailable"}`)),Request:req},nil
+ return &http.Response{StatusCode:451,Header:make(http.Header),Body:io.NopCloser(strings.NewReader("{\"message\":\"Region unavailable\"}")),Request:req},nil
 }
 func TestBootstrapSubscriptionParserRealityGRPC(t *testing.T) {
- input:="# bundle
-"+fixtureVLESS+"
-"+fixtureVLESS+"
-"+
-   "vless://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee@example.net:443?security=reality&pbk=key&type=xhttp#unsupported
-"
+ input:=strings.Join([]string{"# bundle",fixtureVLESS,fixtureVLESS,"vless://aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee@example.net:443?security=reality&pbk=key&type=xhttp#unsupported"},string(rune(10)))
  nodes:=parseBootstrapNodes(input)
  if len(nodes)!=1{t.Fatalf("expected exactly one compatible node, got %d",len(nodes))}
  if nodes[0].outbound["type"]!="vless"{t.Fatal("missing vless outbound")}
