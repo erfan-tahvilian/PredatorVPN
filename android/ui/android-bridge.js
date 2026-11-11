@@ -115,7 +115,8 @@
         const counts="Sources loaded: "+result.sourcesLoaded+"/"+result.sources+
           ". Compatible nodes: "+result.compatibleNodes+". Connections tried: "+result.nodeAttempts+
           ". Source errors: "+result.sourceFetchFailures+". Connection errors: "+result.nodeErrors+
-          ". HTTP 451: "+result.regionalBlocks+".";
+          " (timeouts "+result.failureTypes.timeout+", DNS "+result.failureTypes.dns+
+          ", TLS "+result.failureTypes.tls+", dial "+result.failureTypes.dial+", other "+result.failureTypes.other+"). HTTP 451: "+result.regionalBlocks+".";
         subscriptionResult.textContent=result.reachedGuardian?
           "Guardian reachable through "+result.source+" (HTTP "+result.guardianHTTPStatus+"). "+counts:
           "No usable route found. "+counts+" Bundled compatible nodes: "+result.bundledCompatible+".";

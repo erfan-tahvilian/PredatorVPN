@@ -4,9 +4,26 @@ package mobile
 import (
  "context"
  "errors"
+ "net"
  "net/http"
+ "strings"
  "time"
 )
+
+// classifyBootstrapFailure counts errors without exposing proxy credentials or URLs.
+func classifyBootstrapFailure(err error) string {
+ if err==nil{return "none"}
+ if errors.Is(err,context.DeadlineExceeded){return "timeout"}
+ var nerr net.Error
+ if errors.As(err,&nerr)&&nerr.Timeout(){return "timeout"}
+ var dns *net.DNSError
+ if errors.As(err,&dns){return "dns"}
+ msg:=strings.ToLower(err.Error())
+ if strings.Contains(msg,"certificate")||strings.Contains(msg,"tls:")||strings.Contains(msg,"handshake"){return "tls"}
+ var op *net.OpError
+ if errors.As(err,&op){return "dial"}
+ return "other"
+}
 
 // probeBootstrapNode checks actual Guardian reachability through one temporary
 // VLESS/SOCKS connection, without a bearer token, cookies or account changes.
@@ -40,7 +57,7 @@ func (b *Backend) testSubscriptionConnectivity(ctx context.Context)(any,error){
  defer cancel()
  sources:=bootstrapSourcesFromSettings(settings)
  bundled:=parseBootstrapNodes(b.host.BootstrapNodes())
- stats:=object{"sources":len(sources),"sourcesLoaded":0,"sourceFetchFailures":0,"compatibleNodes":0,"nodeAttempts":0,"nodeErrors":0,"regionalBlocks":0,"bundledCompatible":len(bundled),"reachedGuardian":false}
+ stats:=object{"sources":len(sources),"sourcesLoaded":0,"sourceFetchFailures":0,"compatibleNodes":0,"nodeAttempts":0,"nodeErrors":0,"failureTypes":object{"timeout":0,"dns":0,"tls":0,"dial":0,"other":0},"regionalBlocks":0,"bundledCompatible":len(bundled),"reachedGuardian":false}
  tried:=make(map[string]bool)
  attempts:=0
  tryNode:=func(node bootstrapNode, origin string)(bool){
@@ -49,7 +66,13 @@ func (b *Backend) testSubscriptionConnectivity(ctx context.Context)(any,error){
   attempts++
   stats["nodeAttempts"]=attempts
   code,err:=b.probeBootstrapNode(ctx,node)
-  if err!=nil{stats["nodeErrors"]=stats["nodeErrors"].(int)+1;return false}
+  if err!=nil{
+   stats["nodeErrors"]=stats["nodeErrors"].(int)+1
+   kind:=classifyBootstrapFailure(err)
+   failures:=stats["failureTypes"].(object)
+   failures[kind]=failures[kind].(int)+1
+   return false
+  }
   if code==http.StatusUnavailableForLegalReasons{stats["regionalBlocks"]=stats["regionalBlocks"].(int)+1}
   if code>0&&code!=http.StatusUnavailableForLegalReasons&&code<500 {
    stats["reachedGuardian"]=true

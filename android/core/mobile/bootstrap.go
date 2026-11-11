@@ -198,54 +198,69 @@ func (b *Backend) bootstrapClient(port int) *http.Client {
  return &http.Client{Timeout:10*time.Second,Jar:b.client.Jar,Transport:transport,CheckRedirect:func(*http.Request,[]*http.Request)error{return http.ErrUseLastResponse}}
 }
 
-// retryGuardian451 is invoked solely when the first response was HTTP 451.
-// It never modifies the normal tunnel, app proxy settings, or the shared client.
+// prioritizeBootstrapNodes keeps the user's source order but checks offline
+// recovery early instead of waiting for dozens of dead public endpoints.
+func prioritizeBootstrapNodes(sources [][]bootstrapNode, bundled []bootstrapNode) []bootstrapNode {
+ ordered:=make([]bootstrapNode,0,bootstrapNodeLimit)
+ seen:=make(map[string]bool)
+ add:=func(node bootstrapNode){
+  if len(ordered)>=bootstrapNodeLimit||node.raw==""||seen[node.raw]{return}
+  seen[node.raw]=true
+  ordered=append(ordered,node)
+ }
+ // Quick passes on every configured source first.
+ for _,nodes:=range sources{
+  for i,node:=range nodes{if i>=2{break};add(node)}
+ }
+ // Prioritize bundled candidates, which can work if public lists are stale.
+ for i,node:=range bundled{if i>=bootstrapNodesPerSource{break};add(node)}
+ // Then exhaust the configured sources without changing their relative order.
+ budget:=0
+ for _,nodes:=range sources{
+  for i,node:=range nodes{
+   if i<2{continue}
+   if budget>=bootstrapOnlineNodeBudget{break}
+   if len(ordered)<bootstrapNodeLimit && !seen[node.raw]{add(node);budget++}
+  }
+ }
+ return ordered
+}
+
+// retryGuardian451 is invoked solely after a confirmed HTTP 451 response.
+// It leaves the normal system VPN and saved subscription settings untouched.
 func (b *Backend) retryGuardian451(ctx context.Context,address,method string,body []byte,headers http.Header)([]byte,http.Header,int,error){
  b.bootstrapMu.Lock()
  defer b.bootstrapMu.Unlock()
+ ctx,cancel:=context.WithTimeout(ctx,55*time.Second)
+ defer cancel()
  sources:=b.bootstrapSources()
- tried:=make(map[string]bool)
- count:=0
+ catalog:=make([][]bootstrapNode,0,len(sources))
  var last error
- probe:=func(node bootstrapNode)([]byte,http.Header,int,bool){
-  if tried[node.raw]||count>=bootstrapNodeLimit{return nil,nil,0,false}
-  tried[node.raw]=true;count++
-  port,err:=freeBootstrapPort()
-  if err!=nil{last=err;return nil,nil,0,false}
-  engine,err:=startBootstrapBox(node,port)
-  if err!=nil{last=err;return nil,nil,0,false}
-  defer engine.Close()
-  client:=b.bootstrapClient(port)
-  defer client.CloseIdleConnections()
-  data,h,status,err:=b.fetchUsing(ctx,client,address,method,body,headers)
-  if err!=nil{last=err;return nil,nil,0,false}
-  if status==451{last=errors.New("region restriction remains through this node");return nil,nil,0,false}
-  // Any non-451 HTTP status should go through normal JSON/401/403 handling.
-  return data,h,status,true
- }
  for _,source:=range sources{
+  if ctx.Err()!=nil{break}
   nodes,err:=b.fetchBootstrapNodes(ctx,source)
   if err!=nil{last=err;continue}
-  sourceTried:=0
-  for _,node:=range nodes{
-   if tried[node.raw]{continue}
-   if sourceTried>=bootstrapNodesPerSource||count>=bootstrapOnlineNodeBudget{break}
-   sourceTried++
-   if data,h,status,ok:=probe(node);ok{return data,h,status,nil}
-  }
-  if count>=bootstrapOnlineNodeBudget{break}
+  catalog=append(catalog,nodes)
  }
- // The preinstalled offline list still works when GitHub is inaccessible.
- if count<bootstrapNodeLimit {
-  sourceTried:=0
-  for _,node:=range parseBootstrapNodes(b.host.BootstrapNodes()){
-   if tried[node.raw]{continue}
-   if sourceTried>=bootstrapNodesPerSource||count>=bootstrapNodeLimit{break}
-   sourceTried++
-   if data,h,status,ok:=probe(node);ok{return data,h,status,nil}
-  }
+ nodes:=prioritizeBootstrapNodes(catalog,parseBootstrapNodes(b.host.BootstrapNodes()))
+ for _,node:=range nodes{
+  if ctx.Err()!=nil{break}
+  port,err:=freeBootstrapPort()
+  if err!=nil{last=err;continue}
+  engine,err:=startBootstrapBox(node,port)
+  if err!=nil{last=err;continue}
+  client:=b.bootstrapClient(port)
+  attempt,stop:=context.WithTimeout(ctx,6*time.Second)
+  data,h,status,requestErr:=b.fetchUsing(attempt,client,address,method,body,headers)
+  stop()
+  client.CloseIdleConnections()
+  engine.Close()
+  if requestErr!=nil{last=requestErr;continue}
+  if status==http.StatusUnavailableForLegalReasons{last=errors.New("region restriction remains through this node");continue}
+  // A real HTTP response is passed to the ordinary error/verification logic.
+  return data,h,status,nil
  }
- // Expose a useful failure without leaking credentials, link contents or tokens.
- if last!=nil{return nil,nil,451,errors.New("Guardian is region-blocked and no temporary subscription connection succeeded")}
- return nil,nil,451,errors.New("Guardian is region-blocked; no compatible temporary subscription nodes were found")
+ // Never expose private subscription URLs, credentials, or node errors.
+ if last!=nil{return nil,nil,http.StatusUnavailableForLegalReasons,errors.New("Guardian is region-blocked and no temporary subscription connection succeeded")}
+ return nil,nil,http.StatusUnavailableForLegalReasons,errors.New("Guardian is region-blocked; no compatible temporary subscription nodes were found")
 }
