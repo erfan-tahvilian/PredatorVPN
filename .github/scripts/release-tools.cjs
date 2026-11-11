@@ -7,7 +7,8 @@ function validateRelease(release,v){
   assert.equal(release.tag_name,'v'+v);assert.equal(release.prerelease,false);
   // Predator VPN source is provided by GitHub's version-tag archives. Keep the
   // separately bundled GPL dependency source and all installation variants.
-  const required=[...binaries(v),'sing-box-1.12.0-source.tar.gz','SHA256SUMS-Android.txt'];
+  const appImageUpdateAssets=newer(v,'2.0.4')?binaries(v).filter(name=>name.endsWith('.AppImage')).map(name=>name+'.zsync'):[];
+  const required=[...binaries(v),...appImageUpdateAssets,'sing-box-1.12.0-source.tar.gz','SHA256SUMS-Android.txt'];
   const allowed=new Set([...required,'SHA256SUMS.txt']);
   assert.equal(new Set(release.assets.map(a=>a.name)).size,release.assets.length,'Duplicate release asset');
   for(const name of required)assert(release.assets.some(a=>a.name===name),`Missing release asset: ${name}`);

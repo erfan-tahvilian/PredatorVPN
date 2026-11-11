@@ -117,6 +117,10 @@ jobs:
               fi
               test -s "verified-build/dist/$name"
               cp "verified-build/dist/$name" release-assets/
+              if [ "$ext" = AppImage ]; then
+                test -s "verified-build/dist/$name.zsync"
+                cp "verified-build/dist/$name.zsync" release-assets/
+              fi
             done
           done
           curl --fail --location --retry 3 'https://codeload.github.com/SagerNet/sing-box/tar.gz/refs/tags/v1.12.0' -o release-assets/sing-box-1.12.0-source.tar.gz

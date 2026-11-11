@@ -19,6 +19,16 @@ test('release highlights are acknowledged once per version and filtered for the 
   const store=new ReleaseNotes({notes,version:'1.0.1',platform:'win32',stateFile});assert.equal(store.read().seen,false);assert.deepEqual(store.read().items,[{title:'Windows improvement',description:'Fixture'}]);store.acknowledge();assert.equal(store.read().seen,true);
   const next=new ReleaseNotes({notes:{...notes,version:'1.0.2'},version:'1.0.2',platform:'win32',stateFile});assert.equal(next.read().seen,false);assert.throws(()=>new ReleaseNotes({notes,version:'1.0.2',platform:'win32',stateFile}));
 });
+test('v2.0.5 and newer require architecture-matched AppImageUpdate .zsync assets',()=>{
+  const v='2.0.5',assets=[...binaries(v),'sing-box-1.12.0-source.tar.gz','SHA256SUMS-Android.txt'];
+  const row=name=>({name,state:'uploaded',size:1024,digest:'sha256:'+'ab'.repeat(32)});
+  const base={tag_name:'v'+v,draft:false,prerelease:false,assets:assets.map(row)};
+  assert.throws(()=>validateRelease(base,v),/Missing release asset: .*AppImage.zsync/);
+  const zsync=binaries(v).filter(name=>name.endsWith('.AppImage')).map(name=>name+'.zsync');
+  const complete={...base,assets:[...base.assets,...zsync.map(row)]};
+  assert.equal(validateRelease(complete,v).trim().split('\n').length,25);
+});
+
 test('release publication requires every supported binary and rejects temporary or stale assets',()=>{
   const names=[...binaries('1.0.1'),'sing-box-1.12.0-source.tar.gz','SHA256SUMS-Android.txt'];
   const release={tag_name:'v1.0.1',draft:true,prerelease:false,assets:names.map(name=>({name,state:'uploaded',size:1024,digest:'sha256:'+'ab'.repeat(32)}))};

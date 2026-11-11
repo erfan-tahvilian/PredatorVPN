@@ -1,0 +1,105 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Explicitly maintenance-update Linux AppImages INSIDE v2.0.5 only.
+# Never edit an earlier release, its assets, source tag or notes.
+name: Maintain v2.0.5 AppImages (FUSE-free and zsync)
+on:
+  workflow_dispatch:
+    inputs:
+      linux_run_id:
+        description: Successful x64 and ARM64 Linux workflow run for the current main source
+        required: true
+        type: string
+permissions:
+  contents: write
+  actions: read
+jobs:
+  refresh:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify exact version and successful matching Linux build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LINUX_RUN: ${{ inputs.linux_run_id }}
+        run: |
+          set -euo pipefail
+          test "$(node -p 'require("./package.json").version')" = '2.0.5'
+          [[ "$LINUX_RUN" =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$LINUX_RUN" > /tmp/linux-run.json
+          test "$(jq -r .status /tmp/linux-run.json)" = completed
+          test "$(jq -r .conclusion /tmp/linux-run.json)" = success
+          test "$(jq -r .path /tmp/linux-run.json)" = '.github/workflows/linux.yml'
+          buildsha="$(jq -r .head_sha /tmp/linux-run.json)"
+          git diff --exit-code "$buildsha" HEAD -- src assets licenses LICENSE COPYRIGHT package.json package-lock.json release-notes.json scripts/build-linux.cjs scripts/embed-appimage-update.cjs scripts/linux-target.cjs .github/workflows/linux.yml
+          gh api "repos/$GITHUB_REPOSITORY/releases/latest" > /tmp/current-release.json
+          test "$(jq -r .tag_name /tmp/current-release.json)" = 'v2.0.5'
+          test "$(jq -r .draft /tmp/current-release.json)" = false
+          test "$(jq -r .immutable /tmp/current-release.json)" != true
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" > /tmp/before.json
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: PredatorVPN-Linux-*
+          merge-multiple: true
+          path: verified-build
+          run-id: ${{ inputs.linux_run_id }}
+          github-token: ${{ github.token }}
+      - name: Validate static runtime, embedded update information and zsync headers
+        run: |
+          set -euo pipefail
+          for arch in x86_64 aarch64; do
+            image="PredatorVPN-2.0.5-$arch.AppImage"
+            file="verified-build/dist/$image"
+            test -s "$file"
+            test -s "$file.zsync"
+            chmod +x "$file"
+            test "$("$file" --appimage-updateinformation | tr -d '\000')" = "gh-releases-zsync|erfan-tahvilian|PredatorVPN|latest|PredatorVPN-*-$arch.AppImage.zsync"
+            if readelf --wide --program-headers "$file" | grep -Eq '^ *INTERP '; then
+              echo 'Static AppImage runtime unexpectedly depends on a host interpreter' >&2; exit 1
+            fi
+            grep -aF "URL: https://github.com/$GITHUB_REPOSITORY/releases/download/v2.0.5/$image" "$file.zsync" >/dev/null
+          done
+      - name: Replace only the two v2.0.5 AppImages and add their zsync files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for arch in x86_64 aarch64; do
+            image="verified-build/dist/PredatorVPN-2.0.5-$arch.AppImage"
+            gh release upload v2.0.5 "$image" "$image.zsync" --repo "$GITHUB_REPOSITORY" --clobber
+          done
+      - name: Rebuild and upload current v2.0.5 SHA256 manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/v2.0.5" > /tmp/updated.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const {validateRelease}=require('./.github/scripts/release-tools.cjs');
+          const current=JSON.parse(fs.readFileSync('/tmp/updated.json','utf8'));
+          fs.writeFileSync('/tmp/SHA256SUMS.txt',validateRelease(current,'2.0.5'));
+          NODE
+          gh release upload v2.0.5 /tmp/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
+      - name: Verify new release and untouched historical releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/releases/latest" > /tmp/latest.json
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" > /tmp/after.json
+          node - <<'NODE'
+          const fs=require('fs'),assert=require('assert/strict');
+          const {validateRelease}=require('./.github/scripts/release-tools.cjs');
+          const before=JSON.parse(fs.readFileSync('/tmp/before.json','utf8'));
+          const after=JSON.parse(fs.readFileSync('/tmp/after.json','utf8'));
+          const old=x=>x.filter(r=>r.tag_name!=='v2.0.5').map(r=>({tag:r.tag_name,id:r.id,body:r.body,assets:r.assets.map(a=>[a.name,a.digest,a.size]).sort((a,b)=>a[0].localeCompare(b[0]))})).sort((a,b)=>a.tag.localeCompare(b.tag));
+          assert.deepEqual(old(after),old(before),'Historical release or old asset changed');
+          const current=JSON.parse(fs.readFileSync('/tmp/latest.json','utf8'));
+          assert.equal(current.tag_name,'v2.0.5');
+          const manifest=validateRelease(current,'2.0.5');
+          const checksum=fs.readFileSync('/tmp/SHA256SUMS.txt','utf8');
+          assert.equal(checksum,manifest);
+          console.log('v2.0.5: 2 FUSE-free AppImages + 2 zsync assets verified; all older Releases preserved.');
+          NODE
