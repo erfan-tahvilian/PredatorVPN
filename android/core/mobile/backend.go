@@ -326,6 +326,10 @@ func (b *Backend) Call(channel, argsJSON string) string {
 		}
 		return envelope(result, err)
 	}
+	if channel == "testSubscriptions" {
+		result, err := b.testSubscriptionConnectivity(context.Background())
+		return envelope(result, err)
+	}
 	if channel == "ping" {
 		id := ""
 		if len(args) > 0 {

@@ -24,7 +24,7 @@ import org.json.JSONObject;
 public final class MainActivity extends Activity {
     private static final int VPN_PERMISSION = 1, NOTIFICATION_PERMISSION = 2, EXPORT = 3;
     private static final String ORIGIN = "https://appassets.androidplatform.net";
-    private static final Set<String> ACTIONS = Set.of("releaseNotes","ackReleaseNotes","checkUpdates","downloadUpdate","state","login","verify","logout","servers","ping","account","settings","theme","accentColor","select","connect","cancel","disconnect","exit","clearLogs","exportLogs","openLink","chooseApps","locationSort","selectAccount","removeAccount","accountPreferences","cancelAccountLogin");
+    private static final Set<String> ACTIONS = Set.of("releaseNotes","ackReleaseNotes","checkUpdates","downloadUpdate","state","login","verify","logout","servers","ping","account","settings","theme","accentColor","select","connect","cancel","disconnect","exit","clearLogs","exportLogs","openLink","chooseApps","locationSort","selectAccount","removeAccount","accountPreferences","cancelAccountLogin","testSubscriptions");
     private static final Set<String> LOCATION_SORTS = Set.of("ping-asc","ping-desc","name-asc","name-desc");
     WebView web;
     private boolean loaded, pendingConnect;
@@ -157,7 +157,7 @@ public final class MainActivity extends Activity {
         }
         @JavascriptInterface public void request(String id,String channel,String arguments) {
             if (id==null||id.length()>64||arguments==null||arguments.length()>131072||!ACTIONS.contains(channel))return;
-            (channel.equals("ping")?app().probes:(channel.equals("servers")||channel.equals("account")||channel.equals("checkUpdates")||channel.equals("downloadUpdate"))?app().catalog:app().actions).execute(() -> {
+            (channel.equals("ping")?app().probes:(channel.equals("servers")||channel.equals("account")||channel.equals("checkUpdates")||channel.equals("downloadUpdate")||channel.equals("testSubscriptions"))?app().catalog:app().actions).execute(() -> {
                 try {
                     JSONArray args=new JSONArray(arguments);
                     switch(channel){

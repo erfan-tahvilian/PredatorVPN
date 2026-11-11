@@ -116,6 +116,10 @@ func (b *Backend) bootstrapSources() []string {
  settings:=copyObject(b.settings)
  b.mu.Unlock()
  if !yes(settings,"subscriptionsEnabled"){return nil}
+ return bootstrapSourcesFromSettings(settings)
+}
+
+func bootstrapSourcesFromSettings(settings object) []string {
  sources:=make([]string,0)
  seen:=make(map[string]bool)
  for _,item:=range list(settings,"bootstrapSubUrls"){

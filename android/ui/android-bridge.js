@@ -100,6 +100,28 @@
       });
     });
     const sourceList=form.querySelector("#bootstrap-source-list");
+    const testSubscription=document.createElement("button");
+    testSubscription.type="button";testSubscription.className="secondary";
+    testSubscription.id="test-subscriptions";testSubscription.textContent="Test subscription sources";
+    const subscriptionResult=document.createElement("p");
+    subscriptionResult.id="subscription-test-result";subscriptionResult.className="muted";
+    subscriptionResult.setAttribute("role","status");subscriptionResult.setAttribute("aria-live","polite");
+    document.getElementById("bootstrap-add-source").after(testSubscription,subscriptionResult);
+    testSubscription.addEventListener("click",async()=>{
+      testSubscription.disabled=true;subscriptionResult.textContent="Testing compatible nodes without changing VPN settings...";
+      try{
+        await window.flushSettings?.();
+        const result=await call("testSubscriptions");
+        const counts="Sources loaded: "+result.sourcesLoaded+"/"+result.sources+
+          ". Compatible nodes: "+result.compatibleNodes+". Connections tried: "+result.nodeAttempts+
+          ". Source errors: "+result.sourceFetchFailures+". Connection errors: "+result.nodeErrors+
+          ". HTTP 451: "+result.regionalBlocks+".";
+        subscriptionResult.textContent=result.reachedGuardian?
+          "Guardian reachable through "+result.source+" (HTTP "+result.guardianHTTPStatus+"). "+counts:
+          "No usable route found. "+counts+" Bundled compatible nodes: "+result.bundledCompatible+".";
+      }catch(error){subscriptionResult.textContent=error.message||"Subscription test failed.";}
+      finally{testSubscription.disabled=false;}
+    });
     sourceList?.addEventListener("focusout",event=>{
       if(event.target.matches("input[data-bootstrap-url]"))event.target.dispatchEvent(new Event("change",{bubbles:true}));
     });
