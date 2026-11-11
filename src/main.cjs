@@ -18,6 +18,7 @@ const {profileMigration,verifyMigratedProfile,NEW_DIR}=require('./lib/profile-mi
 const {session}=require('electron');
 const {createAccountTransport}=require('./lib/account-transport.cjs');
 const {oauthTokenFromPage}=require('./lib/oauth-page.cjs');
+const {prepareFxARecovery}=require('./lib/fxa-account-recovery.cjs');
 let authSessionSequence=0,captchaPrompt=null;
 function makeControl({interactive=false}={}){
   const createTransport=()=>createAccountTransport({
@@ -33,6 +34,15 @@ function makeControl({interactive=false}={}){
   });
   // /oauth/token is Fastly-blocked for session.fetch even after challenge; page context works.
   control.oauthTokenFromPage=(args)=>oauthTokenFromPage(transport.session,args);
+  control.accountRecoveryEnabled=store?.settings?.accountRecoveryEnabled===true&&store?.settings?.subscriptionsEnabled===true;
+  control.prepareAccountRecovery=async()=>{
+    if(!control.accountRecoveryEnabled)return;
+    if(control.recoveryCancelled)throw Error('Account sign-in was cancelled.');
+    const route=await prepareFxARecovery({transport,options:bootstrapOptions()});
+    if(control.recoveryCancelled){await route.stop?.();return;}
+    control.accountRoute=route;
+  };
+  control.stopAccountRecovery=async()=>{control.recoveryCancelled=true;const route=control.accountRoute;control.accountRoute=null;await route?.stop?.();};
   return control;
 }
 const {Auth}=require('./lib/auth.cjs');
@@ -110,7 +120,7 @@ function bootstrapOptions(g){
 // All Guardian API calls, including this pass, handle HTTP 451 in Guardian.request.
 function obtainBootstrapPass(targetGuardian){return (targetGuardian||guardian).pass();}
 function beginLogin(){loginAccountId=null;const http=makeControl({interactive:true}),sink={auth:null,setAuth(auth){if(!auth)return;loginAccountId=store.addAccount(auth,connection==='disconnected');this.auth=auth;}};loginGuardian=createGuardian(http,new Auth(http,sink));return loginGuardian.auth;}
-function completeLogin(result){if(loginAccountId){syncGuardian();if(connection==='disconnected')quota=store.activeAccount?.quota||null;const id=loginAccountId;loginGuardian=null;loginAccountId=null;if(store.activeAccountId!==id)void refreshAccount(id).catch(()=>{});}return result;}
+function completeLogin(result){if(loginAccountId){void loginGuardian?.http?.stopAccountRecovery?.().catch(()=>{});syncGuardian();if(connection==='disconnected')quota=store.activeAccount?.quota||null;const id=loginAccountId;loginGuardian=null;loginAccountId=null;if(store.activeAccountId!==id)void refreshAccount(id).catch(()=>{});}return result;}
 let macEngine;
 let window,tray,trayPopup,store,guardian,tunnel,pendingTunnel,engine,passRenewer,recoveryController,busy=false,quitting=false,generation=0;
 let latencies={},pinging=false;const pingingIds=new Set();
@@ -357,10 +367,10 @@ else {
     handle('releaseNotes',()=>releaseNotes.read());
     handle('ackReleaseNotes',()=>releaseNotes.acknowledge());
     handle('downloadUpdate',async()=>{const update=await updates.check();if(!update.available)throw Error('No newer update is available.');await shell.openExternal(update.url);});
-    handle('login',async({email,password})=>{if(busy)throw Error('An operation is already running.');busy=true;emit();try{return multiAccount?completeLogin(await beginLogin().login(email,password)):await guardian.auth.login(email,password);}finally{busy=false;emit();}});
+    handle('login',async({email,password})=>{if(busy)throw Error('An operation is already running.');busy=true;emit();try{if(multiAccount){await loginGuardian?.http?.stopAccountRecovery?.();return completeLogin(await beginLogin().login(email,password));}return await guardian.auth.login(email,password);}catch(error){if(multiAccount&&!loginGuardian?.auth.pending)await loginGuardian?.http?.stopAccountRecovery?.();throw error;}finally{busy=false;emit();}});
     handle('answerCaptcha',answer=>captchaPrompt.submit(answer));
     handle('cancelCaptcha',()=>captchaPrompt.cancel());
-    handle('verify',async code=>{if(busy)throw Error('An operation is already running.');busy=true;emit();try{if(multiAccount&&!loginGuardian)throw Error('Start account sign-in again.');return multiAccount?completeLogin(await loginGuardian.auth.verify(code)):await guardian.auth.verify(code);}finally{busy=false;emit();}});
+    handle('verify',async code=>{if(busy)throw Error('An operation is already running.');busy=true;emit();try{if(multiAccount&&!loginGuardian)throw Error('Start account sign-in again.');return multiAccount?completeLogin(await loginGuardian.auth.verify(code)):await guardian.auth.verify(code);}catch(error){if(multiAccount&&!loginGuardian?.auth.pending)await loginGuardian?.http?.stopAccountRecovery?.();throw error;}finally{busy=false;emit();}});
     handle('logout',async()=>{if(busy)throw Error('Wait for the current operation to finish.');await disconnect();if(multiAccount){if(store.activeAccountId)store.removeAccount(store.activeAccountId);syncGuardian();}else{store.setAuth(null);guardian.auth.pending=null;}quota=multiAccount?store.activeAccount?.quota||null:null;emit();});
     handle('servers',refreshServers);
     handle('ping',async id=>{
@@ -397,7 +407,7 @@ else {
     });
     handle('account',()=>multiAccount?refreshAccount(store.activeAccountId):guardian.account());
     if(multiAccount){
-      handle('cancelAccountLogin',()=>{captchaPrompt?.cancel();loginGuardian?.auth.cancel();loginGuardian=null;loginAccountId=null;});
+      handle('cancelAccountLogin',async()=>{captchaPrompt?.cancel();const previous=loginGuardian;previous?.auth.cancel();loginGuardian=null;loginAccountId=null;await previous?.http?.stopAccountRecovery?.();});
       handle('accountPreferences',auto=>{store.setAccountPreferences(auto);emit();});
       handle('selectAccount',async id=>{if(busy)throw Error('Wait for the current operation.');const chosen=store.accounts.find(a=>a.id===id);if(!chosen?.auth)throw Error('Sign in to this account again.');busy=true;emit();try{const reconnect=connection==='connected';if(connection!=='disconnected')await disconnect();store.selectAccount(id);syncGuardian();quota=store.activeAccount?.quota||null;if(reconnect)await connect();}finally{busy=false;emit();}});
       handle('removeAccount',async id=>{if(busy)throw Error('Wait for the current operation.');if(id===store.activeAccountId&&connection!=='disconnected')throw Error('Disconnect before removing the active account.');store.removeAccount(id);accountGuardians.delete(id);syncGuardian();quota=store.activeAccount?.quota||null;emit();});
@@ -423,7 +433,7 @@ else {
   });
   app.on('before-quit',event=>{
     event.preventDefault();if(quitting)return;quitting=true;
-    captchaPrompt?.cancel();loginGuardian?.auth.cancel();
+    captchaPrompt?.cancel();loginGuardian?.auth.cancel();void loginGuardian?.http?.stopAccountRecovery?.().catch(()=>{});
     // Close the window immediately so macOS Command-Q cannot leave a hidden
     // BrowserWindow cancelling a later quit cycle after migration/profile work.
     try{if(window&&!window.isDestroyed()){window.removeAllListeners('close');window.destroy();}}catch{}

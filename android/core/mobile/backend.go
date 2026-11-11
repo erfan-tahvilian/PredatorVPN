@@ -66,7 +66,7 @@ func copyObject(m object) object {
 }
 func millis() int64 { return time.Now().UnixMilli() }
 func defaults() object {
-	return object{"transport": "auto", "theme": "system", "accentColor": "orange", "proxyOnly": false, "bind": "127.0.0.1", "socksPort": 1080, "doh": "automatic", "customDns": "", "edge": "", "exitCheck": true, "excludedApps": []any{}, "upstream": object{"enabled": false, "type": "socks5", "host": "", "port": 1080, "username": "", "password": ""}, "serverId": "REC", "subscriptionsEnabled":false, "accountRecoveryEnabled":false, "bootstrapSubUrl": "https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt", "bootstrapSubUrls": []any{"https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt", "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt"}}
+	return object{"transport": "auto", "theme": "system", "accentColor": "orange", "proxyOnly": false, "bind": "127.0.0.1", "socksPort": 1080, "doh": "automatic", "customDns": "", "edge": "", "exitCheck": true, "excludedApps": []any{}, "upstream": object{"enabled": false, "type": "socks5", "host": "", "port": 1080, "username": "", "password": ""}, "serverId": "REC", "subscriptionsEnabled":false, "accountRecoveryEnabled":false, "splitTunnelingEnabled":true, "bootstrapSubUrl": "https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt", "bootstrapSubUrls": []any{"https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt", "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt"}}
 }
 
 type Backend struct {
@@ -279,6 +279,8 @@ func validate(s object) error {
 	}
 	if _,ok:=s["subscriptionsEnabled"];!ok{s["subscriptionsEnabled"]=false}
 	if _,ok:=s["subscriptionsEnabled"].(bool);!ok{return errors.New("Invalid subscription setting")}
+	if _,ok:=s["splitTunnelingEnabled"];!ok{s["splitTunnelingEnabled"]=true}
+	if _,ok:=s["splitTunnelingEnabled"].(bool);!ok{return errors.New("Invalid split tunneling setting")}
 	if _,ok:=s["accountRecoveryEnabled"];!ok{s["accountRecoveryEnabled"]=false}
 	if _,ok:=s["accountRecoveryEnabled"].(bool);!ok{return errors.New("Invalid account recovery setting")}
 	return nil
@@ -556,7 +558,7 @@ func (b *Backend) connect() error {
 		}
 		b.emit()
 	}()
-	if !yes(s, "proxyOnly") && str(s, "splitMode") == "include" && len(list(s, "excludedApps")) == 0 {
+	if !yes(s, "proxyOnly") && yes(s, "splitTunnelingEnabled") && str(s, "splitMode") == "include" && len(list(s, "excludedApps")) == 0 {
 		return errors.New("No apps selected. Choose at least one app in Settings > Split tunneling before connecting.")
 	}
 	if b.auth == nil {
@@ -754,7 +756,7 @@ func (b *Backend) EngineConfig() string {
 	} else if str(s, "doh") == "off" {
 		dns = object{"tag": "private", "type": "udp", "server": b.host.DNSAddress(), "detour": "direct"}
 	}
-	c := object{"log": object{"level": "warn"}, "dns": object{"servers": []any{dns}, "final": "private", "strategy": "prefer_ipv4"}, "inbounds": []any{object{"type": "tun", "tag": "tun", "address": []string{"172.29.0.1/30", "fdfe:dcba:9876::1/126"}, "mtu": 1500, "auto_route": true, "stack": "mixed", "exclude_package": s["excludedApps"]}}, "outbounds": []any{object{"type": "socks", "tag": "fox", "server": "127.0.0.1", "server_port": s["socksPort"], "version": "5"}, object{"type": "direct", "tag": "direct"}}, "route": object{"auto_detect_interface": true, "final": "fox", "rules": []any{object{"action": "sniff"}, object{"protocol": "dns", "action": "hijack-dns"}, object{"ip_is_private": true, "action": "route", "outbound": "direct"}, object{"network": "udp", "action": "reject"}}}}
+	c := object{"log": object{"level": "warn"}, "dns": object{"servers": []any{dns}, "final": "private", "strategy": "prefer_ipv4"}, "inbounds": []any{object{"type": "tun", "tag": "tun", "address": []string{"172.29.0.1/30", "fdfe:dcba:9876::1/126"}, "mtu": 1500, "auto_route": true, "stack": "mixed", "exclude_package": func() any { if yes(s,"splitTunnelingEnabled") {return s["excludedApps"]}; return []any{} }()}}, "outbounds": []any{object{"type": "socks", "tag": "fox", "server": "127.0.0.1", "server_port": s["socksPort"], "version": "5"}, object{"type": "direct", "tag": "direct"}}, "route": object{"auto_detect_interface": true, "final": "fox", "rules": []any{object{"action": "sniff"}, object{"protocol": "dns", "action": "hijack-dns"}, object{"ip_is_private": true, "action": "route", "outbound": "direct"}, object{"network": "udp", "action": "reject"}}}}
 	v, _ := json.Marshal(c)
 	return string(v)
 }

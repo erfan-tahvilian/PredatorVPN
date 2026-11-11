@@ -209,7 +209,7 @@ public final class MainActivity extends Activity {
         if (!app().state.optBoolean("signedIn")) { if(web!=null)web.evaluateJavascript("navigate('account')",null);return; }
         if (!"disconnected".equals(app().connection()))return;
         JSONObject settings=app().state.optJSONObject("settings");
-        if(settings!=null&&!settings.optBoolean("proxyOnly")&&"include".equals(settings.optString("splitMode"))&&(settings.optJSONArray("excludedApps")==null||settings.optJSONArray("excludedApps").length()==0)){
+        if(settings!=null&&!settings.optBoolean("proxyOnly")&&settings.optBoolean("splitTunnelingEnabled",true)&&"include".equals(settings.optString("splitMode"))&&(settings.optJSONArray("excludedApps")==null||settings.optJSONArray("excludedApps").length()==0)){
             new android.app.AlertDialog.Builder(dialogContext()).setTitle("No apps selected").setMessage("Choose at least one app in Settings > Split tunneling before connecting.").setPositiveButton("Open settings",(dialog,which)->{if(web!=null)web.evaluateJavascript("showSplitSettings()",null);}).setNegativeButton("Cancel",null).show();return;
         }
 

@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Erfan Tahvilian
 const net = require('node:net');
 const DEFAULT_BOOTSTRAP_URLS=['https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt','https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt'];
-const DEFAULTS={transport:'auto',theme:'system',accentColor:'orange',locationSort:'ping-asc',splitMode:'exclude',proxyOnly:false,bind:'127.0.0.1',socksPort:1080,doh:'automatic',customDns:'',edge:'',exitCheck:true,excludedApps:[],upstream:{enabled:false,type:'socks5',host:'',port:1080,username:'',password:''},serverId:'REC',bootstrapSubUrl:'https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt',bootstrapSubUrls:[...DEFAULT_BOOTSTRAP_URLS],subscriptionsEnabled:false};
+const DEFAULTS={transport:'auto',theme:'system',accentColor:'orange',locationSort:'ping-asc',splitMode:'exclude',splitTunnelingEnabled:true,accountRecoveryEnabled:false,proxyOnly:false,bind:'127.0.0.1',socksPort:1080,doh:'automatic',customDns:'',edge:'',exitCheck:true,excludedApps:[],upstream:{enabled:false,type:'socks5',host:'',port:1080,username:'',password:''},serverId:'REC',bootstrapSubUrl:'https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt',bootstrapSubUrls:[...DEFAULT_BOOTSTRAP_URLS],subscriptionsEnabled:false};
 function host(value) {return typeof value==='string' && value.length<=253 && (net.isIP(value)>0 || /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/i.test(value));}
 function port(value) {return Number.isInteger(value)&&value>0&&value<=65535;}
 function validate(input, platform=process.platform) {
@@ -43,7 +43,7 @@ function validate(input, platform=process.platform) {
   if(!['socks5','http'].includes(s.upstream.type)||!port(s.upstream.port))throw Error('Invalid upstream proxy type or port.');
   if(s.upstream.enabled&&!host(s.upstream.host))throw Error('Enter a valid upstream proxy hostname.');
   if(!Array.isArray(s.excludedApps)||s.excludedApps.length>100||s.excludedApps.some(p=>typeof p!=='string'||!(platform!=='win32'?/^[-\p{L}\p{N}_ .()+]+$/u:/^[-\p{L}\p{N}_ .()+]+\.exe$/iu).test(p)))throw Error('One or more selected apps have an unsupported process name.');
-  for(const key of ['proxyOnly','exitCheck','subscriptionsEnabled'])if(typeof s[key]!=='boolean')throw Error('Invalid setting.');
+  for(const key of ['proxyOnly','exitCheck','subscriptionsEnabled','splitTunnelingEnabled','accountRecoveryEnabled'])if(typeof s[key]!=='boolean')throw Error('Invalid setting.');
   if(typeof s.upstream.enabled!=='boolean'||typeof s.upstream.username!=='string'||typeof s.upstream.password!=='string')throw Error('Invalid upstream credentials.');
   if(typeof s.serverId!=='string'||s.serverId.length>512)throw Error('Invalid server selection.');
   return s;
@@ -54,8 +54,8 @@ function engineConfig(s, edgeIP, proxyIP, networkDns, platform=process.platform)
   if(dns.type!=='local'&&!dns.detour)dns.detour='fox';
   const excluded=[edgeIP,proxyIP].filter(Boolean).map(ip=>ip+(net.isIP(ip)===6?'/128':'/32'));
   const own=platform==='linux'?['predator-vpn','Predator VPN','fox-vpn','Fox VPN','electron','sing-box','fox-h3']:platform==='darwin'?['Predator VPN','Predator VPN Helper','Fox VPN','Fox VPN Helper','Electron','sing-box','fox-h3']:['Predator VPN.exe','Fox VPN.exe','electron.exe','sing-box.exe','fox-h3.exe'];
-  const selected=[...new Set(s.excludedApps.map(name=>platform==='darwin'?name.replace(/\.app$/i,''):name))];
-  const only=s.splitMode==='include';
+  const selected=s.splitTunnelingEnabled===false?[]:[...new Set(s.excludedApps.map(name=>platform==='darwin'?name.replace(/\.app$/i,''):name))];
+  const only=s.splitTunnelingEnabled!==false&&s.splitMode==='include';
   return {
     log:{level:'info',timestamp:true},
     dns:{servers:[{tag:'private',...dns}],final:'private',strategy:'prefer_ipv4'},

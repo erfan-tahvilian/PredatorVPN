@@ -19,7 +19,7 @@
 
 **A familiar workspace for a more private connection.** Predator VPN brings system VPN, app-based routing and connection controls to your desktop and phone, with an English interface and light, dark and system appearance.
 
-**v2.0.5** makes the Linux AppImage compatible with the AppImage catalog using gzip SquashFS and standard architecture-specific filenames. It retains the regional HTTP 451 recovery, opt-in Subscriptions, data allowance improvements, and refined Android location layout. [Release notes](https://github.com/erfan-tahvilian/PredatorVPN/releases/tag/v2.0.5).
+**v2.0.5** adds an explicit on/off switch for per-app split tunneling (with saved app selections retained), optional account connection recovery through configured subscription nodes, and a Windows native sign-in transport fix. The Linux AppImage uses gzip SquashFS and standard architecture-specific filenames for catalog compatibility. Regional HTTP 451 recovery, opt-in Subscriptions, data allowance controls, and the Android location layout are retained. [Release notes](https://github.com/erfan-tahvilian/PredatorVPN/releases/tag/v2.0.5).
 
 ## PredatorVPN
 

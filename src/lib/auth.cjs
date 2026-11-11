@@ -54,10 +54,11 @@ class Auth {
   email=normalizeEmail(email);
   if(!email||!password)throw Error('Enter your service account email and password.');
   this.cancel();
+  if(typeof this.http.prepareAccountRecovery==='function')await this.http.prepareAccountRecovery();
   // On Windows, sign in through Electron's OS-aware in-app transport instead
   // of the helper's independent Go route (which can time out on some networks).
   // The optional helper remains available for OAuth and explicit opt-in.
-  if(useFirefoxTlsLoginHelper()){
+  if(useFirefoxTlsLoginHelper()&&!this.http.accountRecoveryEnabled){
    try{
     const result=await runHelper({cmd:'login',email,password});
     return this.applyHelperResult(result,email,password);
@@ -209,8 +210,8 @@ class Auth {
  async complete(){
   if(!this.pending?.session)throw Error('Start account sign-in again.');
   const session=this.pending.session;
-  // Prefer Firefox-TLS helper for the OAuth token exchange (Chromium TLS often 406s).
-  if(useFirefoxTlsHelper()){
+  // Keep OAuth on the selected recovery route when account recovery is enabled.
+  if(useFirefoxTlsHelper()&&!this.http.accountRecoveryEnabled){
    try{
     const result=await runHelper({cmd:'oauth',session_token:session,email:this.pending.email});
     if(result?.access_token){

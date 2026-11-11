@@ -46,6 +46,7 @@ function createAccountTransport({createSession,systemFetch,fxaProxyMode='direct'
   if(!isolated||typeof isolated.setProxy!=='function'||typeof isolated.fetch!=='function')throw Error('Isolated account session is unavailable');
   const ready=isolated.setProxy({mode:'direct'});
   let bootstrapProxyRules=null;
+  let accountRecoveryProxyRules=null;
   async function accountFetch(url,options={}){
     const target=new URL(url);
     if(target.protocol!=='https:'||!APPROVED.has(target.hostname))throw Error('Unapproved account-service endpoint');
@@ -54,7 +55,10 @@ function createAccountTransport({createSession,systemFetch,fxaProxyMode='direct'
     // Await Chromium's proxy change before starting the request; otherwise the
     // first Guardian call may escape through the previous direct route (HTTP 451).
     const useBootstrap=Boolean(bootstrapProxyRules)&&['vpn.mozilla.org','firefox.settings.services.mozilla.com'].includes(target.hostname);
-    await isolated.setProxy(useBootstrap
+    const useRecovery=Boolean(accountRecoveryProxyRules)&&['api.accounts.firefox.com','accounts.firefox.com','oauth.accounts.firefox.com'].includes(target.hostname);
+    await isolated.setProxy(useRecovery
+      ? {mode:'fixed_servers',proxyRules:accountRecoveryProxyRules}
+      : useBootstrap
       ? {mode:'fixed_servers',proxyRules:bootstrapProxyRules}
       : {mode:target.hostname==='vpn.mozilla.org'||(
           fxaProxyMode==='system'&&['api.accounts.firefox.com','accounts.firefox.com','oauth.accounts.firefox.com'].includes(target.hostname)
@@ -76,6 +80,11 @@ function createAccountTransport({createSession,systemFetch,fxaProxyMode='direct'
     if(!isolated?.setProxy)return;
     if(bootstrapProxyRules)await isolated.setProxy({mode:'fixed_servers',proxyRules:bootstrapProxyRules});
     else await isolated.setProxy({mode:'direct'});
+  };
+  accountFetch.setAccountRecoveryProxy=async rules=>{
+    accountRecoveryProxyRules=rules||null;
+    await ready;
+    await isolated.setProxy(accountRecoveryProxyRules?{mode:'fixed_servers',proxyRules:accountRecoveryProxyRules}:{mode:fxaProxyMode});
   };
   accountFetch.clearFxACookies=()=>clearFxACookies(isolated);
   accountFetch.session=isolated;

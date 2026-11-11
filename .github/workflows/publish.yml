@@ -109,8 +109,14 @@ jobs:
           done
           for arch in x64 arm64; do
             for ext in AppImage deb rpm; do
-              test -s "verified-build/dist/PredatorVPN-$FOX_VERSION-Linux-$arch.$ext"
-              cp "verified-build/dist/PredatorVPN-$FOX_VERSION-Linux-$arch.$ext" release-assets/
+              if [ "$ext" = AppImage ]; then
+                if [ "$arch" = x64 ]; then cpu=x86_64; else cpu=aarch64; fi
+                name="PredatorVPN-$FOX_VERSION-$cpu.AppImage"
+              else
+                name="PredatorVPN-$FOX_VERSION-Linux-$arch.$ext"
+              fi
+              test -s "verified-build/dist/$name"
+              cp "verified-build/dist/$name" release-assets/
             done
           done
           curl --fail --location --retry 3 'https://codeload.github.com/SagerNet/sing-box/tar.gz/refs/tags/v1.12.0' -o release-assets/sing-box-1.12.0-source.tar.gz

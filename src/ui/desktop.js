@@ -4,6 +4,9 @@
   const get=id=>document.getElementById(id),form=get('settings-form'),sort=get('server-sort'),field=get('excludedApps');
   for(const mode of ['ping-asc','ping-desc','name-asc','name-desc'])sort.append(sort.querySelector(`option[value="${mode}"]`));
   sort.value='ping-asc';
+  const recovery=document.createElement('div');recovery.className='setting-row';
+  recovery.innerHTML='<div><label for="accountRecoveryEnabled">Allow Firefox Accounts recovery</label><small>Off by default. If direct login is unreachable, temporarily route verified HTTPS through a subscription node. Proxy operators can see destination and timing. Requires Subscriptions enabled.</small></div><input type="checkbox" id="accountRecoveryEnabled" class="switch">';
+  document.querySelector('#settings-bootstrap .setting-row').after(recovery);
   const label=document.createElement('label');label.htmlFor='split-mode';label.textContent='VPN routing';
   const mode=document.createElement('select');mode.id='split-mode';
   for(const [value,text] of [['exclude','All apps except selected'],['include','Only selected apps']]){const option=document.createElement('option');option.value=value;option.textContent=text;mode.append(option);}
@@ -15,7 +18,9 @@
   let initialized=false,saving=Promise.resolve(),sequence=0;
   function refreshSummary(){
     const count=new Set(field.value.split(/\r?\n/).map(v=>v.trim()).filter(Boolean)).size,only=mode.value==='include';
-    summary.textContent=count?`${count} ${count===1?'app':'apps'} ${only?'using the VPN':'excluded'}`:only?'Select at least one app to use the VPN.':'All apps use the VPN';
+    const enabled=get('splitTunnelingEnabled').checked;
+    mode.disabled=!enabled||currentState?.connection!=='disconnected';field.disabled=!enabled||currentState?.connection!=='disconnected';choose.disabled=!enabled||currentState?.connection!=='disconnected';
+    summary.textContent=!enabled?'Off: all apps use the VPN; selections are saved.':count?`${count} ${count===1?'app':'apps'} ${only?'using the VPN':'excluded'}`:only?'Select at least one app to use the VPN.':'All apps use the VPN';
     description.textContent=only?'Only selected apps use the VPN. Other apps use your regular connection.':'Selected apps use your regular connection. Other apps use the VPN.';
   }
   function save(target){

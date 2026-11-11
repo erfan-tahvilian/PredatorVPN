@@ -41,12 +41,16 @@
     const form=document.getElementById('settings-form');
     const connected=state.connection!=='disconnected';
     if(!splitInitialized){splitMode.value=state.settings.splitMode==='include'?'include':'exclude';splitInitialized=true;}
+    const splitEnabled=document.getElementById('splitTunnelingEnabled')?.checked!==false;
     for(const control of form.querySelectorAll('input,select,textarea,#choose-apps'))control.disabled=connected&&!['theme','accentColor'].includes(control.id);
+    splitMode.disabled=connected||!splitEnabled;
+    splitField.disabled=connected||!splitEnabled;
+    const chooseApps=document.getElementById('choose-apps');if(chooseApps)chooseApps.disabled=connected||!splitEnabled;
     if(typeof syncSelects==='function')syncSelects();
     const notice=document.getElementById('settings-notice');
     notice.textContent=connected?'Disconnect to edit network settings.':'';
     const selected=document.getElementById('excluded-summary');
-    if(selected){const count=state.settings.excludedApps.length,only=splitMode.value==='include';selected.textContent=count?`${count} ${count===1?'app':'apps'} ${only?'using the VPN':'excluded'}`:only?'Select at least one app to use the VPN.':'All apps use the VPN';}
+    if(selected){const count=state.settings.excludedApps.length,only=splitMode.value==='include';selected.textContent=!splitEnabled?'Off: all apps use the VPN; selections are saved.':count?`${count} ${count===1?'app':'apps'} ${only?'using the VPN':'excluded'}`:only?'Select at least one app to use the VPN.':'All apps use the VPN';}
     splitField.closest('.settings-card').querySelector('p').textContent=splitMode.value==='include'?'Only selected apps use the VPN. Other apps use your regular connection.':'Selected apps use your regular connection. Other apps use the VPN.';
   }
   window.addEventListener('DOMContentLoaded',()=>{

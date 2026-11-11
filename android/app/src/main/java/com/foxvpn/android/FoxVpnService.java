@@ -62,7 +62,7 @@ public class FoxVpnService extends VpnService implements PlatformInterface {
                     if(VpnService.prepare(this)!=null)throw new Exception("VPN permission is required");
                     synchronized(engineLock){
                         if(stopping)return;
-                        engine=Libbox.newService(nativeConfig(app().backend.engineConfig(),app().state.optJSONObject("settings").optString("splitMode","exclude")),this);
+                        engine=Libbox.newService(nativeConfig(app().backend.engineConfig(),app().state.optJSONObject("settings").optBoolean("splitTunnelingEnabled",true)?app().state.optJSONObject("settings").optString("splitMode","exclude"):"exclude"),this);
                         engine.start();
                         if(BuildConfig.DEBUG)android.util.Log.i("FoxVPNEngine","Native VPN engine started");
                     }
@@ -142,7 +142,7 @@ public class FoxVpnService extends VpnService implements PlatformInterface {
         RoutePrefixIterator routes=options.getInet4RouteRange();while(routes.hasNext()){RoutePrefix p=routes.next();builder.addRoute(p.address(),p.prefix());}
         routes=options.getInet6RouteRange();while(routes.hasNext()){RoutePrefix p=routes.next();builder.addRoute(p.address(),p.prefix());}
         StringIterator included=options.getIncludePackage();
-        if("include".equals(app().state.optJSONObject("settings").optString("splitMode"))){
+        if(app().state.optJSONObject("settings").optBoolean("splitTunnelingEnabled",true)&&"include".equals(app().state.optJSONObject("settings").optString("splitMode"))){
             int count=0;
             while(included.hasNext()){String pkg=included.next();if(!pkg.equals(getPackageName())){try{builder.addAllowedApplication(pkg);count++;}catch(android.content.pm.PackageManager.NameNotFoundException ignored){}}}
             // An empty Android allowlist routes every app through the VPN. Never

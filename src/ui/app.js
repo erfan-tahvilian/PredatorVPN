@@ -86,7 +86,7 @@ function fillSettings(s) {
   if($('transport'))$('transport').value=s.transport||'auto';
   for(const key of ['theme','bind','socksPort','doh','customDns','edge'])$(key).value=s[key];
   $('accentColor').value=s.accentColor||'orange';
-  for(const key of ['proxyOnly'])$(key).checked=s[key];
+  for(const key of ['proxyOnly','splitTunnelingEnabled']){const control=$(key);if(control)control.checked=key==='splitTunnelingEnabled'?s[key]!==false:s[key]===true;}
   $('excludedApps').value=s.excludedApps.join('\n');
   $('upstreamEnabled').checked=s.upstream.enabled;
   $('subscriptionsEnabled').checked=s.subscriptionsEnabled===true;
@@ -273,7 +273,7 @@ for(const item of document.querySelectorAll('[data-settings-jump]'))item.addEven
  if(section)section.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});
 });
 $('ping-selected').addEventListener('click',action(async()=>{const selected=currentState.activeServer||currentState.servers.find(s=>s.id===currentState.settings.serverId);if(selected)await call('ping',selected.id);}));
-$('connect').addEventListener('click',action(async()=>{if(currentState.connection==='disconnected')await window.flushSettings?.();if(!currentState.signedIn){navigate('account');return;}if(currentState.connection==='disconnected'&&!currentState.settings.proxyOnly&&currentState.settings.splitMode==='include'&&!currentState.settings.excludedApps.length){toast('No apps selected. Choose at least one app in Settings > Split tunneling before connecting.');showSplitSettings();return;}await call(currentState.connection==='connected'?'disconnect':currentState.connection==='connecting'?'cancel':'connect');}));
+$('connect').addEventListener('click',action(async()=>{if(currentState.connection==='disconnected')await window.flushSettings?.();if(!currentState.signedIn){navigate('account');return;}if(currentState.connection==='disconnected'&&!currentState.settings.proxyOnly&&currentState.settings.splitTunnelingEnabled!==false&&currentState.settings.splitMode==='include'&&!currentState.settings.excludedApps.length){toast('No apps selected. Choose at least one app in Settings > Split tunneling before connecting.');showSplitSettings();return;}await call(currentState.connection==='connected'?'disconnect':currentState.connection==='connecting'?'cancel':'connect');}));
 $('theme-toggle').addEventListener('click',action(async()=>{const theme=document.body.classList.contains('light')?'dark':'light';await call('theme',theme);$('theme').value=theme;syncSelects();}));
 $('ping-servers').addEventListener('click',action(async()=>{await call('ping');toast('Location latency check complete.');}));
 $('source').addEventListener('click',action(()=>call('openLink','source')));
@@ -334,7 +334,7 @@ $('refresh-account').addEventListener('click',action(async()=>accountInfo(await 
 function readSettings(){
   const settings={...currentState.settings};if(['win32','darwin','linux','android'].includes(currentState.platform))settings.transport=$('transport').value;
   for(const key of ['theme','accentColor','bind','doh','customDns','edge'])settings[key]=$(key).value.trim();
-  settings.socksPort=Number($('socksPort').value);for(const key of ['proxyOnly'])settings[key]=$(key).checked;
+  settings.socksPort=Number($('socksPort').value);for(const key of ['proxyOnly','splitTunnelingEnabled']){const control=$(key);if(control)settings[key]=control.checked;}
   settings.excludedApps=[...new Set($('excludedApps').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean))];
   settings.subscriptionsEnabled=$('subscriptionsEnabled').checked;
   if($('accountRecoveryEnabled'))settings.accountRecoveryEnabled=$('accountRecoveryEnabled').checked;

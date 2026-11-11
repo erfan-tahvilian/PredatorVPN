@@ -3,6 +3,35 @@
   "items": [
     {
       "platforms": [
+        "win32",
+        "darwin",
+        "linux",
+        "android"
+      ],
+      "title": "Optional Firefox account connection recovery",
+      "description": "Opt-in account recovery can use configured subscription nodes to carry TLS-verified Firefox Accounts requests when the direct network is unavailable. No external browser login, and no automatic replay of an ambiguous password request."
+    },
+    {
+      "platforms": [
+        "win32",
+        "darwin",
+        "linux",
+        "android"
+      ],
+      "title": "Split tunneling on/off switch",
+      "description": "A single setting turns application split tunneling on or off without deleting the saved app selection. When disabled all regular device applications use the VPN; per-app rules apply only while enabled."
+    },
+    {
+      "platforms": [
+        "win32",
+        "darwin",
+        "linux"
+      ],
+      "title": "Desktop account and verification reliability",
+      "description": "The Windows app uses its native OS-aware account transport and a matching user agent to avoid helper-specific timeouts. Temporary login routes are cleared on completion or cancellation."
+    },
+    {
+      "platforms": [
         "linux"
       ],
       "title": "AppImage catalog-compatible SquashFS",
