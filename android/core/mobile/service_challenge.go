@@ -2,8 +2,10 @@
 package mobile
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"regexp"
 	"strings"
 )
@@ -11,6 +13,17 @@ import (
 const accountAgent = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36"
 
 var challengeCall = regexp.MustCompile(`\binit\s*\(\s*\[`)
+
+// A structured provider rejection is not a Fastly challenge. In particular,
+// do not replay a password POST when HTTP 406 carries a JSON service error.
+func shouldSolveFirefoxChallenge(status int, body []byte, address string) bool {
+ if status != http.StatusNotAcceptable || !firefoxAccountRecoveryTarget(address) { return false }
+ payload := bytes.TrimSpace(body)
+ if len(payload) == 0 { return true }
+ if json.Valid(payload) { return false }
+ return bytes.Contains(payload, []byte("Client Challenge")) &&
+  bytes.Contains(payload, []byte("/_fs-ch-"))
+}
 
 // Decode JSON arguments without interpreting or running remote JavaScript.
 func parseChallengeInit(script, prefix string) ([]object, string, error) {

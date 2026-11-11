@@ -418,6 +418,8 @@ func (b *Backend) Call(channel, argsJSON string) string {
 		if err = validate(s); err == nil {
 			b.mu.Lock()
 			b.settings = s
+			// Settings may change consent or proxy sources: discard any cached route.
+			b.fxaProxyNode = nil
 			if str(old, "transport") != str(s, "transport") {
 				b.latencies = object{}
 			}

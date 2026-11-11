@@ -3,6 +3,7 @@ package mobile
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -68,4 +69,57 @@ func TestAccountChallengeKeepsUserAgentAndFreshCookies(t *testing.T) {
 			t.Fatal("Account user agent changed during verification")
 		}
 	}
+}
+
+func TestFirefoxOnlyTreatsGenuine406AsChallenge(t *testing.T) {
+ addr:="https://api.accounts.firefox.com/v1/account/login"
+ for _,tc:=range []struct{status int;body,addr string;want bool}{
+  {406,"",addr,true},
+  {406,"   ",addr,true},
+  {406,"<html>Client Challenge /_fs-ch-example</html>",addr,true},
+  {406,`{"message":"Account rejected","errno":123}`,addr,false},
+  {406,"Provider rejection",addr,false},
+  {406,"", "https://vpn.mozilla.org/api/v1/fpn/token",false},
+  {401,"",addr,false},
+ }{
+  got:=shouldSolveFirefoxChallenge(tc.status,[]byte(tc.body),tc.addr)
+  if got!=tc.want{t.Errorf("status %d expected challenge=%v got %v",tc.status,tc.want,got)}
+ }
+}
+
+func TestStructured406NeverReplaysAccountPassword(t *testing.T) {
+ b:=NewBackend(&testHost{},"{}")
+ posts:=0
+ b.client.Transport=exitRoundTripper(func(req *http.Request)(*http.Response,error){
+  if req.Method!=http.MethodPost {t.Fatal("unexpected challenge probe")}
+  posts++
+  return &http.Response{StatusCode:406,Header:http.Header{},
+   Body:io.NopCloser(strings.NewReader(`{"message":"Account rejected","errno":123}`)),
+   Request:req},nil
+ })
+ _,_,err:=b.jsonRequest(context.Background(),"https://api.accounts.firefox.com/v1/account/login",
+   http.MethodPost,object{"authPW":"sensitive"},"")
+ var service *serviceError
+ if !errors.As(err,&service)||service.status!=406 {t.Fatalf("expected original provider rejection: %v",err)}
+ if posts!=1 {t.Fatalf("password request sent %d times",posts)}
+}
+
+func TestChallengeSuccessWithoutCookieIsNotAccepted(t *testing.T) {
+ b:=NewBackend(&testHost{},"{}")
+ b.client.Transport=exitRoundTripper(func(req *http.Request)(*http.Response,error){
+  body:="{}"
+  switch {
+   case req.URL.Hostname()=="api.accounts.firefox.com": body="{}"
+   case req.URL.Path=="/": body="<title>Client Challenge</title>/_fs-ch-test"
+   case strings.HasSuffix(req.URL.Path,"script.js"): body=`init ([{"ty":"clientmetrics","data":{}}], "token", "/_fs-ch-test", true)`
+   case strings.HasSuffix(req.URL.Path,"fst-post-back"): body=`{"status":"success"}`
+   default: t.Fatal("unexpected request")
+  }
+  return &http.Response{StatusCode:200,Header:http.Header{},Request:req,
+   Body:io.NopCloser(strings.NewReader(body))},nil
+ })
+ err:=b.challenge(context.Background())
+ if err==nil||!strings.Contains(err.Error(),"without a verification cookie"){
+  t.Fatalf("missing challenge cookie was accepted: %v",err)
+ }
 }

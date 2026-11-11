@@ -63,6 +63,20 @@ func (b *Backend) firefoxDirectReachable(ctx context.Context) (bool,error) {
  return status!=http.StatusUnavailableForLegalReasons,nil
 }
 
+// Challenge pages must use the same temporary egress as the login that
+// triggered HTTP 406; otherwise carrier blocks can recur mid-verification.
+// Its cookie jar is isolated until verification has actually succeeded.
+func (b *Backend) newFirefoxChallengeSolver(jar http.CookieJar) *Backend {
+ enabled,node:=b.accountProxyState()
+ return &Backend{
+  client:&http.Client{Transport:b.client.Transport,Jar:jar,Timeout:b.client.Timeout,CheckRedirect:b.client.CheckRedirect},
+  roots:b.roots,
+  host:b.host,
+  settings:object{"subscriptionsEnabled":enabled,"accountRecoveryEnabled":enabled},
+  fxaProxyNode:node,
+ }
+}
+
 func (b *Backend) accountProxyState() (bool,*bootstrapNode) {
  b.mu.Lock()
  defer b.mu.Unlock()

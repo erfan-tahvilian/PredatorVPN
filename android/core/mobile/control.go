@@ -164,7 +164,7 @@ func (b *Backend) jsonRequest(ctx context.Context, address, method string, body 
 				}
 			}
 		}
-		if status == 406 && attempt < 3 {
+		if shouldSolveFirefoxChallenge(status, raw, address) && attempt < 3 {
 			if err = b.challenge(ctx); err != nil {
 				return nil, nil, err
 			}
@@ -439,10 +439,15 @@ func (b *Backend) challenge(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	// Reuse the physical-network transport but start with a fresh challenge jar.
-	solver := &Backend{client: &http.Client{Transport: b.client.Transport, Jar: jar, Timeout: b.client.Timeout, CheckRedirect: b.client.CheckRedirect}}
+	// Isolate challenge cookies while retaining the selected verified route.
+	solver := b.newFirefoxChallengeSolver(jar)
 	if err := solver.solveChallenge(ctx); err != nil {
 		return err
+	}
+	apiURL, _ := url.Parse("https://api.accounts.firefox.com/")
+	siteURL, _ := url.Parse("https://accounts.firefox.com/")
+	if len(jar.Cookies(apiURL)) == 0 && len(jar.Cookies(siteURL)) == 0 {
+		return errors.New("Service challenge completed without a verification cookie; login was not repeated")
 	}
 	for _, address := range []string{"https://api.accounts.firefox.com/", "https://accounts.firefox.com/"} {
 		u, _ := url.Parse(address)
@@ -499,7 +504,7 @@ func (b *Backend) solveChallenge(ctx context.Context) error {
 				case "clientmetrics":
 					answers = append(answers, object{"ty": "clientmetrics", "webdriver": false, "bot_detection_result": object{"bot_detected": false, "bot_kind": nil}, "browser_metrics": object{"client_data": "{}", "error_trace": nil}, "detector_results": object{}, "v": 2})
 				default:
-					return errors.New("The service requires an interactive challenge. Try again later")
+					return errors.New("The account provider requires a verification step this app cannot complete automatically. No additional sign-in request was sent.")
 				}
 			}
 			encoded, _ := json.Marshal(object{"token": token, "data": answers})

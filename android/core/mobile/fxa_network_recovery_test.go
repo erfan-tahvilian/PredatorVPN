@@ -6,6 +6,7 @@ import (
  "errors"
  "net"
  "net/http"
+ "net/http/cookiejar"
  "io"
  "strings"
  "testing"
@@ -124,4 +125,22 @@ func TestFirefoxReadOnlyMethods(t *testing.T) {
     firefoxReadOnlyMethod(http.MethodPost) || firefoxReadOnlyMethod(http.MethodPatch) || firefoxReadOnlyMethod(http.MethodDelete) {
   t.Fatal("non-idempotent requests must never be replayed automatically")
  }
+}
+
+func TestFirefoxChallengeKeepsChosenRouteAndIsolatesCookies(t *testing.T) {
+ b:=NewBackend(&testHost{},"{}")
+ jar,err:=cookiejar.New(nil)
+ if err!=nil {t.Fatal(err)}
+ b.mu.Lock()
+ b.settings["subscriptionsEnabled"]=true
+ b.settings["accountRecoveryEnabled"]=true
+ b.fxaProxyNode=&bootstrapNode{raw:"chosen-route"}
+ b.mu.Unlock()
+ solver:=b.newFirefoxChallengeSolver(jar)
+ enabled,node:=solver.accountProxyState()
+ if !enabled || node==nil || node.raw!="chosen-route" {t.Fatal("challenge silently lost selected egress")}
+ if solver.client.Jar!=jar || solver.client.Jar==b.client.Jar {t.Fatal("challenge cookies not isolated")}
+ if solver.client.Transport!=b.client.Transport {t.Fatal("direct transport configuration changed")}
+ b.resetAccountProxy()
+ if _,after:=solver.accountProxyState();after==nil {t.Fatal("challenge route should be independent of later account changes")}
 }
