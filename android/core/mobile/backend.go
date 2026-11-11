@@ -63,7 +63,7 @@ func copyObject(m object) object {
 }
 func millis() int64 { return time.Now().UnixMilli() }
 func defaults() object {
-	return object{"transport": "auto", "theme": "system", "accentColor": "orange", "proxyOnly": false, "bind": "127.0.0.1", "socksPort": 1080, "doh": "automatic", "customDns": "", "edge": "", "exitCheck": true, "excludedApps": []any{}, "upstream": object{"enabled": false, "type": "socks5", "host": "", "port": 1080, "username": "", "password": ""}, "serverId": "REC", "subscriptionsEnabled":false, "bootstrapSubUrl": "https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt", "bootstrapSubUrls": []any{"https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt", "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt"}}
+	return object{"transport": "auto", "theme": "system", "accentColor": "orange", "proxyOnly": false, "bind": "127.0.0.1", "socksPort": 1080, "doh": "automatic", "customDns": "", "edge": "", "exitCheck": true, "excludedApps": []any{}, "upstream": object{"enabled": false, "type": "socks5", "host": "", "port": 1080, "username": "", "password": ""}, "serverId": "REC", "subscriptionsEnabled":false, "accountRecoveryEnabled":false, "bootstrapSubUrl": "https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt", "bootstrapSubUrls": []any{"https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt", "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt"}}
 }
 
 type Backend struct {
@@ -97,6 +97,7 @@ type Backend struct {
 	updates                                          releaseUpdates
 	authRefresh                                      sync.Mutex
 	bootstrapMu                                      sync.Mutex
+	fxaProxyNode                                    *bootstrapNode
 }
 
 func NewBackend(host Host, vault string) *Backend {
@@ -275,6 +276,8 @@ func validate(s object) error {
 	}
 	if _,ok:=s["subscriptionsEnabled"];!ok{s["subscriptionsEnabled"]=false}
 	if _,ok:=s["subscriptionsEnabled"].(bool);!ok{return errors.New("Invalid subscription setting")}
+	if _,ok:=s["accountRecoveryEnabled"];!ok{s["accountRecoveryEnabled"]=false}
+	if _,ok:=s["accountRecoveryEnabled"].(bool);!ok{return errors.New("Invalid account recovery setting")}
 	return nil
 }
 func envelope(data any, err error) string {
@@ -361,11 +364,13 @@ func (b *Backend) Call(channel, argsJSON string) string {
 	case "verify":
 		result, err = b.verify(ctx, text(0))
 	case "logout":
+        b.resetAccountProxy()
 		b.Disconnect()
 		b.pending = nil
 		err = b.setAuth(nil)
 	case "cancelAccountLogin":
 		b.pending = nil
+        b.resetAccountProxy()
 	case "accountPreferences":
 		auto, ok := arg(0).(bool)
 		if !ok {
@@ -383,6 +388,7 @@ func (b *Backend) Call(channel, argsJSON string) string {
 			b.mu.Unlock()
 		}
 	case "selectAccount":
+		b.resetAccountProxy()
 		b.mu.Lock()
 		b.busy = true
 		b.mu.Unlock()
@@ -392,6 +398,7 @@ func (b *Backend) Call(channel, argsJSON string) string {
 		b.busy = false
 		b.mu.Unlock()
 	case "removeAccount":
+		b.resetAccountProxy()
 		err = b.removeAccount(text(0))
 	case "settings":
 		s, _ := arg(0).(map[string]any)

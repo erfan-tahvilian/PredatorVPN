@@ -69,7 +69,46 @@ func hawk(method, address, session, body string, ts int64, nonce string) (string
 	return fmt.Sprintf(`Hawk id="%s", ts="%d", nonce="%s", mac="%s", hash="%s"`, hex.EncodeToString(expanded[:32]), ts, nonce, base64.StdEncoding.EncodeToString(mac.Sum(nil)), encoded), nil
 }
 func (b *Backend) fetch(ctx context.Context, address, method string, body []byte, headers http.Header) ([]byte, http.Header, int, error) {
-	return b.fetchUsing(ctx,b.client,address,method,body,headers)
+	if !firefoxAccountRecoveryTarget(address) {
+		return b.fetchUsing(ctx, b.client, address, method, body, headers)
+	}
+	enabled, cached := b.accountProxyState()
+	if cached != nil {
+		data, h, status, err := b.fetchViaFirefoxNode(ctx, *cached, address, method, body, headers)
+		if err == nil {
+			return data, h, status, nil
+		}
+		b.resetAccountProxy()
+		// A timed-out write may have reached the server. Never send it again.
+		if !firefoxReadOnlyMethod(method) {
+			return data, h, status, err
+		}
+	}
+
+	// For a consented state-changing request, choose the route using a
+	// credential-free GET BEFORE the request. Once a write is sent, it is
+	// never silently replayed via a different route after a timeout.
+	if enabled && !firefoxReadOnlyMethod(method) {
+		direct, probeErr := b.firefoxDirectReachable(ctx)
+		if !direct {
+			if probeErr != nil && !recoverableFirefoxTransportError(ctx, probeErr) {
+				return nil, nil, 0, probeErr
+			}
+			return b.retryFirefoxViaSubscription(ctx, address, method, body, headers)
+		}
+	}
+
+	data, h, status, err := b.fetchUsing(ctx, b.client, address, method, body, headers)
+	if !recoverableFirefoxTransportError(ctx, err) {
+		return data, h, status, err
+	}
+	if !enabled {
+		return nil, nil, 0, fmt.Errorf("Firefox Accounts is unreachable on this network. Try another network, or opt in to Subscriptions and Firefox Accounts recovery in Settings: %w", err)
+	}
+	if !firefoxReadOnlyMethod(method) {
+		return data, h, status, fmt.Errorf("Firefox Accounts did not confirm this request. For safety, it was not resent; check your account status before trying again: %w", err)
+	}
+	return b.retryFirefoxViaSubscription(ctx, address, method, body, headers)
 }
 func (b *Backend) fetchUsing(ctx context.Context, client *http.Client, address, method string, body []byte, headers http.Header) ([]byte, http.Header, int, error) {
 	req, err := http.NewRequestWithContext(ctx, method, address, bytes.NewReader(body))
@@ -167,6 +206,7 @@ func (b *Backend) login(ctx context.Context, email, password string) (object, er
 		return nil, errors.New("Enter your service account email and password")
 	}
 	b.pending = nil
+ b.resetAccountProxy()
 	data := object{"email": email, "authPW": passwordHash(email, password), "verificationMethod": "email-2fa"}
 	result, err := b.authRequest(ctx, "/account/login", data, "")
 	var se *serviceError
@@ -226,6 +266,7 @@ func (b *Backend) complete(ctx context.Context) (object, error) {
 		return nil, err
 	}
 	b.pending = nil
+ b.resetAccountProxy()
 	return object{"needsCode": false}, nil
 }
 func (b *Backend) token(ctx context.Context, force bool) (string, error) {

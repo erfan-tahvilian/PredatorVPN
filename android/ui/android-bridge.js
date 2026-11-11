@@ -99,6 +99,18 @@
         input?.dispatchEvent(new Event("change",{bubbles:true}));
       });
     });
+    // Firefox Accounts recovery is separate consent: credentials are sent only
+    // over certificate-verified HTTPS, but proxy operators see destination metadata.
+    const fxaConsent=document.createElement('div');fxaConsent.className='setting-row';
+    const fxaLabel=document.createElement('div');const title=document.createElement('label');
+    title.htmlFor='accountRecoveryEnabled';title.textContent='Allow Firefox Accounts recovery';
+    const explanation=document.createElement('small');
+    explanation.textContent='Off by default. If Firefox login times out, temporarily route its encrypted HTTPS requests through a configured subscription. Proxy operators can see destination and timing, not your password. Requires Subscriptions enabled.';
+    fxaLabel.append(title,explanation);
+    const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.id='accountRecoveryEnabled';checkbox.className='switch';
+    checkbox.checked=currentState?.settings?.accountRecoveryEnabled===true;
+    fxaConsent.append(fxaLabel,checkbox);
+    document.querySelector('#settings-bootstrap .setting-row').after(fxaConsent);
     const sourceList=form.querySelector("#bootstrap-source-list");
     const testSubscription=document.createElement("button");
     testSubscription.type="button";testSubscription.className="secondary";

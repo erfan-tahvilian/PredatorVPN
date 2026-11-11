@@ -90,6 +90,8 @@ function fillSettings(s) {
   $('excludedApps').value=s.excludedApps.join('\n');
   $('upstreamEnabled').checked=s.upstream.enabled;
   $('subscriptionsEnabled').checked=s.subscriptionsEnabled===true;
+  const accountRecovery=$('accountRecoveryEnabled');
+  if(accountRecovery)accountRecovery.checked=s.accountRecoveryEnabled===true;
   renderBootstrapSources(s.bootstrapSubUrls||[s.bootstrapSubUrl].filter(Boolean));
   for(const key of ['type','host','port','username'])$('upstream'+key[0].toUpperCase()+key.slice(1)).value=s.upstream[key];
   $('upstreamPassword').value='';
@@ -335,6 +337,7 @@ function readSettings(){
   settings.socksPort=Number($('socksPort').value);for(const key of ['proxyOnly'])settings[key]=$(key).checked;
   settings.excludedApps=[...new Set($('excludedApps').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean))];
   settings.subscriptionsEnabled=$('subscriptionsEnabled').checked;
+  if($('accountRecoveryEnabled'))settings.accountRecoveryEnabled=$('accountRecoveryEnabled').checked;
   settings.bootstrapSubUrls=readBootstrapSources();
   settings.upstream={enabled:$('upstreamEnabled').checked,type:$('upstreamType').value,host:$('upstreamHost').value.trim(),port:Number($('upstreamPort').value),username:$('upstreamUsername').value,password:$('upstreamPassword').value};
   settings.clearUpstreamPassword=$('clearUpstreamPassword').checked;
