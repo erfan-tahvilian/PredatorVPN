@@ -82,29 +82,24 @@ func (b *Backend) testSubscriptionConnectivity(ctx context.Context)(any,error){
   }
   return false
  }
- // Prefer the user's configured URLs. Test no more than three compatible nodes
- // from each source to keep the test responsive on restricted mobile networks.
+ // The diagnostic uses exactly the same prioritization as HTTP-451 recovery.
+ // Check a small number of configured nodes, then bundled recovery candidates.
+ catalog:=make([][]bootstrapNode,0,len(sources))
+ fromSubscription:=make(map[string]bool)
  for i,source:=range sources {
-  if ctx.Err()!=nil||attempts>=8||i>=3{break}
+  if ctx.Err()!=nil||i>=3{break}
   nodes,err:=b.fetchBootstrapNodes(ctx,source)
   if err!=nil{stats["sourceFetchFailures"]=stats["sourceFetchFailures"].(int)+1;continue}
   stats["sourcesLoaded"]=stats["sourcesLoaded"].(int)+1
   stats["compatibleNodes"]=stats["compatibleNodes"].(int)+len(nodes)
-  attempted:=0
-  for _,node:=range nodes{
-   if attempted>=3||attempts>=8||ctx.Err()!=nil{break}
-   if tried[node.raw]{continue}
-   attempted++
-   if tryNode(node,"subscription"){return stats,nil}
-  }
+  catalog=append(catalog,nodes)
+  for _,node:=range nodes{fromSubscription[node.raw]=true}
  }
- // A bundled set avoids dependency on GitHub Raw when it is blocked.
- bundledTried:=0
- for _,node:=range bundled{
-  if bundledTried>=4||attempts>=8||ctx.Err()!=nil{break}
-  if tried[node.raw]{continue}
-  bundledTried++
-  if tryNode(node,"bundled"){return stats,nil}
+ for _,node:=range prioritizeBootstrapNodes(catalog,bundled){
+  if attempts>=8||ctx.Err()!=nil{break}
+  origin:="bundled"
+  if fromSubscription[node.raw]{origin="subscription"}
+  if tryNode(node,origin){return stats,nil}
  }
  // Keep technical error text free of node URLs, credentials and account data.
  if ctx.Err()!=nil {stats["status"]="timed_out"} else {stats["status"]="unreachable"}
