@@ -46,20 +46,7 @@ jobs:
           run-id: ${{ inputs.linux_run_id }}
           github-token: ${{ github.token }}
       - name: Validate static runtime, embedded update information and zsync headers
-        run: |
-          set -euo pipefail
-          for arch in x86_64 aarch64; do
-            image="PredatorVPN-2.0.5-$arch.AppImage"
-            file="verified-build/dist/$image"
-            test -s "$file"
-            test -s "$file.zsync"
-            chmod +x "$file"
-            test "$("$file" --appimage-updateinformation | tr -d '\000')" = "gh-releases-zsync|erfan-tahvilian|PredatorVPN|latest|PredatorVPN-*-$arch.AppImage.zsync"
-            if readelf --wide --program-headers "$file" | grep -Eq '^ *INTERP '; then
-              echo 'Static AppImage runtime unexpectedly depends on a host interpreter' >&2; exit 1
-            fi
-            grep -aF "URL: https://github.com/$GITHUB_REPOSITORY/releases/download/v2.0.5/$image" "$file.zsync" >/dev/null
-          done
+        run: node scripts/verify-appimage-update.cjs verified-build/dist
       - name: Archive current v2.0.5 AppImage assets for rollback
         env:
           GH_TOKEN: ${{ github.token }}
