@@ -70,9 +70,9 @@ class Control {
     const sessionUA = typeof this.transport?.session?.getUserAgent==='function'
       ? this.transport.session.getUserAgent()
       : null;
-    // Always use desktop Firefox UA for FxA (Firefox-TLS). Session UA is Chrome/Electron
-    // and mismatches the challenge answers Fastly expects for this API.
-    const agent = isFxA ? BROWSER_UA : UA;
+    // Keep the user agent consistent with the actual TLS transport. Chromium
+    // session.fetch must not present itself as Firefox to Fastly.
+    const agent = isFxA ? (sessionUA || BROWSER_UA) : UA;
     const incoming = options.headers || {};
     const baseHeaders = {
       'User-Agent': agent,

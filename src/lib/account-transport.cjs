@@ -40,7 +40,8 @@ async function clearFxACookies(ses){
     }
   }catch{/* best-effort */}
 }
-function createAccountTransport({createSession,systemFetch}){
+function createAccountTransport({createSession,systemFetch,fxaProxyMode='direct'}){
+  if(!['direct','system'].includes(fxaProxyMode))throw Error('Invalid FxA proxy mode');
   const isolated=createSession();
   if(!isolated||typeof isolated.setProxy!=='function'||typeof isolated.fetch!=='function')throw Error('Isolated account session is unavailable');
   const ready=isolated.setProxy({mode:'direct'});
@@ -55,7 +56,9 @@ function createAccountTransport({createSession,systemFetch}){
     const useBootstrap=Boolean(bootstrapProxyRules)&&['vpn.mozilla.org','firefox.settings.services.mozilla.com'].includes(target.hostname);
     await isolated.setProxy(useBootstrap
       ? {mode:'fixed_servers',proxyRules:bootstrapProxyRules}
-      : {mode:target.hostname==='vpn.mozilla.org'?'system':'direct'});
+      : {mode:target.hostname==='vpn.mozilla.org'||(
+          fxaProxyMode==='system'&&['api.accounts.firefox.com','accounts.firefox.com','oauth.accounts.firefox.com'].includes(target.hostname)
+        )?'system':'direct'});
     const method=(options.method||'GET').toUpperCase();
     try {return await isolated.fetch(url,options);}
     catch(error){

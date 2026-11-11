@@ -3,7 +3,7 @@
 // Account sign-in: in-app email/password, unblock code, email/TOTP and OAuth.
 // No external browser redirect, password persistence or automated OTP replay.
 const crypto=require('node:crypto');
-const {runHelper,helperPath,useFirefoxTlsHelper}=require('./fxa-tls-helper.cjs');
+const {runHelper,helperPath,useFirefoxTlsHelper,useFirefoxTlsLoginHelper}=require('./fxa-tls-helper.cjs');
 const PREFIX='identity.mozilla.com/picl/v1/';
 const CLIENT='5882386c6d801776'; // Legacy compatibility with existing accounts
 const SCOPE='profile https://identity.mozilla.com/apps/vpn';
@@ -54,10 +54,10 @@ class Auth {
   email=normalizeEmail(email);
   if(!email||!password)throw Error('Enter your service account email and password.');
   this.cancel();
-  // Packaged builds prefer the Firefox-TLS helper so /oauth/token is accepted.
-  // When Fastly demands an image CAPTCHA the helper cannot answer it; fall through
-  // to the in-app CAPTCHA UI (Chromium path), then finish OAuth via the helper.
-  if(useFirefoxTlsHelper()){
+  // On Windows, sign in through Electron's OS-aware in-app transport instead
+  // of the helper's independent Go route (which can time out on some networks).
+  // The optional helper remains available for OAuth and explicit opt-in.
+  if(useFirefoxTlsLoginHelper()){
    try{
     const result=await runHelper({cmd:'login',email,password});
     return this.applyHelperResult(result,email,password);

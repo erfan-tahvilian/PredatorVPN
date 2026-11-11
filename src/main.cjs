@@ -22,7 +22,8 @@ let authSessionSequence=0,captchaPrompt=null;
 function makeControl({interactive=false}={}){
   const createTransport=()=>createAccountTransport({
     createSession:()=>session.fromPartition('predator-auth-'+(++authSessionSequence)),
-    systemFetch:(...args)=>electronNet.fetch(...args)
+    systemFetch:(...args)=>electronNet.fetch(...args),
+    fxaProxyMode:process.platform==='win32'?'system':'direct'
   });
   const transport=createTransport();
   const control=new Control({

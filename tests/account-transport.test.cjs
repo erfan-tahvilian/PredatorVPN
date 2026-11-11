@@ -208,3 +208,42 @@ test('old browser accounts are preserved but cannot trigger discontinued OAuth r
  assert.equal(networkRequests,0);
  assert.equal(saved.refresh_token,'fixture-old-refresh');
 });
+
+
+test('Windows native login does not invoke the Go helper unless explicitly enabled',()=>{
+ const {useFirefoxTlsLoginHelper}=require('../src/lib/fxa-tls-helper.cjs');
+ const previous=process.env.FOX_USE_FXA_HELPER;
+ try{
+  delete process.env.FOX_USE_FXA_HELPER;
+  if(process.platform==='win32')assert.equal(useFirefoxTlsLoginHelper(),false);
+  process.env.FOX_USE_FXA_HELPER='0';
+  assert.equal(useFirefoxTlsLoginHelper(),false);
+ }finally{
+  if(previous===undefined)delete process.env.FOX_USE_FXA_HELPER;
+  else process.env.FOX_USE_FXA_HELPER=previous;
+ }
+});
+
+test('OS-aware FxA session honors system proxy, but never borrows the VPN bootstrap proxy',async()=>{
+ const changes=[];
+ const client=createAccountTransport({
+  fxaProxyMode:'system',
+  createSession:()=>({setProxy:async settings=>changes.push(settings.mode),fetch:async()=>new Response('{}')}),
+  systemFetch:async()=>{throw Error('Must stay in isolated session');}
+ });
+ await client(service,{method:'POST',body:'{}'});
+ assert.deepEqual(changes.slice(0,2),['direct','system']);
+ await client('https://firefox.settings.services.mozilla.com/v1/');
+ assert.equal(changes.at(-1),'direct');
+ await assert.rejects(client('https://attacker.example.invalid/'),/Unapproved/);
+});
+
+test('FxA Chromium transport uses its real user-agent rather than impersonating Firefox TLS',async()=>{
+ const {Control}=require('../src/lib/control.cjs');
+ let sent;
+ const transport=async(_url,opts)=>{sent=opts.headers;return new Response('{}');};
+ transport.session={getUserAgent:()=> 'Electron-Chromium-Device-Test'};
+ const control=new Control({transport});
+ await control.fetch(service,{method:'GET'});
+ assert.equal(sent['User-Agent'],'Electron-Chromium-Device-Test');
+});

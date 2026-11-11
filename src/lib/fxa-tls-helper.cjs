@@ -44,6 +44,15 @@ function useFirefoxTlsHelper(){
   }
 }
 
+/** Windows sign-in uses its native Chromium account transport first. The bundled
+ * helper's independent Go network route can time out on networks where Electron
+ * successfully reaches FxA. An explicit helper opt-in remains available. */
+function useFirefoxTlsLoginHelper(){
+  if(process.env.FOX_USE_FXA_HELPER==='1')return useFirefoxTlsHelper();
+  if(process.platform==='win32')return false;
+  return useFirefoxTlsHelper();
+}
+
 function runHelper(payload,timeoutMs=180000){
   return new Promise((resolve,reject)=>{
     const bin=helperPath();
@@ -75,4 +84,4 @@ function runHelper(payload,timeoutMs=180000){
   });
 }
 
-module.exports={helperPath,runHelper,useFirefoxTlsHelper};
+module.exports={helperPath,runHelper,useFirefoxTlsHelper,useFirefoxTlsLoginHelper};
