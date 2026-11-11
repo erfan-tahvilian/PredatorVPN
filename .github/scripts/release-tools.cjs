@@ -14,33 +14,6 @@ function validateRelease(release,v){
   for(const a of release.assets){assert(allowed.has(a.name),`Unexpected or transient asset: ${a.name}`);assert.equal(a.state,'uploaded');assert(a.size>0);assert.match(a.digest,/^sha256:[a-f0-9]{64}$/);}
   return release.assets.filter(a=>a.name!=='SHA256SUMS.txt').sort((a,b)=>a.name.localeCompare(b.name)).map(a=>`${a.digest.slice(7)}  ${a.name}`).join('\n')+'\n';
 }
-function olderTags(releases,v){return releases.filter(r=>!r.draft&&r.tag_name!=='v'+v&&/^v\d+\.\d+\.\d+$/.test(r.tag_name)&&newer(v,r.tag_name.slice(1))).map(r=>r.tag_name);}
-function archivedNotes(body){
-  let downloads=false;const lines=[];
-  for(const line of (body||'').split(/\r?\n/)){
-    if(/^## Downloads\s*$/.test(line)){downloads=true;continue;}
-    if(downloads&&/^## /.test(line))downloads=false;
-    if(!downloads)lines.push(line);
-  }
-  const notice='Installers for older versions are no longer distributed. Download the [latest release](https://github.com/erfan-tahvilian/PredatorVPN/releases/latest).';
-  const notes=lines.join('\n').trim();return notes+(notes.includes(notice)?'\n':'\n\n'+notice+'\n');
-}
-// Remove installers from older published releases so only the latest version
-// exposes download links. Keep the release record and source tags for history.
-function archiveRelease(repo,release,temporary,invoke=gh){
-  assert(Number.isSafeInteger(release.id)&&release.id>0);assert(!release.draft);
-  for(const asset of release.assets||[]){
-    try{invoke('release','delete-asset',release.tag_name,asset.name,'--repo',repo,'--yes');}catch{}
-  }
-  const safe=release.tag_name.replace(/[^a-zA-Z0-9._-]/g,'_');
-  const notesFile=path.join(temporary,`notes-${safe}.md`);
-  fs.writeFileSync(notesFile,archivedNotes(release.body||''));
-  const bodyFile=path.join(temporary,`body-${safe}.json`);
-  fs.writeFileSync(bodyFile,JSON.stringify({body:fs.readFileSync(notesFile,'utf8')}));
-  invoke('api','--method','PATCH',`repos/${repo}/releases/${release.id}`,'--input',bodyFile);
-  return {stripped:true,tag:release.tag_name};
-}
-
 function gh(...args){return execFileSync('gh',args,{encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();}
 function api(endpoint){return JSON.parse(gh('api',endpoint));}
 // GitHub can omit an unpublished draft from the tag endpoint until its tag
@@ -86,9 +59,9 @@ async function main(){
   for(let attempt=0;attempt<6;attempt++){latest=api(`repos/${repo}/releases/latest`);if(latest.id===release.id)break;await new Promise(resolve=>setTimeout(resolve,2000));}
   assert.equal(latest.id,release.id,'The new release is not latest; older downloads were preserved');
   validateRelease(latest,version);
-  const releases=api(`repos/${repo}/releases?per_page=100`),old=olderTags(releases,version);
-  for(const oldTag of old)archiveRelease(repo,releases.find(r=>r.tag_name===oldTag),temporary);
-  console.log(`Published and verified ${tag}; older release installers were removed from download links.`);
+  // Preserve every historical Release, tag, asset and release note unchanged.
+  // Existing versions remain independently downloadable after new publication.
+  console.log(`Published and verified ${tag}; all older Releases and assets preserved.`);
 }
 if(require.main===module)main().catch(error=>{console.error(error.message);process.exitCode=1;});
-module.exports={binaries,validateRelease,olderTags,archivedNotes,archiveRelease,pollRelease};
+module.exports={binaries,validateRelease,pollRelease};
