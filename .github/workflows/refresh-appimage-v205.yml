@@ -60,6 +60,19 @@ jobs:
             fi
             grep -aF "URL: https://github.com/$GITHUB_REPOSITORY/releases/download/v2.0.5/$image" "$file.zsync" >/dev/null
           done
+      - name: Archive current v2.0.5 AppImage assets for rollback
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/prior-v205
+          gh release download v2.0.5 --repo "$GITHUB_REPOSITORY" --pattern '*.AppImage' --dir /tmp/prior-v205
+          test -s /tmp/prior-v205/PredatorVPN-2.0.5-x86_64.AppImage
+          test -s /tmp/prior-v205/PredatorVPN-2.0.5-aarch64.AppImage
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Previous-v205-AppImages-before-FUSE-free
+          path: /tmp/prior-v205/*.AppImage
+          retention-days: 90
       - name: Replace only the two v2.0.5 AppImages and add their zsync files
         env:
           GH_TOKEN: ${{ github.token }}
