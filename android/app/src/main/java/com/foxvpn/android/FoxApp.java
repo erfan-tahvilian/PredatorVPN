@@ -102,6 +102,11 @@ public final class FoxApp extends Application implements Host {
         return links.getDnsServers().get(0).getHostAddress();
     }
     @Override public String certificates() { return certificates == null ? "" : certificates; }
+    @Override public String solveCaptcha(String imageDataURI) throws Exception {
+        MainActivity current = activity.get();
+        if (current == null) throw new java.io.IOException("Open Predator VPN to complete account verification");
+        return CaptchaPrompt.request(current, imageDataURI);
+    }
     @Override public String bootstrapNodes() {
         try (java.io.InputStream stream=getAssets().open("assets/bootstrap-nodes.txt");
              java.io.ByteArrayOutputStream output=new java.io.ByteArrayOutputStream()) {

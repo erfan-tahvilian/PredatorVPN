@@ -25,6 +25,9 @@ type Host interface {
 	DNSAddress() string
 	Certificates() string
 	BootstrapNodes() string
+	// Resolve a provider-issued image CAPTCHA through the native Android UI.
+	// Never attempt to synthesize an answer to a human verification challenge.
+	SolveCaptcha(imageDataURI string) (string, error)
 }
 type object = map[string]any
 

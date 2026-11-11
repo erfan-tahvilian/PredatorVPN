@@ -435,6 +435,8 @@ func solvePow(base, hash string) (string, error) {
 	return "", errors.New("Unable to complete service verification")
 }
 func (b *Backend) challenge(ctx context.Context) error {
+	ctx, stop := context.WithTimeout(ctx, 180*time.Second)
+	defer stop()
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return err
@@ -503,6 +505,17 @@ func (b *Backend) solveChallenge(ctx context.Context) error {
 					answers = append(answers, object{"ty": "pat", "auth": auth})
 				case "clientmetrics":
 					answers = append(answers, object{"ty": "clientmetrics", "webdriver": false, "bot_detection_result": object{"bot_detected": false, "bot_kind": nil}, "browser_metrics": object{"client_data": "{}", "error_trace": nil}, "detector_results": object{}, "v": 2})
+				case "captcha":
+					image := str(obj(c, "data"), "image_b64")
+					if !validCaptchaImage(image) {
+						return errors.New("The account provider sent an unsupported CAPTCHA image")
+					}
+					answer, e := b.host.SolveCaptcha(image)
+					if e != nil { return fmt.Errorf("Image verification was not completed: %w", e) }
+					if ctx.Err() != nil { return ctx.Err() }
+					answer = strings.TrimSpace(answer)
+					if answer == "" { return errors.New("CAPTCHA answer is required") }
+					answers = append(answers, object{"ty": "captcha", "answer": answer})
 				default:
 					return errors.New("The account provider requires a verification step this app cannot complete automatically. No additional sign-in request was sent.")
 				}

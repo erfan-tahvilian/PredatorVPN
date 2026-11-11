@@ -3,6 +3,7 @@ package mobile
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -121,5 +122,40 @@ func TestChallengeSuccessWithoutCookieIsNotAccepted(t *testing.T) {
  err:=b.challenge(context.Background())
  if err==nil||!strings.Contains(err.Error(),"without a verification cookie"){
   t.Fatalf("missing challenge cookie was accepted: %v",err)
+ }
+}
+
+func TestNativeImageCaptchaUsesHumanAnswerAndInstallsCookie(t *testing.T) {
+ host:=&testHost{captchaAnswer:" aB42 "}
+ b:=NewBackend(host,"{}")
+ image:="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLafAAAAABJRU5ErkJggg=="
+ postbacks:=0
+ b.client.Transport=exitRoundTripper(func(req *http.Request)(*http.Response,error){
+  body:="{}"
+  header:=http.Header{}
+  switch {
+   case req.URL.Hostname()=="api.accounts.firefox.com": body="{}"
+   case req.URL.Path=="/": body="<title>Client Challenge</title>/_fs-ch-test"
+   case strings.HasSuffix(req.URL.Path,"script.js"):
+    body=`init ([{"ty":"captcha","data":{"image_b64":"`+image+`"}}], "token", "/_fs-ch-test", true)`
+   case strings.HasSuffix(req.URL.Path,"fst-post-back"):
+    var posted object
+    raw,err:=io.ReadAll(req.Body)
+    if err!=nil||json.Unmarshal(raw,&posted)!=nil{t.Fatal("invalid captcha answer body")}
+    answers:=list(posted,"data")
+    if len(answers)!=1 {t.Fatal("missing human answer")}
+    reply,_:=answers[0].(map[string]any)
+    if str(reply,"ty")!="captcha"||str(reply,"answer")!="aB42"{t.Fatal("wrong captcha response")}
+    postbacks++
+    body=`{"status":"success"}`
+    header.Set("Set-Cookie","clearance=valid; Domain=firefox.com; Path=/; HttpOnly")
+   default: t.Fatal("unexpected verification request")
+  }
+  return &http.Response{StatusCode:200,Header:header,Body:io.NopCloser(strings.NewReader(body)),Request:req},nil
+ })
+ if err:=b.challenge(context.Background());err!=nil{t.Fatal(err)}
+ if postbacks!=1 {t.Fatalf("CAPTCHA postback count %d",postbacks)}
+ if !validCaptchaImage(image) || validCaptchaImage("data:text/html;base64,"+strings.Repeat("A",40)) {
+  t.Fatal("unsafe CAPTCHA images accepted")
  }
 }

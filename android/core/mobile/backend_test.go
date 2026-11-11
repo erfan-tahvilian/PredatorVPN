@@ -25,6 +25,7 @@ type testHost struct {
 	mu    sync.Mutex
 	saved string
 	fail  bool
+	captchaAnswer string
 }
 
 func (h *testHost) Save(value string) error {
@@ -41,6 +42,10 @@ func (*testHost) Protect(int32) bool   { return true }
 func (*testHost) DNSAddress() string   { return "127.0.0.1" }
 func (*testHost) Certificates() string { return "" }
 func (*testHost) BootstrapNodes() string { return "" }
+func (h *testHost) SolveCaptcha(imageDataURI string) (string,error) {
+ if h.captchaAnswer=="" {return "",errors.New("CAPTCHA prompt was not answered")}
+ return h.captchaAnswer,nil
+}
 func TestDesktopAuthenticationCompatibility(t *testing.T) {
 	if result := passwordHash("user@example.com", "sample password"); result != "e07930e948638b7bda1b8a7916a8392af7ca2783dd00c36dd474fb93521318eb" {
 		t.Fatal(result)

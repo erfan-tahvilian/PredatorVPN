@@ -25,6 +25,15 @@ func shouldSolveFirefoxChallenge(status int, body []byte, address string) bool {
   bytes.Contains(payload, []byte("/_fs-ch-"))
 }
 
+// The native dialog only receives a bounded, encoded image; no remote HTML.
+func validCaptchaImage(image string) bool {
+ if len(image)<32 || len(image)>768*1024 {return false}
+ for _,prefix:=range []string{"data:image/png;base64,","data:image/jpeg;base64,","data:image/webp;base64,","data:image/gif;base64,"} {
+  if strings.HasPrefix(image,prefix){return true}
+ }
+ return false
+}
+
 // Decode JSON arguments without interpreting or running remote JavaScript.
 func parseChallengeInit(script, prefix string) ([]object, string, error) {
 	if len(script) > 2*1024*1024 {
