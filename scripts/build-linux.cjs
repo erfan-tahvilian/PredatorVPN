@@ -11,6 +11,8 @@ const config={
   ...base,
   artifactName:`PredatorVPN-\${version}-Linux-${t.arch}.\${ext}`,
   electronDist:'node_modules/electron/dist',
+  // Static 20251108 runtime eliminates host libfuse2 for AppImage execution.
+  toolsets:{...base.toolsets,appimage:'1.0.3'},
   extraResources:[
     {from:`engine/linux/${t.arch}`,to:'engine',filter:['sing-box','fox-h3','LICENSE*','*.txt']},
     {from:helper,to:'fxa-auth'},

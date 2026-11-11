@@ -36,7 +36,7 @@ jobs:
       - name: Prepare desktop test and packaging dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y xvfb dbus-x11 gnome-keyring libsecret-1-0 libgtk-3-0 libnss3 libasound2t64 libfuse2t64 ruby ruby-dev rpm cpio
+          sudo apt-get install -y xvfb dbus-x11 gnome-keyring libsecret-1-0 libgtk-3-0 libnss3 libasound2t64 ruby ruby-dev rpm cpio zsync binutils
           sudo gem install fpm --no-document
           # Enable Chromium's user-namespace sandbox on this ephemeral CI host.
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
@@ -62,6 +62,8 @@ jobs:
             npm run smoke
           '
       - run: node scripts/build-linux.cjs
+      - name: Embed AppImageUpdate and generate zsync (no host FUSE2 required)
+        run: node scripts/embed-appimage-update.cjs
       - run: node scripts/validate-linux-package.cjs
       - name: Verify compressed AppImage payload
         run: node scripts/verify-distribution.cjs
@@ -70,6 +72,7 @@ jobs:
           name: PredatorVPN-Linux-${{ matrix.arch }}
           path: |
             dist/*.AppImage
+            dist/*.AppImage.zsync
             dist/*.deb
             dist/*.rpm
             test-results/*.png
