@@ -134,6 +134,18 @@ jobs:
         with:
           name: Android-unsigned-arm64
           path: android/app/build/outputs/apk/release/app-arm64-v8a-release-unsigned.apk
+      # Device-only diagnostic APK, isolated from the installed production app.
+      # This step runs solely on the temporary troubleshooting branch.
+      - name: Build isolated Android subscription diagnostic APK
+        if: github.ref == 'refs/heads/test/android-subscription-device-20261111'
+        working-directory: android
+        run: gradle --no-daemon --offline :app:assembleDebug
+      - uses: actions/upload-artifact@v4
+        if: github.ref == 'refs/heads/test/android-subscription-device-20261111'
+        with:
+          name: Android-subscription-debug-arm64
+          path: android/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
+          if-no-files-found: error
       - name: Collect local signing tools
         run: |
           mkdir signing-tools
