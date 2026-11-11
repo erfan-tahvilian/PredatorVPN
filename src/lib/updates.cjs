@@ -10,6 +10,7 @@ function assetName(version,{platform,arch,format}){
   const names={win32:{x64:'x64',ia32:'x86',arm64:'arm64'},darwin:{x64:'x64',arm64:'arm64'},linux:{x64:'x64',arm64:'arm64'},android:{'arm64-v8a':'arm64-v8a','armeabi-v7a':'armeabi-v7a',x86_64:'x86_64',x86:'x86',universal:'universal'}};
   const cpu=names[platform]?.[arch],formats={win32:['exe','zip'],darwin:['dmg','zip'],linux:['AppImage','deb','rpm'],android:['apk']};
   if(!cpu||!formats[platform]?.includes(format))throw Error('No update package matches this installation.');
+  if(platform==='linux'&&format==='AppImage')return `PredatorVPN-${version}-${arch==='x64'?'x86_64':'aarch64'}.AppImage`;
   return `PredatorVPN-${version}-${{win32:'Windows',darwin:'macOS',linux:'Linux',android:'Android'}[platform]}-${cpu}.${format}`;
 }
 function selectRelease(release,current,target){

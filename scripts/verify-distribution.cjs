@@ -40,7 +40,14 @@ async function main(){
     const zip=path.join(distribution,`PredatorVPN-${version}-macOS-${target.arch}.zip`),unzip=path.join(temporary,'zip');
     execFileSync('/usr/bin/ditto',['-x','-k',zip,unzip],{stdio:'pipe'});verify(path.join(unzip,'Predator VPN.app'),zip);
   }else{
-    const image=path.join(distribution,`PredatorVPN-${version}-Linux-${target.arch}.AppImage`);
+    const image=path.join(distribution,require('../src/lib/updates.cjs').assetName(version,{platform:'linux',arch:target.arch,format:'AppImage'}));
+    // AppImageHub only mounts gzip or zstd, not xz. Verify SquashFS directly.
+    const offsetText=execFileSync(image,['--appimage-offset'],{encoding:'utf8',timeout:15000}).trim();
+    assert.match(offsetText,/^[0-9]+$/,'Invalid AppImage SquashFS offset');
+    const offset=Number(offsetText),header=Buffer.alloc(24),fd=fs.openSync(image,'r');
+    try{assert.equal(fs.readSync(fd,header,0,24,offset),24);}finally{fs.closeSync(fd);}
+    assert.equal(header.toString('ascii',0,4),'hsqs','AppImage must contain SquashFS');
+    assert.equal(header.readUInt16LE(20),1,'AppImage SquashFS must use gzip (compression ID 1) for catalog compatibility');
     execFileSync(image,['--appimage-extract'],{cwd:temporary,stdio:'pipe',maxBuffer:16*1024*1024});verify(path.join(temporary,'squashfs-root'),image);
     for(const format of ['deb','rpm']){
       const file=path.join(distribution,`PredatorVPN-${version}-Linux-${target.arch}.${format}`),unpacked=path.join(temporary,format);fs.mkdirSync(unpacked);

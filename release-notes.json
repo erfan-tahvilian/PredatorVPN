@@ -1,15 +1,19 @@
 {
-  "version": "2.0.4",
+  "version": "2.0.5",
   "items": [
     {
       "platforms": [
-        "win32",
-        "darwin",
-        "linux",
-        "android"
+        "linux"
       ],
-      "title": "Automatic Guardian HTTP 451 double-slash retry",
-      "description": "Retry region-blocked Guardian API calls via the Arman-compatible double-leading-slash path. This is conditional and does not rewrite unrelated URLs."
+      "title": "AppImage catalog-compatible SquashFS",
+      "description": "The Linux AppImage uses gzip-compressed SquashFS, supported by the AppImage catalog mount tester, instead of its incompatible xz compression."
+    },
+    {
+      "platforms": [
+        "linux"
+      ],
+      "title": "Standard AppImage filenames",
+      "description": "Published AppImages are named PredatorVPN-2.0.5-x86_64.AppImage and PredatorVPN-2.0.5-aarch64.AppImage. DEB and RPM package names are unchanged apart from the version."
     },
     {
       "platforms": [
@@ -18,25 +22,8 @@
         "linux",
         "android"
       ],
-      "title": "Subscriptions disabled by default",
-      "description": "Optional temporary proxy recovery can be enabled in Subscriptions. Two preconfigured GitHub Raw URLs remain editable, with unlimited added sources and ordering controls."
-    },
-    {
-      "platforms": [
-        "android"
-      ],
-      "title": "Android reliability fixes retained",
-      "description": "Improved data allowance refresh, uTLS-backed VLESS Reality/gRPC recovery when explicitly enabled, and a compact selected location inside the Connect card."
-    },
-    {
-      "platforms": [
-        "win32",
-        "darwin",
-        "linux",
-        "android"
-      ],
-      "title": "Consistent multi-platform updates",
-      "description": "New installable version 2.0.4 across all supported processor architectures."
+      "title": "Consistent release version and links",
+      "description": "Updated download links, release validation, and README branding, retaining the existing account, subscriptions, connection and regional HTTP 451 recovery behavior."
     }
   ]
 }

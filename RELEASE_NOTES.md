@@ -1,10 +1,11 @@
-Predator VPN 2.0.4 improves service reachability using the Arman-compatible double-leading-slash Guardian API request retry. Subscriptions are opt-in and disabled by default.
+Predator VPN v2.0.5 is a focused compatibility release that fixes the Linux AppImage catalog validation issues while preserving the existing VPN functionality.
 
-## Version 2.0.4 — Regional access and subscription controls
+## Changes
 
-- Guardian HTTP 451: retry the affected Guardian endpoint once using the Arman-compatible double leading slash (//api/v1/fpn/...) with the same HTTPS method and credentials. This workaround depends on service behavior and is not guaranteed.
-- Subscriptions: new opt-in Enable subscriptions switch, disabled by default, with two preconfigured links and unlimited additional sources. When enabled, a failed double-slash request can use the temporary subscription proxy.
-- Android: retains previous data allowance, first-Ping improvements, and compact selected-location controls; VLESS Reality/gRPC temporary transport supports uTLS.
-- Windows, macOS, Linux and Android: unified region-retry behavior and versioned release packages.
+- **Linux AppImage compatibility:** switched the SquashFS filesystem from xz to gzip. The AppImage catalog compatibility runtime supports gzip but cannot mount the previous xz payload.
+- **Standard filenames:** PredatorVPN-2.0.5-x86_64.AppImage and PredatorVPN-2.0.5-aarch64.AppImage, without a redundant Linux suffix.
+- **Project identification:** aligned the README headline with PredatorVPN for AppImage catalog discovery.
+- **Download integrity:** the Linux distribution verification explicitly checks the SquashFS header and gzip compression ID, then extracts the AppImage and verifies the packaged application against the source.
+- **Other platforms:** Windows, macOS and Android retain existing functionality, including regional HTTP 451 fallback and opt-in Subscriptions, in matching version 2.0.5 packages.
 
-Full installers and architecture-specific packages are included in the v2.0.4 release. On an HTTP 451 response, the client first retries the same API call via the double-leading-slash path. If Subscriptions is enabled and still blocked, a temporary secure connection may be used. No permanent proxy is retained.
+The AppImage catalog listing is maintained by the AppImage project and may require a fresh retest on their existing pull request.

@@ -14,4 +14,10 @@ for(const name of ['README.md','README.fa.md']){
   assert(readme.includes('/releases/download/v'+pkg.version+'/PredatorVPN-'+pkg.version+'-Android-arm64-v8a.apk'),`${name} must link current Android release`);
 }
 assert(fs.readFileSync('docs/readme/badge-version.svg','utf8').includes(pkg.version),'README version badge is stale');
+assert(/^##? PredatorVPN\s*$/m.test(fs.readFileSync('README.md','utf8')),'README heading must be PredatorVPN for AppImage catalog');
+for(const arch of ['x64','arm64']){
+  const file=require('../src/lib/updates.cjs').assetName(pkg.version,{platform:'linux',arch,format:'AppImage'});
+  assert(fs.readFileSync('README.md','utf8').includes(file),'README must link current AppImage '+arch);
+}
+assert(/appImage:\{compression:'gzip'/.test(fs.readFileSync('scripts/build-linux.cjs','utf8')),'AppImage must use gzip SquashFS');
 console.log(`Version ${pkg.version}, READMEs, Android metadata and release highlights agree.`);

@@ -17,7 +17,9 @@ const config={
   ],
   linux:{maintainer:'Erfan Tahvilian <erfan-tahvilian@users.noreply.github.com>',target:['AppImage','deb','rpm'],category:'Network',executableName:'predator-vpn',icon:'assets/logo-light.png',desktop:{entry:{Name:'Predator VPN',Comment:'Independent cross-platform VPN client',Categories:'Network;Security;'}}},
   afterPack:'scripts/capture-linux-payload.cjs',
-  appImage:{compression:'xz'},
+  // AppImageHub's compatibility runtime cannot mount xz-compressed SquashFS.
+  // Standard AppImage architecture names differ from deb/rpm asset names.
+  appImage:{compression:'gzip',artifactName:'PredatorVPN-${version}-'+(t.arch==='x64'?'x86_64':'aarch64')+'.AppImage'},
   deb:{depends:['libgtk-3-0','libnotify4','libnss3','libxss1','libxtst6','xdg-utils','libatspi2.0-0','libuuid1','libsecret-1-0','pkexec | policykit-1']},
   rpm:{depends:['gtk3','libnotify','nss','libXScrnSaver','libXtst','xdg-utils','at-spi2-core','libuuid','libsecret','polkit']},
 };

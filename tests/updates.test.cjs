@@ -11,7 +11,11 @@ test('all 21 supported installation variants map to their exact release package'
   for(const [platform,arches,formats] of [['win32',['x64','ia32','arm64'],['exe','zip']],['darwin',['x64','arm64'],['dmg','zip']],['linux',['x64','arm64'],['AppImage','deb','rpm']],['android',['arm64-v8a','armeabi-v7a','x86_64','x86','universal'],['apk']]])for(const arch of arches)for(const format of formats){
     const target={platform,arch,format},result=selectRelease(release('1.0.2',target),'1.0.1',target);assert(result.available);assert.equal(result.name,assetName('1.0.2',target));assert(result.url.endsWith(result.name));count++;
   }
-  assert.equal(count,21);assert.throws(()=>assetName('1.0.2',{platform:'linux',arch:'ia32',format:'deb'}));
+  assert.equal(count,21);
+  assert.equal(assetName('2.0.5',{platform:'linux',arch:'x64',format:'AppImage'}),'PredatorVPN-2.0.5-x86_64.AppImage');
+  assert.equal(assetName('2.0.5',{platform:'linux',arch:'arm64',format:'AppImage'}),'PredatorVPN-2.0.5-aarch64.AppImage');
+  assert.equal(assetName('2.0.5',{platform:'linux',arch:'x64',format:'deb'}),'PredatorVPN-2.0.5-Linux-x64.deb');
+  assert.throws(()=>assetName('1.0.2',{platform:'linux',arch:'ia32',format:'deb'}));
 });
 test('update metadata refuses redirected assets, missing files, incomplete uploads and unknown digests',()=>{
   const target={platform:'android',arch:'arm64-v8a',format:'apk'};
