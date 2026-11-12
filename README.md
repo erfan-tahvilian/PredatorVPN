@@ -19,16 +19,17 @@
 
 **A familiar workspace for a more private connection.** Predator VPN brings system VPN, app-based routing and connection controls to your desktop and phone, with an English interface and light, dark and system appearance.
 
-**v2.0.5** adds an explicit on/off switch for per-app split tunneling (with saved app selections retained), optional account connection recovery through configured subscription nodes, and a Windows native sign-in transport fix. The Linux AppImage uses gzip SquashFS and standard architecture-specific filenames for catalog compatibility. Regional HTTP 451 recovery, opt-in Subscriptions, data allowance controls, and the Android location layout are retained. [Release notes](https://github.com/erfan-tahvilian/PredatorVPN/releases/tag/v2.0.5).
+**v2.0.5** improves sign-in and connection reliability across different networks, introduces a simple Split Tunneling on/off switch that preserves your app selections, and improves Linux package compatibility. Optional subscription-based connection recovery remains under your control. [See what changed](https://github.com/erfan-tahvilian/PredatorVPN/releases/tag/v2.0.5).
 
 ## PredatorVPN
 
-### Version 2.0.5 — AppImage catalog compatibility and regional access
+### What's new in v2.0.5
 
-- Guardian HTTP 451: retry the affected Guardian endpoint once using the alternate double-leading-slash (//api/v1/fpn/...) with the same HTTPS method and credentials. This workaround depends on service behavior and is not guaranteed.
-- Subscriptions: new opt-in Enable subscriptions switch, disabled by default, with two preconfigured links and unlimited additional sources. When enabled, a failed double-slash request can use the temporary subscription proxy.
-- Android: retains the previous data allowance, first-Ping improvements, and compact selected-location controls; VLESS Reality/gRPC temporary transport supports uTLS.
-- Windows, macOS, Linux and Android: unified region-retry behavior and versioned release packages.
+- **More reliable connections:** Improved sign-in, connection establishment and responsiveness on networks where access can be unreliable or restricted.
+- **Simpler Split Tunneling:** Turn app-specific routing on or off without losing your saved app selections.
+- **Optional connection recovery:** Use your configured subscription sources for connection recovery when needed. This feature remains opt-in.
+- **Better Linux compatibility:** Refreshed AppImage and package support, including compatibility with AppImageUpdate.
+- **Consistent experience:** Existing accounts, preferences and core features are preserved when updating.
 
 Sign in with a service account to get started. Service eligibility, availability and data allowances apply. Predator VPN is an independent client and is not affiliated with the external service provider.
 
@@ -161,7 +162,7 @@ After signing in and approving the first VPN connection, edit your Quick Setting
 <details>
 <summary><strong>Linux</strong></summary>
 
-Choose **DEB** for Debian/Ubuntu or **RPM** for Fedora and compatible distributions. For a standalone package, make the **AppImage** executable and launch it. AppImage may require your distribution's FUSE compatibility package. Use a current desktop with a Secret Service keyring, polkit and a working authorization agent. Approve the polkit request when connecting; the interface itself runs without root access.
+Choose **DEB** for Debian/Ubuntu or **RPM** for Fedora and compatible distributions. For a standalone package, make the **AppImage** executable and launch it. Use a current desktop with a Secret Service keyring, polkit and a working authorization agent. Approve the polkit request when connecting; the interface itself runs without root access.
 
 </details>
 
