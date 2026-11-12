@@ -1,0 +1,30 @@
+name: Import approved README image (temporary)
+on:
+  workflow_dispatch:
+    inputs:
+      source_url:
+        description: Approved image download URL
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download only the approved image
+        env:
+          SOURCE_URL: ${{ inputs.source_url }}
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error --retry 2 --max-time 90 \
+            --output predator-approved-cinematic.png "$SOURCE_URL"
+          echo "a9a9038b6e44cbfda680cd2465bf37b9246a502d7909cf652ab29aa82b661cb2  predator-approved-cinematic.png" | sha256sum --check
+          file predator-approved-cinematic.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: predator-approved-cinematic
+          path: predator-approved-cinematic.png
+          retention-days: 1
+          if-no-files-found: error
