@@ -150,7 +150,7 @@ func (b *Backend) jsonRequest(ctx context.Context, address, method string, body 
 			return nil, nil, err
 		}
 		if status == http.StatusUnavailableForLegalReasons && guardianRecoveryURL(address) {
-			// Arman-compatible path variation is tried once before any optional proxy.
+			// Alternate provider path variation is tried once before any optional proxy.
 			if alternate,ok:=doubleSlashGuardianURL(address);ok {
 				if data,respHeaders,code,retryErr:=b.fetch(ctx,alternate,method,encoded,headers);retryErr==nil {
 					raw,h,status=data,respHeaders,code

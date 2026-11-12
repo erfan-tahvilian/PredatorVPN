@@ -134,7 +134,7 @@ test('concurrent Guardian operations serialize Bootstrap sessions',async()=>{
  assert.equal(peak,1);assert.equal(active,0);
 });
 
-test('Arman double-leading-slash retries with identical method and bearer auth',async()=>{
+test('Double-leading-slash fallback retries with identical method and bearer auth',async()=>{
  const calls=[];
  const guardian=new Guardian({json:async(url,opts)=>{
    calls.push({url,method:opts.method,authorization:opts.authorization});

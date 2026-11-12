@@ -247,3 +247,54 @@ test('FxA Chromium transport uses its real user-agent rather than impersonating 
  await control.fetch(service,{method:'GET'});
  assert.equal(sent['User-Agent'],'Electron-Chromium-Device-Test');
 });
+
+test('Windows Guardian read uses direct HTTPS before touching a stalled Chromium session',async()=>{
+ let modeCalls=0,chromiumCalls=0;
+ const transport=createAccountTransport({
+  createSession:()=>({setProxy:()=>{modeCalls++;return new Promise(()=>{});},fetch:async()=>{chromiumCalls++;throw Error('Chromium cannot be used');}}),
+  systemFetch:async()=>{throw Error('Unexpected Electron system fetch');},
+  guardianDirectFetch:async(url,options)=>{
+   assert.equal(new URL(url).hostname,'vpn.mozilla.org');
+   assert.equal(options.signal.aborted,false);
+   return new Response('{}',{status:200});
+  }
+ });
+ const response=await transport('https://vpn.mozilla.org/api/v1/fpn/token',{method:'GET'});
+ assert.equal(response.status,200);
+ assert.equal(modeCalls,1,'Only initial session creation may have started');
+ assert.equal(chromiumCalls,0);
+});
+
+test('Guardian read with active bootstrap subscription uses Chromium SOCKS, not direct HTTPS',async()=>{
+ const modes=[];let direct=0,request=0;
+ const transport=createAccountTransport({
+  createSession:()=>({setProxy:async opts=>modes.push(opts),fetch:async()=>{request++;return new Response('{}');}}),
+  systemFetch:async()=>new Response('{}'),
+  guardianDirectFetch:async()=>{direct++;return new Response('{}');}
+ });
+ await transport.setBootstrapProxy('socks5://127.0.0.1:45678');
+ await transport('https://vpn.mozilla.org/api/v1/fpn/token');
+ assert.equal(direct,0);
+ assert.equal(request,1);
+ assert.equal(modes.at(-1).mode,'fixed_servers');
+ assert.equal(modes.at(-1).proxyRules,'socks5://127.0.0.1:45678');
+});
+
+test('Chromium timeout triggers idempotent fallback with a fresh non-aborted deadline',async()=>{
+ let fallback=0;
+ const expired=new AbortController();
+ expired.abort(new DOMException('The operation was aborted due to timeout','TimeoutError'));
+ const transport=createAccountTransport({
+  createSession:()=>({setProxy:async()=>{},fetch:async()=>{throw new DOMException('The operation was aborted due to timeout','TimeoutError');}}),
+  systemFetch:async(_url,options)=>{
+   fallback++;assert.equal(options.signal.aborted,false);
+   return new Response('{}');
+  }
+ });
+ const response=await transport('https://api.accounts.firefox.com/v1/test',{method:'GET',signal:expired.signal});
+ assert.equal(response.status,200);
+ assert.equal(fallback,1);
+ assert(isTransient(new DOMException('The operation was aborted due to timeout','TimeoutError')));
+ await assert.rejects(transport(service,{method:'POST',body:'{}',signal:expired.signal}),/interrupted/i);
+ assert.equal(fallback,1,'A password or verification POST must never be resubmitted');
+});

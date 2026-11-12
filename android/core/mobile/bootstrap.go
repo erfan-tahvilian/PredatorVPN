@@ -169,7 +169,7 @@ func startBootstrapBox(node bootstrapNode,port int) (*box.Box,error){
  return engine,nil
 }
 
-// Arman compatibility workaround: two slashes immediately after vpn.mozilla.org.
+// Provider HTTP 451 fallback: two slashes immediately after vpn.mozilla.org.
 // Do not rewrite arbitrary URLs, and never modify FxA token/authentication routes.
 func doubleSlashGuardianURL(address string) (string,bool) {
  u,err:=url.Parse(address)

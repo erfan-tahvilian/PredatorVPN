@@ -1,0 +1,154 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Explicit maintenance update of Windows assets within the existing v2.0.5.
+# Do not change any historical release or non-Windows v2.0.5 asset.
+name: Maintain v2.0.5 Windows WiFi compatibility
+on:
+  workflow_dispatch:
+    inputs:
+      windows_run_id:
+        description: Successful Windows x64/x86/ARM64 workflow run for current main SHA
+        required: true
+        type: string
+permissions:
+  contents: write
+  actions: read
+jobs:
+  refresh:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify version, source, complete Windows build and release mutability
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WINDOWS_RUN: ${{ inputs.windows_run_id }}
+        run: |
+          set -euo pipefail
+          test "$(node -p 'require("./package.json").version')" = "2.0.5"
+          [[ "$WINDOWS_RUN" =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$WINDOWS_RUN" > /tmp/win-run.json
+          test "$(jq -r .status /tmp/win-run.json)" = completed
+          test "$(jq -r .conclusion /tmp/win-run.json)" = success
+          test "$(jq -r .path /tmp/win-run.json)" = '.github/workflows/windows.yml'
+          test "$(jq -r .head_sha /tmp/win-run.json)" = "$GITHUB_SHA"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$WINDOWS_RUN/jobs?per_page=100" > /tmp/win-jobs.json
+          test "$(jq '[.jobs[] | select(.name | startswith("windows (")) | select(.conclusion == "success")] | length' /tmp/win-jobs.json)" = 3
+          gh api "repos/$GITHUB_REPOSITORY/releases/latest" > /tmp/current-release.json
+          test "$(jq -r .tag_name /tmp/current-release.json)" = 'v2.0.5'
+          test "$(jq -r .draft /tmp/current-release.json)" = false
+          test "$(jq -r .immutable /tmp/current-release.json)" != true
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" > /tmp/before.json
+          node - <<'NODE'
+          const fs=require('fs'),assert=require('node:assert/strict');
+          const current=JSON.parse(fs.readFileSync('/tmp/current-release.json','utf8'));
+          const {validateRelease}=require('./.github/scripts/release-tools.cjs');
+          assert.equal(current.assets.length,26);
+          validateRelease(current,'2.0.5');
+          const win=current.assets.filter(a=>/Windows-(x64|x86|arm64)\.(exe|zip)$/.test(a.name));
+          assert.equal(win.length,6);
+          assert(win.every(a=>a.size>0&&a.digest.startsWith('sha256:')));
+          NODE
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: PredatorVPN-Windows-*
+          merge-multiple: true
+          path: verified-build
+          run-id: ${{ inputs.windows_run_id }}
+          github-token: ${{ github.token }}
+      - name: Verify all six build artifacts and Windows executable headers
+        run: |
+          set -euo pipefail
+          for arch in x64 x86 arm64; do
+            for ext in exe zip; do
+              name="PredatorVPN-2.0.5-Windows-$arch.$ext"
+              file="verified-build/dist/$name"
+              test -s "$file"
+              test "$(stat -c %s "$file")" -gt 1000000
+              sha256sum "$file"
+            done
+            file "verified-build/dist/PredatorVPN-2.0.5-Windows-$arch.exe" | grep -q 'PE'
+            unzip -tqq "verified-build/dist/PredatorVPN-2.0.5-Windows-$arch.zip"
+          done
+      - name: Download original Windows files for rollback
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/v205-windows-backup
+          gh release download v2.0.5 --repo "$GITHUB_REPOSITORY" --pattern 'PredatorVPN-2.0.5-Windows-*' --dir /tmp/v205-windows-backup
+          for arch in x64 x86 arm64; do
+            for ext in exe zip; do
+              name="PredatorVPN-2.0.5-Windows-$arch.$ext"
+              test -s "/tmp/v205-windows-backup/$name"
+              expected="$(jq -r --arg name "$name" '.assets[]|select(.name==$name)|.digest' /tmp/current-release.json)"
+              actual="sha256:$(sha256sum "/tmp/v205-windows-backup/$name" | cut -d' ' -f1)"
+              test "$expected" = "$actual"
+            done
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Original-v2.0.5-Windows-assets-before-WiFi-maintenance
+          path: /tmp/v205-windows-backup/*
+          retention-days: 90
+          if-no-files-found: error
+          compression-level: 0
+      - name: Replace only the six Windows v2.0.5 assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for arch in x64 x86 arm64; do
+            gh release upload v2.0.5               "verified-build/dist/PredatorVPN-2.0.5-Windows-$arch.exe"               "verified-build/dist/PredatorVPN-2.0.5-Windows-$arch.zip"               --repo "$GITHUB_REPOSITORY" --clobber
+          done
+      - name: Refresh v2.0.5 checksum manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/v2.0.5" > /tmp/current-new.json
+          node - <<'NODE'
+          const fs=require('fs');
+          const {validateRelease}=require('./.github/scripts/release-tools.cjs');
+          const current=JSON.parse(fs.readFileSync('/tmp/current-new.json','utf8'));
+          fs.writeFileSync('/tmp/SHA256SUMS.txt',validateRelease(current,'2.0.5'));
+          NODE
+          gh release upload v2.0.5 /tmp/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
+      - name: Validate uploaded digests, untouched older releases and non-Windows assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/releases/latest" > /tmp/latest.json
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" > /tmp/after.json
+          node - <<'NODE'
+          const fs=require('fs'),assert=require('node:assert/strict');
+          const {validateRelease}=require('./.github/scripts/release-tools.cjs');
+          const before=JSON.parse(fs.readFileSync('/tmp/before.json','utf8'));
+          const after=JSON.parse(fs.readFileSync('/tmp/after.json','utf8'));
+          const current=JSON.parse(fs.readFileSync('/tmp/latest.json','utf8'));
+          assert.equal(current.tag_name,'v2.0.5');
+          assert.equal(current.draft,false);
+          assert.equal(current.assets.length,26);
+          const manifest=validateRelease(current,'2.0.5');
+          assert.equal(manifest,fs.readFileSync('/tmp/SHA256SUMS.txt','utf8'));
+          const normalized=r=>({
+            id:r.id,tag:r.tag_name,body:r.body,
+            assets:r.assets.map(a=>[a.name,a.size,a.digest]).sort((a,b)=>a[0].localeCompare(b[0]))
+          });
+          const old=x=>x.filter(r=>r.tag_name!=='v2.0.5').map(normalized).sort((a,b)=>a.tag.localeCompare(b.tag));
+          assert.deepEqual(old(after),old(before),'A historical Release or installer changed');
+          const original=before.find(r=>r.tag_name==='v2.0.5');
+          assert(original,'Original current Release unavailable');
+          const isWindows=a=>/^PredatorVPN-2\.0\.5-Windows-(x64|x86|arm64)\.(exe|zip)$/.test(a.name);
+          const other=r=>r.assets.filter(a=>!isWindows(a)&&a.name!=='SHA256SUMS.txt').map(a=>[a.name,a.size,a.digest]).sort((a,b)=>a[0].localeCompare(b[0]));
+          assert.deepEqual(other(current),other(original),'A non-Windows v2.0.5 asset changed');
+          for(const asset of current.assets.filter(isWindows)){
+            const file='verified-build/dist/'+asset.name;
+            const actual=require('crypto').createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+            assert.equal(asset.digest,'sha256:'+actual,'Published Windows package differs from verified CI build '+asset.name);
+          }
+          assert.equal(current.assets.filter(isWindows).length,6);
+          console.log('Verified all 6 v2.0.5 Windows assets, checksum manifest, other platform assets, and all historical Releases.');
+          NODE

@@ -365,7 +365,7 @@ function queueGuardianBootstrap(job){
 }
 class Guardian {
   constructor(control,auth) { this.http=control;this.auth=auth;this.getBootstrapOptions=null; }
-  // Retry a region-blocked Guardian API request using the Arman double-leading-slash route.
+  // Retry a region-blocked Guardian API request using a double-leading-slash fallback path.
   // Keep the same method, bearer credentials, and request body. Other URLs are untouched.
   async request(path,method="GET",retry=true,allowBootstrap=true) {
     const authorization="Bearer "+await this.auth.token();

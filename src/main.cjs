@@ -24,6 +24,7 @@ function makeControl({interactive=false}={}){
   const createTransport=()=>createAccountTransport({
     createSession:()=>session.fromPartition('predator-auth-'+(++authSessionSequence)),
     systemFetch:(...args)=>electronNet.fetch(...args),
+    guardianDirectFetch:process.platform==='win32'?(...args)=>fetch(...args):null,
     fxaProxyMode:process.platform==='win32'?'system':'direct'
   });
   const transport=createTransport();
@@ -294,7 +295,7 @@ async function connect({resumeTraffic=false,prepared=null,automaticRecovery=fals
   connection='connecting';lastError=null;exit=null;emit();
   try {
     if(!store.auth)throw Error('Sign in to your service account first.');
-    if(!store.settings.proxyOnly&&store.settings.splitMode==='include'&&!store.settings.excludedApps.length)throw Error('Select at least one app in Split tunneling before connecting.');
+    if(!store.settings.proxyOnly&&store.settings.splitTunnelingEnabled!==false&&store.settings.splitMode==='include'&&!store.settings.excludedApps.length)throw Error('Select at least one app in Split tunneling before connecting.');
     if(!mac&&!linux&&!store.settings.proxyOnly&&!await admin())throw Error('Run Predator VPN as administrator for system VPN, or enable proxy-only mode in Settings.');
     if(!servers.length)await refreshServers();
     check();

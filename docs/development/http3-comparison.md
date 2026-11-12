@@ -61,18 +61,11 @@ did not resolve this observed handshake failure. This was a transport probe,
 not a test of the reference application's authenticated VPN or its full
 twenty-second connection/retry policy.
 
-Current pinned reference sources:
-
-- [HTTP/3 handshake and CONNECT](https://github.com/armanlife/firefox-vpn-client/blob/9f8350ce1291b51478f037d2fab8844dee5c0f74/core/internal/proxy/upstream_h3.go)
-- [Bootstrap query behavior](https://github.com/armanlife/firefox-vpn-client/blob/9f8350ce1291b51478f037d2fab8844dee5c0f74/core/internal/resolver/doh.go)
-- [Protocol and resolver defaults](https://github.com/armanlife/firefox-vpn-client/blob/9f8350ce1291b51478f037d2fab8844dee5c0f74/core/internal/config/config.go)
-- [Physical UDP socket binding](https://github.com/armanlife/firefox-vpn-client/blob/9f8350ce1291b51478f037d2fab8844dee5c0f74/core/internal/egress/egress.go)
-
-No reference source code was copied in this recheck.
+No additional reference source code was copied in the October recheck.
 
 ## Earlier implementation baseline
 
-Reviewed reference: `armanlife/firefox-vpn-client` at commit `13845fafb2a67e2c1ba1e1145537a0a5db16a8d3`.
+Earlier transport implementation was reviewed for protocol compatibility; the notes below summarize the observable differences.
 Predator VPN baseline: `e10edbf`. Review date: 2026-10-25.
 
 ## Server and authentication path
@@ -115,16 +108,6 @@ Windows now resolves the outer proxy through parallel, TLS-verified RFC 8484 pro
 [Transport CI](https://github.com/erfan-tahvilian/PredatorVPN/actions/runs/40189395885) at revision `6012900` passed Go race checks, vet, DNS response-validation/cancellation fixtures, real QUIC CONNECT tests and Windows cross-compilation. Forty-two Node tests passed through the repository test runner. The newer quic-go version and direct RequestStream API remain: authenticated CONNECT semantics are covered by local fixtures and the production check below; changing libraries is not required to reproduce the reference's endpoint and handshake mechanism.
 
 On the owner's Windows machine, the rebuilt helper obtained a fresh account proxy pass and completed authenticated HTTP/3 CONNECT through Germany (`muc139.m1.fastly-masque.net:2499`) and REC (`p.m1.fastly-masque.net:2499`). Each tunnel carried a nested HTTPS request to `example.com` with certificate verification enabled and returned `HTTP/1.1 200 OK`. Initial handshakes completed in approximately 0.5 seconds in that check. An independent Google HTTP/3 probe still timed out. Successful Fastly results establish production forwarding at the time of this check, but do not isolate which change or network condition resolved the earlier timeout, and do not establish long-term stability or Android success.
-
-## Pinned source links
-
-- [Server metadata](https://github.com/armanlife/firefox-vpn-client/blob/13845fafb2a67e2c1ba1e1145537a0a5db16a8d3/core/internal/serverlist/serverlist.go)
-- [Endpoint selection](https://github.com/armanlife/firefox-vpn-client/blob/13845fafb2a67e2c1ba1e1145537a0a5db16a8d3/core/internal/proxy/selection.go)
-- [HTTP/3 CONNECT](https://github.com/armanlife/firefox-vpn-client/blob/13845fafb2a67e2c1ba1e1145537a0a5db16a8d3/core/internal/proxy/upstream_h3.go)
-- [Resolver](https://github.com/armanlife/firefox-vpn-client/blob/13845fafb2a67e2c1ba1e1145537a0a5db16a8d3/core/internal/resolver/resolver.go)
-- [Defaults](https://github.com/armanlife/firefox-vpn-client/blob/13845fafb2a67e2c1ba1e1145537a0a5db16a8d3/core/internal/config/config.go)
-
-Reference-derived code retains its MIT attribution in `licenses/firefox-vpn-client-MIT.txt`.
 
 ## Approved rollout
 

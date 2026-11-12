@@ -1,15 +1,11 @@
-# Account sign-in HTTP 406 — Arman VPN comparison and verification
+# Account sign-in HTTP 406 — provider verification diagnostics
 
 **Branch:** `feature/predator-v2`. This is a local owner-review fix; no public release or main merge without approval.
 
 ## Source comparison
 
-Reference: https://github.com/armanlife/arman-vpn-client
-
-Arman's source files `core/internal/fxa/fxa.go`, `core/internal/fxa/signin.go`,
-`core/internal/fxa/challenge.go`, `core/internal/fxa/normalize.go`,
-and `core/doc/AUTHENTICATION.md` implement the FxA API login, provider
-verification, email-code/TOTP and token issuance. The API may return an
+Reference approach: provider account authentication, verification, and OAuth session sequencing.
+The account-service protocol includes sign-in, provider verification, email-code/TOTP and OAuth token issuance. The API may return an
 **empty HTTP 406** for a rejected POST while hosting an interactive
 Client Challenge separately on the account website. An empty API
 response alone is not evidence that no challenge page exists.
@@ -83,10 +79,10 @@ for up to 15 minutes. Completed sign-in attempts destroy the short-lived
 provider session on a best-effort basis. Already-consumed OTPs are not
 replayed after network or token issuance errors.
 
-This is independent implementation of the supported interaction stages
-described in the Arman documentation, not an unrestricted clone. Arman's
-browser/TLS impersonation, automatic storage of account passwords, and
-device identity impersonation are not adopted.
+The implementation follows the supported provider account flows without
+copying another client's sign-in implementation. Browser/TLS identity
+impersonation, automatic password storage, and device identity impersonation
+are not adopted.
 
 **Verification status:** tests use fixtures and synthetic accounts. A
 successful authorized real-world sign-in, account entitlement, and stable
@@ -127,7 +123,7 @@ network probes or successful fixture tests alone.
 
 ## Session verification compatibility improvement (Windows preview, November 6)
 
-After comparing with Arman's session verification sequence, the client now
+After reviewing the provider session verification sequence, the client now
 checks `/v1/recovery_email/status` before exchanging a legacy email-link
 session for an OAuth token. The request uses Mozilla Accounts' documented
 prefixed Bearer session authentication (`fxs_`) and carries no request body.
@@ -166,7 +162,7 @@ late OAuth response during account replacement, overlapping verification,
 and expired sessions. These tests are local fixtures, **not** proof that
 Mozilla will authenticate Predator or grant an FPN entitlement.
 
-The Arman browser sign-in uses Firefox-specific WebChannel behavior,
+The reviewed browser sign-in pattern uses Firefox-specific WebChannel behavior,
 a Firefox user-agent identity and client identifiers. Those are not
 transplanted into Predator without an approved Mozilla OAuth registration.
 Mozilla's independent RP documentation requires registered credentials and
@@ -179,7 +175,7 @@ No public release or stable tag is changed by this work.
 **Status:** Implementation preview, not a verified production login. This
 workflow deliberately does not claim that the original HTTP 406 is resolved.
 
-Arman's browser mode injects a Firefox WebChannel bridge into a WebView,
+The reviewed browser mode injects a Firefox WebChannel bridge into a WebView,
 selects the `fx_desktop_v3` Firefox Sync context, advertises a Firefox
 User-Agent, accepts an `fxaccounts:login` session token from the page,
 waits for verification, and exchanges the session using Firefox's

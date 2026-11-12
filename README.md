@@ -25,7 +25,7 @@
 
 ### Version 2.0.5 — AppImage catalog compatibility and regional access
 
-- Guardian HTTP 451: retry the affected Guardian endpoint once using the Arman-compatible double leading slash (//api/v1/fpn/...) with the same HTTPS method and credentials. This workaround depends on service behavior and is not guaranteed.
+- Guardian HTTP 451: retry the affected Guardian endpoint once using the alternate double-leading-slash (//api/v1/fpn/...) with the same HTTPS method and credentials. This workaround depends on service behavior and is not guaranteed.
 - Subscriptions: new opt-in Enable subscriptions switch, disabled by default, with two preconfigured links and unlimited additional sources. When enabled, a failed double-slash request can use the temporary subscription proxy.
 - Android: retains the previous data allowance, first-Ping improvements, and compact selected-location controls; VLESS Reality/gRPC temporary transport supports uTLS.
 - Windows, macOS, Linux and Android: unified region-retry behavior and versioned release packages.
@@ -221,7 +221,7 @@ Remove account details, tokens, IP addresses and other sensitive information bef
 - **sing-box** - GPL-3.0-or-later with its upstream naming condition. The exact corresponding source is included as [sing-box-1.12.0-source.tar.gz](https://github.com/erfan-tahvilian/PredatorVPN/releases/download/v2.0.5/sing-box-1.12.0-source.tar.gz). See the [notice](licenses/sing-box-NOTICE.txt) and [source build instructions](https://sing-box.sagernet.org/installation/build-from-source/).
 - **Wintun** - redistributed under the license included with Windows packages. See [Wintun](https://www.wintun.net/).
 - **Electron, Chromium, Node.js and npm dependencies** - notices are included in desktop distributions. Native Android dependency notices are included in APK assets.
-- **HTTP/3 transport** - quic-go, qpack and adapted open-source reference components retain their MIT/BSD notices. See the [transport notice](licenses/http3-NOTICE.txt).
+- **HTTP/3 transport** - quic-go, qpack and Go dependencies retain their MIT/BSD notices. See the [transport notice](licenses/http3-NOTICE.txt).
 - **flag-icons** - MIT; see the [license notice](licenses/flag-icons-MIT.txt).
 
 </details>

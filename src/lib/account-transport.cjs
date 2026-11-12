@@ -2,7 +2,7 @@
 // Account API requests use isolated, in-memory Chromium sessions rather than
 // inheriting any proxy applied to the application window. An OS-level VPN route
 // is not bypassed by this setting; direct here means "no Chromium proxy".
-const TRANSIENT=/\b(?:ERR_CONNECTION_RESET|ERR_NETWORK_CHANGED|ERR_CONNECTION_CLOSED|ERR_TIMED_OUT|ETIMEDOUT|ECONNRESET|EPIPE)\b/i;
+const TRANSIENT=/\b(?:ERR_CONNECTION_RESET|ERR_NETWORK_CHANGED|ERR_CONNECTION_CLOSED|ERR_TIMED_OUT|ETIMEDOUT|ECONNRESET|EPIPE|TimeoutError)\b|aborted due to timeout/i;
 const APPROVED=new Set(['api.accounts.firefox.com','accounts.firefox.com','oauth.accounts.firefox.com','vpn.mozilla.org','firefox.settings.services.mozilla.com']);
 const FXA_COOKIE_URLS=[
   'https://api.accounts.firefox.com/',
@@ -11,7 +11,7 @@ const FXA_COOKIE_URLS=[
   'https://firefox.com/',
 ];
 function isTransient(error) {
-  const candidate=[error?.code,error?.message,error?.cause?.code,error?.cause?.message].filter(Boolean).join(' ');
+  const candidate=[error?.name,error?.code,error?.message,error?.cause?.name,error?.cause?.code,error?.cause?.message].filter(Boolean).join(' ');
   return TRANSIENT.test(candidate);
 }
 function friendlyAccountNetworkError(error) {
@@ -40,7 +40,7 @@ async function clearFxACookies(ses){
     }
   }catch{/* best-effort */}
 }
-function createAccountTransport({createSession,systemFetch,fxaProxyMode='direct'}){
+function createAccountTransport({createSession,systemFetch,fxaProxyMode='direct',guardianDirectFetch=null}){
   if(!['direct','system'].includes(fxaProxyMode))throw Error('Invalid FxA proxy mode');
   const isolated=createSession();
   if(!isolated||typeof isolated.setProxy!=='function'||typeof isolated.fetch!=='function')throw Error('Isolated account session is unavailable');
@@ -50,11 +50,21 @@ function createAccountTransport({createSession,systemFetch,fxaProxyMode='direct'
   async function accountFetch(url,options={}){
     const target=new URL(url);
     if(target.protocol!=='https:'||!APPROVED.has(target.hostname))throw Error('Unapproved account-service endpoint');
+    const method=(options.method||'GET').toUpperCase();
+    const useBootstrap=Boolean(bootstrapProxyRules)&&['vpn.mozilla.org','firefox.settings.services.mozilla.com'].includes(target.hostname);
+    // Guardian read-only requests need no FxA cookie jar. On Windows, Node's
+    // native HTTPS stack avoids Chromium network-service stalls on some Wi-Fi.
+    // A temporary subscription SOCKS proxy always takes priority when active.
+    const guardianRead=(method==='GET'||method==='HEAD')&&
+      ['vpn.mozilla.org','firefox.settings.services.mozilla.com'].includes(target.hostname);
+    if(guardianRead&&!useBootstrap&&typeof guardianDirectFetch==='function'){
+      try{return await guardianDirectFetch(url,{...options,signal:AbortSignal.timeout(10000)});}
+      catch(error){if(!isTransient(error))throw friendlyAccountNetworkError(error);}
+    }
     await ready;
     // The temporary proxy is for Guardian only. FxA token refresh remains direct.
     // Await Chromium's proxy change before starting the request; otherwise the
     // first Guardian call may escape through the previous direct route (HTTP 451).
-    const useBootstrap=Boolean(bootstrapProxyRules)&&['vpn.mozilla.org','firefox.settings.services.mozilla.com'].includes(target.hostname);
     const useRecovery=Boolean(accountRecoveryProxyRules)&&['api.accounts.firefox.com','accounts.firefox.com','oauth.accounts.firefox.com'].includes(target.hostname);
     await isolated.setProxy(useRecovery
       ? {mode:'fixed_servers',proxyRules:accountRecoveryProxyRules}
@@ -63,12 +73,14 @@ function createAccountTransport({createSession,systemFetch,fxaProxyMode='direct'
       : {mode:target.hostname==='vpn.mozilla.org'||(
           fxaProxyMode==='system'&&['api.accounts.firefox.com','accounts.firefox.com','oauth.accounts.firefox.com'].includes(target.hostname)
         )?'system':'direct'});
-    const method=(options.method||'GET').toUpperCase();
     try {return await isolated.fetch(url,options);}
     catch(error){
       if(!useBootstrap&&isTransient(error)&&(method==='GET'||method==='HEAD')){
-        try{return await systemFetch(url,options);}
-        catch(fallback){throw friendlyAccountNetworkError(fallback);}
+        try{
+          const retryOptions=options.signal?.aborted&&options.signal.reason?.name==='TimeoutError'
+            ? {...options,signal:AbortSignal.timeout(12000)}:options;
+          return await systemFetch(url,retryOptions);
+        }catch(fallback){throw friendlyAccountNetworkError(fallback);}
       }
       throw friendlyAccountNetworkError(error);
     }

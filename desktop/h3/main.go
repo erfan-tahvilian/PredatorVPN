@@ -30,8 +30,7 @@ type config struct { BootstrapDNS string `json:"bootstrapDNS"`; Host string `jso
 type destination struct { Host string `json:"host"`; Port int `json:"port"`; Secret string `json:"secret"` }
 type connectError struct { Status int; Quota map[string]string }
 func(e *connectError)Error()string{return fmt.Sprintf("HTTP/3 CONNECT rejected (%d)",e.Status)}
-// QUIC connection setup follows firefox-vpn-client's conservative initial size
-// and per-address UDP dialing. See licenses/firefox-vpn-client-MIT.txt.
+// QUIC Initial sizing and per-address UDP dialing retain the existing behavior.
 type worker struct { cfg config; mu sync.Mutex; tokenMu sync.RWMutex; token string; conn *quic.Conn; udpConn *net.UDPConn; client *http3.ClientConn; transport *http3.Transport; tlsConfig *tls.Config; edgeIP string }
 func(w *worker) closeLocked(){
  if w.transport!=nil{w.transport.Close();w.transport=nil}
