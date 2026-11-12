@@ -100,9 +100,15 @@
 
 
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/desktop-overview-dark.png"><img src="docs/screenshots/desktop-overview-light.png" width="1000" alt="Predator VPN desktop overview in light and dark themes"></picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark) and (max-width: 700px)" srcset="docs/readme/workspace-v205-dark-mobile.webp">
+    <source media="(max-width: 700px)" srcset="docs/readme/workspace-v205-light-mobile.webp">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/readme/workspace-v205-dark.webp">
+    <img src="docs/readme/workspace-v205-light.webp" width="1440" alt="رابط واقعی Predator VPN نسخهٔ 2.0.5 در قاب لپ‌تاپ و گوشی اندرویدی، با نام نمایشی ناشناس‌سازی‌شدهٔ Predator.">
+  </picture>
 </p>
-<p align="center"><img src="docs/screenshots/desktop-settings.png" width="640" alt="Predator VPN Settings and ten accent colors"> <img src="docs/screenshots/android-overview.png" width="240" alt="Predator VPN Android mobile interface"></p>
+<p align="center"><sub>تصاویر واقعی رابط نسخهٔ 2.0.5 در ویندوز و اندروید؛ نام نمایشی حساب برای حفظ حریم خصوصی به <strong>Predator</strong> تغییر داده شده و هیچ اطلاعات شخصی نمایش داده نمی‌شود.</sub></p>
+<p align="center"><a href="docs/screenshots/desktop-v205-overview-dark.png">مشاهدهٔ تصویر اصلی نسخهٔ دسکتاپ</a> &nbsp; · &nbsp; <a href="docs/screenshots/android-v205-overview-dark.png">مشاهدهٔ تصویر اندروید</a></p>
 
 <a name="traffic-on-your-terms"></a>
 

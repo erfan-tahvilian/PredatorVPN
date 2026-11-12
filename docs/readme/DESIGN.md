@@ -12,8 +12,9 @@ The README uses a connection-path motif drawn from Predator VPN's orange fox-and
 | `download-badges/*.svg` | Platform and architecture download badges shared by the README and release notes. |
 | `hero-{dark,light}-mobile.webp` | Narrow-screen composition with larger relative type. |
 | `download-{windows,macos,android}-{dark,light}.svg` | Direct downloads for Windows x64, macOS Apple Silicon and Android ARM64. |
-| `workspace-{dark,light}.webp` | Framed, unmodified overview screenshots. |
-| `workspace-{dark,light}-mobile.webp` | Crops of those same desktop screenshots, not Android screenshots. |
+| `workspace-v205-{dark,light}.webp` | Wide showcases using real desktop and signed Android 2.0.5 app screenshots inside laptop and phone frames; only the account name is anonymized. |
+| `workspace-v205-{dark,light}-mobile.webp` | Portrait showcases that preserve both devices, with responsive art direction for README on mobile. |
+| `workspace-{dark,light}{,-mobile}.webp` | Legacy graphics, retained as references but no longer linked from the README workspace section. |
 | `routing-{dark,light}.svg` | Conceptual explanation of the two split-tunneling modes. |
 | `routing-{dark,light}-mobile.svg` | The same routing explanation, stacked vertically. |
 | `support-{dark,light}.svg` | Linked Buy Me a Coffee call to action. |
@@ -27,7 +28,8 @@ The README uses a connection-path motif drawn from Predator VPN's orange fox-and
 - Light background `#f6f8fa`, surface `#ffffff`, primary text `#171e29`.
 - Typography: Segoe UI with Arial and generic sans-serif fallbacks. SVGs use system fonts; no remote font requests are required.
 - Original logo sources: `assets/logo-light.png` for dark artwork and `assets/logo.png` for light artwork. The transparent logo is composited without changing its design.
-- Screenshot sources: `docs/screenshots/overview-dark.png`, `overview-light.png` and `locations.png`. These remain unchanged. Screenshots are interface previews, and displayed location latency is illustrative.
+- Current screenshot sources: `docs/screenshots/desktop-v205-overview-{dark,light}.png` captured with the real v2.0.5 desktop renderer and a separately isolated sample account, plus `docs/screenshots/android-v205-overview-{dark,light}.png` captured from the signed Android 2.0.5 APK on an API 34 emulator. The only alteration to original Android app screenshot pixels is anonymizing its account name to `Predator`. Screenshots are not proof of an active VPN connection and show a clean disconnected state.
+- Reproducible artwork scripts: `scripts/capture-readme-v205.cjs`, `scripts/readme-preview-preload.cjs`, and `scripts/build-readme-workspace.py`. No real account tokens, emails, personal data or VPN credentials are captured. The older `overview-dark.png`, `overview-light.png` and `locations.png` remain available as legacy references.
 
 ## GitHub compatibility
 

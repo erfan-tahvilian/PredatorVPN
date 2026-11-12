@@ -99,9 +99,15 @@ A clear connection dashboard, multi-account management, allowances and network d
 
 
 <p align="center">
-  <picture><source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/desktop-overview-dark.png"><img src="docs/screenshots/desktop-overview-light.png" width="1000" alt="Predator VPN desktop overview in light and dark themes"></picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark) and (max-width: 700px)" srcset="docs/readme/workspace-v205-dark-mobile.webp">
+    <source media="(max-width: 700px)" srcset="docs/readme/workspace-v205-light-mobile.webp">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/readme/workspace-v205-dark.webp">
+    <img src="docs/readme/workspace-v205-light.webp" width="1440" alt="Real Predator VPN 2.0.5 desktop application shown inside a laptop and Android app shown inside a phone, with the display name anonymized to Predator.">
+  </picture>
 </p>
-<p align="center"><img src="docs/screenshots/desktop-settings.png" width="640" alt="Predator VPN Settings and ten accent colors"> <img src="docs/screenshots/android-overview.png" width="240" alt="Predator VPN Android mobile interface"></p>
+<p align="center"><sub>Actual v2.0.5 application interfaces. The account display name is anonymized to <strong>Predator</strong>; no personal account information is shown.</sub></p>
+<p align="center"><a href="docs/screenshots/desktop-v205-overview-dark.png">View original desktop screenshot</a> &nbsp; · &nbsp; <a href="docs/screenshots/android-v205-overview-dark.png">View Android screenshot</a></p>
 
 <a name="traffic-on-your-terms"></a>
 
