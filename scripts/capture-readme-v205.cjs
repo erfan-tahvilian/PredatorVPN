@@ -18,6 +18,9 @@ app.whenReady().then(async()=>{
  w.webContents.on('console-message',event=>{if(event.level==='error')errors.push(event.message)});
  try{
   await w.loadFile(path.join(root,'src/ui/index.html'));
+  // Keep the app's release number hidden in documentation screenshots,
+  // including if the renderer updates its footer asynchronously.
+  await w.webContents.insertCSS('[data-app-version]{display:none!important}');
   await pause(1300);
   for(const theme of ['light','dark']){
    const info=await w.webContents.executeJavaScript(`(()=>{
@@ -33,7 +36,7 @@ app.whenReady().then(async()=>{
       latencies:{},pinging:false,pingingIds:[],logs:[],busy:false,
       quota:null,lastError:null,up:0,down:0,sessionDuration:0,startedAt:null,exit:null,systemDark:true};
     render(state);
-    document.querySelectorAll('[data-app-version]').forEach(element=>{element.textContent='v2.0.5';});
+    document.querySelectorAll('[data-app-version]').forEach(element=>{element.textContent='';});
     document.querySelector('[data-page=home]').click();
     return {version:state.version, account:document.getElementById('account-name').textContent,
       accountAvatar:document.querySelector('#account-shortcut .avatar').textContent,
@@ -47,14 +50,15 @@ app.whenReady().then(async()=>{
    assert.equal(info.overflow,false);
    assert.equal(info.isLight,theme==='light');
    await pause(350);
-   const audit=await w.webContents.executeJavaScript(`(()=>{document.querySelectorAll('[data-app-version]').forEach(e=>e.textContent='v2.0.5');return {name:document.getElementById('account-name').textContent,footer:document.querySelector('[data-app-version]')?.textContent,theme:document.body.classList.contains('light')?'light':'dark',toastHidden:document.getElementById('toast').hidden};})()`);
-   assert.deepEqual(audit,{name:'Predator',footer:'v2.0.5',theme,toastHidden:true});
+   const audit=await w.webContents.executeJavaScript(`(()=>{document.querySelectorAll('[data-app-version]').forEach(e=>e.textContent='');return {name:document.getElementById('account-name').textContent,footer:document.querySelector('[data-app-version]')?.textContent,theme:document.body.classList.contains('light')?'light':'dark',toastHidden:document.getElementById('toast').hidden};})()`);
+   assert.deepEqual(audit,{name:'Predator',footer:'',theme,toastHidden:true});
    await w.webContents.executeJavaScript(`new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))`);
    const file=path.join(output,'desktop-v205-overview-'+theme+'.png');
    fs.writeFileSync(file,(await w.webContents.capturePage()).toPNG());
    console.log(JSON.stringify({theme,file,...info}));
   }
   assert.deepEqual(errors,[],'Renderer emitted console errors');
+  fs.writeFileSync(path.join(root,'.tools','readme-capture-complete.json'),JSON.stringify({capturedAt:new Date().toISOString(),themes:['dark','light'],account:'Predator',versionHidden:true}));
   w.destroy();app.exit(0);
  }catch(error){console.error(error.stack||error);w.destroy();app.exit(1);}
 }).catch(error=>{console.error(error);app.exit(1)});

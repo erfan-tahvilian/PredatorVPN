@@ -129,7 +129,7 @@ def text_header(canvas,dark,compact):
     secondary=(170,182,203) if dark else (98,109,125)
     accent=(255,138,59) if dark else (198,83,24)
     left=76 if compact else 140
-    d.text((left,66 if compact else 81),'PREDATOR VPN   /   v2.0.5',
+    d.text((left,66 if compact else 81),'PREDATOR VPN',
            font=font(24 if compact else 27,True),fill=accent)
     d.text((left,119 if compact else 137),'The workspace',
            font=font(68 if compact else 77,True),fill=main)
@@ -144,29 +144,52 @@ def badge(canvas,x,y,caption,dark):
     d.text((x,y),caption,font=font(22,True),
            fill=(255,145,64) if dark else (181,88,40))
 
+def badge_above_device(canvas, x, frame_top, caption, dark, gap):
+    # Measured gap is from the painted text pixels to the outer device bezel.
+    face = font(22, True)
+    bottom_offset = ImageDraw.Draw(canvas).textbbox((0, 0), caption, font=face)[3]
+    y = frame_top - gap - bottom_offset
+    badge(canvas, x, y, caption, dark)
+    measured = frame_top - (y + bottom_offset)
+    assert measured == gap, (caption, measured, gap)
+    return measured
+
+
 def render(theme,compact=False):
     dark=theme=='dark'
-    w,h=(1200,2180) if compact else (2560,1440)
+    w,h=(1200,2240) if compact else (2560,1440)
     canvas=gradient_bg(w,h,dark)
     soft_lights(canvas,dark)
     text_header(canvas,dark,compact)
     desk=screens[theme]['desktop']
     mob=screens[theme]['android']
     if compact:
-        badge(canvas,92,310,'Desktop',dark)
+        # Equal 44-pixel label-to-device gaps, with a real break between the
+        # laptop base and the Mobile label.
+        gap=44
+        desktop_top=382-20
+        mobile_top=1200-19
+        desktop_gap=badge_above_device(canvas,92,desktop_top,'Desktop',dark,gap)
+        mobile_gap=badge_above_device(canvas,490,mobile_top,'Mobile',dark,gap)
+        assert desktop_gap==mobile_gap
         laptop(canvas,desk,91,382,1018)
-        badge(canvas,490,995,'Mobile',dark)
-        phone(canvas,mob,375,1066,420)
+        phone(canvas,mob,375,1200,420)
         suffix='-mobile'
     else:
-        badge(canvas,149,321,'Desktop',dark)
-        laptop(canvas,desk,146,396,1638)
-        badge(canvas,1890,260,'Mobile',dark)
-        phone(canvas,mob,1890,342,459)
+        # Both labels have exactly 50 px of visual breathing room beneath
+        # their text. Device frames are also visibly separated horizontally.
+        gap=50
+        desktop_top=408-20
+        mobile_top=360-19
+        desktop_gap=badge_above_device(canvas,149,desktop_top,'Desktop',dark,gap)
+        mobile_gap=badge_above_device(canvas,1950,mobile_top,'Mobile',dark,gap)
+        assert desktop_gap==mobile_gap
+        laptop(canvas,desk,146,408,1500)
+        phone(canvas,mob,1950,360,459)
         suffix=''
     out=OUT/f'workspace-v205-{theme}{suffix}.webp'
     canvas.convert('RGB').save(out,'WEBP',quality=94,method=6)
-    print(f'{out.relative_to(ROOT)}: {w}x{h}, {out.stat().st_size} bytes')
+    print(f'{out.relative_to(ROOT)}: {w}x{h}, exact_label_gap={gap}px, {out.stat().st_size} bytes')
     return out
 
 for theme in ('dark','light'):

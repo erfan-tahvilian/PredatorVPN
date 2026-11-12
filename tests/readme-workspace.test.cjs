@@ -29,17 +29,20 @@ test('English and Persian workspace sections use real v2.0.5 device mockups in b
     assert.doesNotMatch(section,/docs\/screenshots\/android-overview\.png|docs\/screenshots\/desktop-overview-(dark|light)\.png/);
   }
 });
-test('device labels are only Desktop and Mobile and never overlap the screen mockups',()=>{
+test('desktop and mobile labels have exactly equal vertical clearance',()=>{
   const graphic=read('scripts/build-readme-workspace.py');
   assert.doesNotMatch(graphic,/DESKTOP\s+.*WINDOWS|MOBILE\s+.*ANDROID|ANONYMIZED ACCOUNT: PREDATOR/);
-  assert.match(graphic,/badge\(canvas,149,321,'Desktop',dark\)/);
-  assert.match(graphic,/badge\(canvas,1890,260,'Mobile',dark\)/);
-  assert.match(graphic,/badge\(canvas,92,310,'Desktop',dark\)/);
-  assert.match(graphic,/badge\(canvas,490,995,'Mobile',dark\)/);
-  assert.match(graphic,/laptop\(canvas,desk,146,396,1638\)/);
-  assert.match(graphic,/phone\(canvas,mob,1890,342,459\)/);
-  assert.match(graphic,/laptop\(canvas,desk,91,382,1018\)/);
-  assert.match(graphic,/phone\(canvas,mob,375,1066,420\)/);
+  assert.match(graphic,/desktop_gap=badge_above_device\(canvas,149,desktop_top,'Desktop',dark,gap\)/);
+  assert.match(graphic,/mobile_gap=badge_above_device\(canvas,1950,mobile_top,'Mobile',dark,gap\)/);
+  assert.match(graphic,/desktop_gap==mobile_gap/);
+  assert.match(graphic,/measured == gap/);
+  assert.match(graphic,/gap=50/);
+  assert.match(graphic,/gap=44/);
+  assert.match(graphic,/phone\(canvas,mob,375,1200,420\)/);
+  assert.match(graphic,/phone\(canvas,mob,1950,360,459\)/);
+  assert.doesNotMatch(graphic,/PREDATOR VPN\s+\/\s+v2\.0\.5/);
+  const capture=read('scripts/capture-readme-v205.cjs');
+  assert.match(capture,/footer:''/);
 });
 
 test('published showcase files have valid image signatures and nontrivial dimensions',()=>{
