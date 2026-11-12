@@ -106,9 +106,6 @@ A clear connection dashboard, multi-account management, allowances and network d
     <img src="docs/readme/workspace-v205-light.webp" width="1440" alt="Real Predator VPN 2.0.5 desktop application shown inside a laptop and Android app shown inside a phone, with the display name anonymized to Predator.">
   </picture>
 </p>
-<p align="center"><sub>Actual v2.0.5 application interfaces. The account display name is anonymized to <strong>Predator</strong>; no personal account information is shown.</sub></p>
-<p align="center"><a href="docs/screenshots/desktop-v205-overview-dark.png">View original desktop screenshot</a> &nbsp; · &nbsp; <a href="docs/screenshots/android-v205-overview-dark.png">View Android screenshot</a></p>
-
 <a name="traffic-on-your-terms"></a>
 
 ## 🔀 Traffic on your terms

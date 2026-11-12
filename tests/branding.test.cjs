@@ -15,7 +15,8 @@ test('public documentation and interface avoid upstream brand promotion',()=>{
     // Deprecated generic mockups must stay unreferenced; v2.0.5 now uses
     // real app screenshots framed in the four responsive workspace images.
     assert.doesNotMatch(content,/docs\/readme\/hero-|docs\/readme\/workspace-(?!v205-)/,name);
-    assert.match(content,/docs\/screenshots\/desktop-v205-overview-dark\.png/,name);
+    assert.match(content,/docs\/readme\/workspace-v205-dark\.webp/,name);
+    assert.doesNotMatch(content,/View original desktop screenshot|View Android screenshot|docs\/screenshots\/desktop-v205-overview-dark\.png/,name);
     assert.match(content,/assets\/logo\.png/,name);
   }
 });

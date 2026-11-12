@@ -134,7 +134,7 @@ def text_header(canvas,dark,compact):
     d.text((left,119 if compact else 137),'The workspace',
            font=font(68 if compact else 77,True),fill=main)
     d.text((left,209 if compact else 240),
-           'Actual desktop and Android interfaces. One familiar workspace.',
+           'A consistent experience, across devices.',
            font=font(23 if compact else 29),fill=secondary)
     d.rounded_rectangle((left,258 if compact else 302,left+125,263 if compact else 308),
                         radius=2,fill=accent)
@@ -146,26 +146,23 @@ def badge(canvas,x,y,caption,dark):
 
 def render(theme,compact=False):
     dark=theme=='dark'
-    w,h=(1200,2070) if compact else (2560,1440)
+    w,h=(1200,2180) if compact else (2560,1440)
     canvas=gradient_bg(w,h,dark)
     soft_lights(canvas,dark)
     text_header(canvas,dark,compact)
     desk=screens[theme]['desktop']
     mob=screens[theme]['android']
     if compact:
-        badge(canvas,92,298,'DESKTOP   ·   WINDOWS',dark)
-        laptop(canvas,desk,91,353,1018)
-        badge(canvas,490,937,'MOBILE   ·   ANDROID',dark)
-        phone(canvas,mob,375,988,420)
-        d=ImageDraw.Draw(canvas)
-        d.text((94,1988),'REAL UI    ·    ANONYMIZED ACCOUNT: PREDATOR',
-               font=font(20,True),fill=(155,167,186) if dark else (97,110,128))
+        badge(canvas,92,310,'Desktop',dark)
+        laptop(canvas,desk,91,382,1018)
+        badge(canvas,490,995,'Mobile',dark)
+        phone(canvas,mob,375,1066,420)
         suffix='-mobile'
     else:
-        badge(canvas,149,320,'DESKTOP   ·   WINDOWS',dark)
-        laptop(canvas,desk,146,363,1638)
-        badge(canvas,1890,251,'MOBILE   ·   ANDROID',dark)
-        phone(canvas,mob,1890,301,459)
+        badge(canvas,149,321,'Desktop',dark)
+        laptop(canvas,desk,146,396,1638)
+        badge(canvas,1890,260,'Mobile',dark)
+        phone(canvas,mob,1890,342,459)
         suffix=''
     out=OUT/f'workspace-v205-{theme}{suffix}.webp'
     canvas.convert('RGB').save(out,'WEBP',quality=94,method=6)

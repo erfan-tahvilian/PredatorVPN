@@ -22,12 +22,26 @@ test('English and Persian workspace sections use real v2.0.5 device mockups in b
     assert(start>=0 && end>start,file+' missing workspace anchors');
     const section=source.slice(start,end);
     for(const asset of mockups)assert(section.includes(asset),file+' not referencing '+asset);
-    for(const asset of screens.filter(p=>p.includes('-dark.png')))assert(section.includes(asset),file+' missing original screenshot link '+asset);
+    assert.doesNotMatch(section,/docs\/screenshots\/desktop-v205-overview-dark\.png|docs\/screenshots\/android-v205-overview-dark\.png/,file+' still links raw screenshots below the showcase');
+    assert.doesNotMatch(section,/<sub>|View original desktop screenshot|View Android screenshot|anonymized to <strong>Predator<\/strong>/i,file+' still includes removed captions');
     assert.match(section,/<picture>\s*<source media="\(prefers-color-scheme: dark\) and \(max-width: 700px\)"/);
     assert.match(section,/Predator/);
     assert.doesNotMatch(section,/docs\/screenshots\/android-overview\.png|docs\/screenshots\/desktop-overview-(dark|light)\.png/);
   }
 });
+test('device labels are only Desktop and Mobile and never overlap the screen mockups',()=>{
+  const graphic=read('scripts/build-readme-workspace.py');
+  assert.doesNotMatch(graphic,/DESKTOP\s+.*WINDOWS|MOBILE\s+.*ANDROID|ANONYMIZED ACCOUNT: PREDATOR/);
+  assert.match(graphic,/badge\(canvas,149,321,'Desktop',dark\)/);
+  assert.match(graphic,/badge\(canvas,1890,260,'Mobile',dark\)/);
+  assert.match(graphic,/badge\(canvas,92,310,'Desktop',dark\)/);
+  assert.match(graphic,/badge\(canvas,490,995,'Mobile',dark\)/);
+  assert.match(graphic,/laptop\(canvas,desk,146,396,1638\)/);
+  assert.match(graphic,/phone\(canvas,mob,1890,342,459\)/);
+  assert.match(graphic,/laptop\(canvas,desk,91,382,1018\)/);
+  assert.match(graphic,/phone\(canvas,mob,375,1066,420\)/);
+});
+
 test('published showcase files have valid image signatures and nontrivial dimensions',()=>{
   for(const file of mockups){
     const data=fs.readFileSync(path.join(root,file));

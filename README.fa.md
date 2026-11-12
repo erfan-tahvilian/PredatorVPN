@@ -107,9 +107,6 @@
     <img src="docs/readme/workspace-v205-light.webp" width="1440" alt="رابط واقعی Predator VPN نسخهٔ 2.0.5 در قاب لپ‌تاپ و گوشی اندرویدی، با نام نمایشی ناشناس‌سازی‌شدهٔ Predator.">
   </picture>
 </p>
-<p align="center"><sub>تصاویر واقعی رابط نسخهٔ 2.0.5 در ویندوز و اندروید؛ نام نمایشی حساب برای حفظ حریم خصوصی به <strong>Predator</strong> تغییر داده شده و هیچ اطلاعات شخصی نمایش داده نمی‌شود.</sub></p>
-<p align="center"><a href="docs/screenshots/desktop-v205-overview-dark.png">مشاهدهٔ تصویر اصلی نسخهٔ دسکتاپ</a> &nbsp; · &nbsp; <a href="docs/screenshots/android-v205-overview-dark.png">مشاهدهٔ تصویر اندروید</a></p>
-
 <a name="traffic-on-your-terms"></a>
 
 ## 🔀 ترافیک، به انتخاب شما
