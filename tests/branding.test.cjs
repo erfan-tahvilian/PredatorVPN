@@ -24,6 +24,17 @@ test('automated bootstrap list refresh never commits as github-actions bot',()=>
   assert.doesNotMatch(workflow,/git config user\.(?:name|email) [^\n]*github-actions\[bot\]/);
 });
 
+test('bootstrap mirror refresh runs hourly and preserves the last good list on errors',()=>{
+  const workflow=read('.github/workflows/bootstrap-refresh.yml');
+  assert(workflow.includes("cron: '17 * * * *'"));
+  assert(workflow.includes('group: predator-bootstrap-refresh'));
+  assert(workflow.includes('cancel-in-progress: false'));
+  assert(workflow.includes('secrets.PREDATOR_BOOTSTRAP_SUB_URL'));
+  assert(workflow.includes('docs/bootstrap/working-nodes.txt'));
+  assert(workflow.includes('if git diff --cached --quiet'));
+  assert(workflow.includes('if not nodes:'));
+});
+
 test('registration and provider-account outbound links are absent, transport identity remains intact',()=>{
   const html=read('src/ui/index.html'),renderer=read('src/ui/app.js'),main=read('src/main.cjs');
   assert.doesNotMatch(html,/id="create-account"|id="manage-account"/);

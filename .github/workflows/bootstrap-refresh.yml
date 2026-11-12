@@ -2,7 +2,8 @@ name: Bootstrap node refresh
 
 on:
   schedule:
-    - cron: '0 */6 * * *'
+    # Hourly at :17 UTC; avoids GitHub Actions' high-load top-of-hour window.
+    - cron: '17 * * * *'
   workflow_dispatch:
 
 permissions:
