@@ -26,11 +26,16 @@ app.whenReady().then(async()=>{
     await fadeOut;
     assert.equal(popup.window.isVisible(),false,'Second native right-click must close menu with fade');
     assert(popup.window.getOpacity()<=.02,'After fade-out the tray opacity must approach zero');
-    const fadeIn=popup.toggle();
-    await new Promise(r=>setTimeout(r,65));
-    const midwayIn=popup.window.getOpacity();
-    assert(midwayIn>.01&&midwayIn<.99,'Tray fade-in must contain intermediate opacity values');
-    await fadeIn;
+    // Reopening can first await native window show and renderer sizing; a fixed
+    // 65ms wall-clock sample may precede the fade entirely on a busy macOS VM.
+    // Capture the actual opacity values the fade scheduler requests instead.
+    const observedFadeIn=[];
+    const setOpacity=popup.window.setOpacity.bind(popup.window);
+    popup.window.setOpacity=value=>{observedFadeIn.push(value);return setOpacity(value);};
+    try{
+      await popup.toggle();
+    }finally{popup.window.setOpacity=setOpacity;}
+    assert(observedFadeIn.some(value=>value>.01&&value<.99),'Tray fade-in must contain intermediate opacity values');
     assert.equal(popup.window.isVisible(),true,'Third native right-click must reopen menu with fade');
     assert(popup.window.getOpacity()>=.99,'After fade-in the tray must reach full opacity');
     const interruptedClose=popup.toggle();

@@ -1,0 +1,137 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Maintain macOS inside existing v2.0.5 without touching previous releases.
+name: Maintain v2.0.5 macOS desktop fixes
+on:
+  workflow_dispatch:
+    inputs:
+      mac_run_id:
+        required: true
+        type: string
+        description: Successful macOS x64/ARM64 build from current main
+permissions:
+  contents: write
+  actions: read
+jobs:
+  refresh:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate source, build, release and backup original metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MAC_RUN: ${{ inputs.mac_run_id }}
+        run: |
+          set -euo pipefail
+          test "$(node -p 'require("./package.json").version')" = '2.0.5'
+          [[ "$MAC_RUN" =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$MAC_RUN" > /tmp/build.json
+          test "$(jq -r .status /tmp/build.json)" = completed
+          test "$(jq -r .conclusion /tmp/build.json)" = success
+          test "$(jq -r .path /tmp/build.json)" = '.github/workflows/macos.yml'
+          test "$(jq -r .head_sha /tmp/build.json)" = "$GITHUB_SHA"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$MAC_RUN/jobs?per_page=100" > /tmp/jobs.json
+          test "$(jq '[.jobs[] | select(.name | startswith("macos (")) | select(.conclusion == "success")] | length' /tmp/jobs.json)" -eq 2
+          gh api "repos/$GITHUB_REPOSITORY/releases/latest" > /tmp/before-current.json
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" > /tmp/before-all.json
+          test "$(jq -r .tag_name /tmp/before-current.json)" = v2.0.5
+          test "$(jq -r .draft /tmp/before-current.json)" = false
+          test "$(jq -r .immutable /tmp/before-current.json)" != true
+          node - <<'NODE'
+          const fs=require('fs'),assert=require('node:assert/strict');
+          const {validateRelease}=require('./.github/scripts/release-tools.cjs');
+          const r=JSON.parse(fs.readFileSync('/tmp/before-current.json','utf8'));
+          assert.equal(r.assets.length,26);
+          validateRelease(r,'2.0.5');
+          NODE
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: PredatorVPN-macOS-*
+          merge-multiple: true
+          path: verified-build
+          run-id: ${{ inputs.mac_run_id }}
+          github-token: ${{ github.token }}
+      - name: Validate both macOS variants
+        run: |
+          set -euo pipefail
+          for arch in x64 arm64; do
+            for ext in dmg zip; do
+              name="PredatorVPN-2.0.5-macOS-$arch.$ext"
+              f="verified-build/dist/$name"
+              test -s "$f"
+              test "$(stat -c %s "$f")" -gt 1000000
+              sha256sum "$f"
+            done
+            unzip -tqq "verified-build/dist/PredatorVPN-2.0.5-macOS-$arch.zip"
+          done
+      - name: Download and verify original macOS packages for rollback
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/prior-macos
+          gh release download v2.0.5 --repo "$GITHUB_REPOSITORY" --pattern 'PredatorVPN-2.0.5-macOS-*' --dir /tmp/prior-macos
+          for arch in x64 arm64; do
+            for ext in dmg zip; do
+              name="PredatorVPN-2.0.5-macOS-$arch.$ext"
+              test -s "/tmp/prior-macos/$name"
+              expected="$(jq -r --arg n "$name" '.assets[]|select(.name==$n)|.digest' /tmp/before-current.json)"
+              actual="sha256:$(sha256sum "/tmp/prior-macos/$name"|cut -d' ' -f1)"
+              test "$expected" = "$actual"
+            done
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Original-v2.0.5-macOS-assets-before-desktop-maintenance
+          path: /tmp/prior-macos/*
+          retention-days: 90
+          compression-level: 0
+          if-no-files-found: error
+      - name: Replace only four macOS v2.0.5 assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for arch in x64 arm64; do
+            gh release upload v2.0.5 "verified-build/dist/PredatorVPN-2.0.5-macOS-$arch.dmg" "verified-build/dist/PredatorVPN-2.0.5-macOS-$arch.zip" --repo "$GITHUB_REPOSITORY" --clobber
+          done
+      - name: Refresh current checksum manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/releases/latest" > /tmp/latest-before-sums.json
+          node - <<'NODE'
+          const fs=require('fs'),{validateRelease}=require('./.github/scripts/release-tools.cjs');
+          const latest=JSON.parse(fs.readFileSync('/tmp/latest-before-sums.json','utf8'));
+          fs.writeFileSync('/tmp/SHA256SUMS.txt',validateRelease(latest,'2.0.5'));
+          NODE
+          gh release upload v2.0.5 /tmp/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
+      - name: Verify updated checksums, historical releases and other platforms
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/releases/latest" > /tmp/latest.json
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" > /tmp/after-all.json
+          node - <<'NODE'
+          const fs=require('fs'),assert=require('node:assert/strict'),crypto=require('crypto');
+          const {validateRelease}=require('./.github/scripts/release-tools.cjs');
+          const read=p=>JSON.parse(fs.readFileSync(p,'utf8'));
+          const latest=read('/tmp/latest.json'),before=read('/tmp/before-current.json');
+          assert.equal(latest.tag_name,'v2.0.5');assert.equal(latest.assets.length,26);
+          assert.equal(validateRelease(latest,'2.0.5'),fs.readFileSync('/tmp/SHA256SUMS.txt','utf8'));
+          const normalized=r=>r.assets.map(a=>[a.name,a.digest,a.size]).sort((a,b)=>a[0].localeCompare(b[0]));
+          const old=x=>x.filter(r=>r.tag_name!=='v2.0.5').map(r=>({tag:r.tag_name,id:r.id,body:r.body,assets:normalized(r)})).sort((a,b)=>a.tag.localeCompare(b.tag));
+          assert.deepEqual(old(read('/tmp/before-all.json')),old(read('/tmp/after-all.json')),'Older release changed');
+          const selected=a=>/^PredatorVPN-2\.0\.5-macOS-(x64|arm64)\.(dmg|zip)$/.test(a.name);
+          assert.deepEqual(normalized({assets:latest.assets.filter(a=>!selected(a)&&a.name!=='SHA256SUMS.txt')}),normalized({assets:before.assets.filter(a=>!selected(a)&&a.name!=='SHA256SUMS.txt')}),'Other platform changed');
+          assert.equal(latest.assets.filter(selected).length,4);
+          for(const a of latest.assets.filter(selected)){
+            const sha=crypto.createHash('sha256').update(fs.readFileSync('verified-build/dist/'+a.name)).digest('hex');
+            assert.equal(a.digest,'sha256:'+sha,a.name);
+          }
+          console.log('macOS x64/ARM64: four updated assets, checksums and all historical releases verified.');
+          NODE

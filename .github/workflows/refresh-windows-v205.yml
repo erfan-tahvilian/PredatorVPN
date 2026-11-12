@@ -32,7 +32,12 @@ jobs:
           test "$(jq -r .status /tmp/win-run.json)" = completed
           test "$(jq -r .conclusion /tmp/win-run.json)" = success
           test "$(jq -r .path /tmp/win-run.json)" = '.github/workflows/windows.yml'
-          test "$(jq -r .head_sha /tmp/win-run.json)" = "$GITHUB_SHA"
+          buildsha="$(jq -r .head_sha /tmp/win-run.json)"
+          git cat-file -e "$buildsha^{commit}"
+          git merge-base --is-ancestor "$buildsha" "$GITHUB_SHA"
+          # A smoke-test-only follow-up is safe: verify packaged code, engines,
+          # resources, tooling and the actual Windows build recipe are unchanged.
+          git diff --exit-code "$buildsha" "$GITHUB_SHA" -- src assets licenses LICENSE COPYRIGHT package.json package-lock.json release-notes.json desktop/h3 scripts/build-windows.cjs scripts/windows-target.cjs scripts/prepare-electron.cjs scripts/validate-package.cjs .github/workflows/windows.yml
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$WINDOWS_RUN/jobs?per_page=100" > /tmp/win-jobs.json
           test "$(jq '[.jobs[] | select(.name | startswith("windows (")) | select(.conclusion == "success")] | length' /tmp/win-jobs.json)" = 3
           gh api "repos/$GITHUB_REPOSITORY/releases/latest" > /tmp/current-release.json

@@ -1,0 +1,144 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Same-version Linux packaging maintenance; preserve all historical Releases.
+name: Maintain v2.0.5 Linux desktop fixes
+on:
+  workflow_dispatch:
+    inputs:
+      linux_run_id:
+        description: Successful Linux x64 and ARM64 build on the checked source
+        type: string
+        required: true
+permissions:
+  contents: write
+  actions: read
+jobs:
+  refresh:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate source and published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LINUX_RUN: ${{ inputs.linux_run_id }}
+        run: |
+          set -euo pipefail
+          test "$(node -p 'require("./package.json").version')" = '2.0.5'
+          [[ "$LINUX_RUN" =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$LINUX_RUN" > /tmp/build.json
+          test "$(jq -r .conclusion /tmp/build.json)" = 'success'
+          test "$(jq -r .path /tmp/build.json)" = '.github/workflows/linux.yml'
+          buildsha="$(jq -r .head_sha /tmp/build.json)"
+          git cat-file -e "$buildsha^{commit}"
+          git diff --exit-code "$buildsha" HEAD -- src assets licenses LICENSE COPYRIGHT package.json package-lock.json release-notes.json scripts/build-linux.cjs scripts/linux-target.cjs scripts/embed-appimage-update.cjs scripts/verify-appimage-update.cjs .github/workflows/linux.yml
+          gh api "repos/$GITHUB_REPOSITORY/releases/latest" > /tmp/before-current.json
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" > /tmp/before-all.json
+          test "$(jq -r .tag_name /tmp/before-current.json)" = 'v2.0.5'
+          test "$(jq -r .draft /tmp/before-current.json)" = 'false'
+          test "$(jq -r .immutable /tmp/before-current.json)" != 'true'
+          node - <<'NODE'
+          const fs=require('fs'),assert=require('node:assert/strict');
+          const {validateRelease}=require('./.github/scripts/release-tools.cjs');
+          const current=JSON.parse(fs.readFileSync('/tmp/before-current.json','utf8'));
+          assert.equal(current.assets.length,26);
+          validateRelease(current,'2.0.5');
+          NODE
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: PredatorVPN-Linux-*
+          merge-multiple: true
+          path: verified-build
+          run-id: ${{ inputs.linux_run_id }}
+          github-token: ${{ github.token }}
+      - name: Verify native Linux packages and metadata
+        run: |
+          set -euo pipefail
+          node scripts/verify-appimage-update.cjs verified-build/dist
+          for arch in x64 arm64; do
+            for ext in deb rpm; do
+              file="verified-build/dist/PredatorVPN-2.0.5-Linux-$arch.$ext"
+              test -s "$file"
+              test "$(stat -c %s "$file")" -gt 1000000
+            done
+          done
+          for arch in x86_64 aarch64; do
+            test -s "verified-build/dist/PredatorVPN-2.0.5-$arch.AppImage"
+            test -s "verified-build/dist/PredatorVPN-2.0.5-$arch.AppImage.zsync"
+          done
+      - name: Download existing Linux files for rollback
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/old-linux
+          gh release download v2.0.5 --repo "$GITHUB_REPOSITORY" --pattern '*.AppImage*' --dir /tmp/old-linux
+          gh release download v2.0.5 --repo "$GITHUB_REPOSITORY" --pattern 'PredatorVPN-2.0.5-Linux-*' --dir /tmp/old-linux
+          node - <<'NODE'
+          const fs=require('fs'),path=require('path'),assert=require('node:assert/strict'),crypto=require('node:crypto');
+          const r=JSON.parse(fs.readFileSync('/tmp/before-current.json','utf8'));
+          const names=r.assets.map(a=>a.name).filter(n=>n.endsWith('.AppImage')||n.endsWith('.AppImage.zsync')||/Linux-(x64|arm64)\.(deb|rpm)$/.test(n));
+          assert.equal(names.length,8);
+          for(const name of names){
+            const a=r.assets.find(a=>a.name===name),f=path.join('/tmp/old-linux',name);
+            assert(fs.statSync(f).size>0);
+            assert.equal(a.digest,'sha256:'+crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex'));
+          }
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Original-v2.0.5-Linux-assets-before-desktop-maintenance
+          path: /tmp/old-linux/*
+          retention-days: 90
+          compression-level: 0
+          if-no-files-found: error
+      - name: Replace only eight Linux assets for v2.0.5
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for arch in x64 arm64; do
+            gh release upload v2.0.5               "verified-build/dist/PredatorVPN-2.0.5-Linux-$arch.deb"               "verified-build/dist/PredatorVPN-2.0.5-Linux-$arch.rpm"               --repo "$GITHUB_REPOSITORY" --clobber
+          done
+          for arch in x86_64 aarch64; do
+            gh release upload v2.0.5               "verified-build/dist/PredatorVPN-2.0.5-$arch.AppImage"               "verified-build/dist/PredatorVPN-2.0.5-$arch.AppImage.zsync"               --repo "$GITHUB_REPOSITORY" --clobber
+          done
+      - name: Rebuild v2.0.5 checksum manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/v2.0.5" > /tmp/changed.json
+          node - <<'NODE'
+          const fs=require('fs'),{validateRelease}=require('./.github/scripts/release-tools.cjs');
+          fs.writeFileSync('/tmp/SHA256SUMS.txt',validateRelease(JSON.parse(fs.readFileSync('/tmp/changed.json','utf8')),'2.0.5'));
+          NODE
+          gh release upload v2.0.5 /tmp/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
+      - name: Verify digests and non-target releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/releases/latest" > /tmp/latest.json
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" > /tmp/after-all.json
+          node - <<'NODE'
+          const fs=require('fs'),crypto=require('crypto'),assert=require('node:assert/strict');
+          const {validateRelease}=require('./.github/scripts/release-tools.cjs');
+          const read=p=>JSON.parse(fs.readFileSync(p,'utf8'));
+          const current=read('/tmp/latest.json'),previous=read('/tmp/before-current.json');
+          assert.equal(current.tag_name,'v2.0.5');
+          assert.equal(current.assets.length,26);
+          assert.equal(validateRelease(current,'2.0.5'),fs.readFileSync('/tmp/SHA256SUMS.txt','utf8'));
+          const norm=r=>r.assets.map(a=>[a.name,a.digest,a.size]).sort((a,b)=>a[0].localeCompare(b[0]));
+          const older=x=>x.filter(r=>r.tag_name!=='v2.0.5').map(r=>({tag:r.tag_name,id:r.id,body:r.body,assets:norm(r)})).sort((a,b)=>a.tag.localeCompare(b.tag));
+          assert.deepEqual(older(read('/tmp/after-all.json')),older(read('/tmp/before-all.json')));
+          const isLinux=a=>a.name.endsWith('.AppImage')||a.name.endsWith('.AppImage.zsync')||/Linux-(x64|arm64)\.(deb|rpm)$/.test(a.name);
+          assert.deepEqual(norm({assets:current.assets.filter(a=>!isLinux(a)&&a.name!=='SHA256SUMS.txt')}),norm({assets:previous.assets.filter(a=>!isLinux(a)&&a.name!=='SHA256SUMS.txt')}),'Non-Linux assets changed');
+          assert.equal(current.assets.filter(isLinux).length,8);
+          for(const a of current.assets.filter(isLinux)){
+            const f='verified-build/dist/'+a.name;
+            assert.equal(a.digest,'sha256:'+crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex'),a.name);
+          }
+          console.log('Verified 8 Linux assets, source manifests, unchanged other platform assets and historical Releases.');
+          NODE
