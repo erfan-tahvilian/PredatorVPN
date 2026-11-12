@@ -12,6 +12,7 @@ The README uses a connection-path motif drawn from Predator VPN's orange fox-and
 | `download-badges/*.svg` | Platform and architecture download badges shared by the README and release notes. |
 | `hero-{dark,light}-mobile.webp` | Narrow-screen composition with larger relative type. |
 | `download-{windows,macos,android}-{dark,light}.svg` | Direct downloads for Windows x64, macOS Apple Silicon and Android ARM64. |
+| `workspace-v205-cinematic.png` | User-approved cinematic desktop/mobile showcase embedded in both README files (exact original PNG, SHA-256 pinned in tests). Promotional artwork; preserved real 2.0.5 screen captures remain in `docs/screenshots/`. |
 | `workspace-v205-{dark,light}.webp` | Wide showcases using real desktop and signed Android 2.0.5 app screenshots inside laptop and phone frames; only the account name is anonymized. |
 | `workspace-v205-{dark,light}-mobile.webp` | Portrait showcases that preserve both devices, with responsive art direction for README on mobile. |
 | `workspace-{dark,light}{,-mobile}.webp` | Legacy graphics, retained as references but no longer linked from the README workspace section. |

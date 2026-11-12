@@ -100,12 +100,7 @@
 
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark) and (max-width: 700px)" srcset="docs/readme/workspace-v205-dark-mobile.webp">
-    <source media="(max-width: 700px)" srcset="docs/readme/workspace-v205-light-mobile.webp">
-    <source media="(prefers-color-scheme: dark)" srcset="docs/readme/workspace-v205-dark.webp">
-    <img src="docs/readme/workspace-v205-light.webp" width="1440" alt="رابط واقعی Predator VPN نسخهٔ 2.0.5 در قاب لپ‌تاپ و گوشی اندرویدی، با نام نمایشی ناشناس‌سازی‌شدهٔ Predator.">
-  </picture>
+  <img src="docs/readme/workspace-v205-cinematic.png" width="1440" alt="Predator VPN desktop and mobile interfaces in a cinematic laptop and phone showcase.">
 </p>
 <a name="traffic-on-your-terms"></a>
 

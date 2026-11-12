@@ -15,20 +15,24 @@ const screens=['dark','light'].flatMap(theme=>[
   'docs/screenshots/desktop-v205-overview-'+theme+'.png',
   'docs/screenshots/android-v205-overview-'+theme+'.png'
 ]);
-test('English and Persian workspace sections use real v2.0.5 device mockups in both themes',()=>{
+test('both READMEs show the exact user-approved cinematic image',()=>{
+  const crypto=require('node:crypto');
+  const asset='docs/readme/workspace-v205-cinematic.png';
+  const bytes=fs.readFileSync(path.join(root,asset));
+  assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'),'a9a9038b6e44cbfda680cd2465bf37b9246a502d7909cf652ab29aa82b661cb2');
+  assert.equal(bytes.subarray(0,8).toString('hex'),'89504e470d0a1a0a');
+  assert.equal(bytes.readUInt32BE(16),1688);
+  assert.equal(bytes.readUInt32BE(20),932);
   for(const file of ['README.md','README.fa.md']){
-    const source=read(file),start=source.indexOf('<a name="the-workspace"></a>');
-    const end=source.indexOf('<a name="traffic-on-your-terms"></a>',start);
-    assert(start>=0 && end>start,file+' missing workspace anchors');
-    const section=source.slice(start,end);
-    for(const asset of mockups)assert(section.includes(asset),file+' not referencing '+asset);
-    assert.doesNotMatch(section,/docs\/screenshots\/desktop-v205-overview-dark\.png|docs\/screenshots\/android-v205-overview-dark\.png/,file+' still links raw screenshots below the showcase');
-    assert.doesNotMatch(section,/<sub>|View original desktop screenshot|View Android screenshot|anonymized to <strong>Predator<\/strong>/i,file+' still includes removed captions');
-    assert.match(section,/<picture>\s*<source media="\(prefers-color-scheme: dark\) and \(max-width: 700px\)"/);
-    assert.match(section,/Predator/);
-    assert.doesNotMatch(section,/docs\/screenshots\/android-overview\.png|docs\/screenshots\/desktop-overview-(dark|light)\.png/);
+    const text=read(file),i=text.indexOf('<a name="the-workspace"></a>'),j=text.indexOf('<a name="traffic-on-your-terms"></a>',i);
+    assert(i>=0&&j>i,'Workspace anchor missing '+file);
+    const section=text.slice(i,j);
+    assert(section.includes('<img src="'+asset+'"'));
+    assert.doesNotMatch(section,/workspace-v205-(dark|light)(-mobile)?\.webp/);
+    assert.doesNotMatch(section,/<picture>|<sub>|View original desktop screenshot|View Android screenshot/);
   }
 });
+
 test('desktop and mobile labels have exactly equal vertical clearance',()=>{
   const graphic=read('scripts/build-readme-workspace.py');
   assert.doesNotMatch(graphic,/DESKTOP\s+.*WINDOWS|MOBILE\s+.*ANDROID|ANONYMIZED ACCOUNT: PREDATOR/);

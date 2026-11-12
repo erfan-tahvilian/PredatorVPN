@@ -99,12 +99,7 @@ A clear connection dashboard, multi-account management, allowances and network d
 
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark) and (max-width: 700px)" srcset="docs/readme/workspace-v205-dark-mobile.webp">
-    <source media="(max-width: 700px)" srcset="docs/readme/workspace-v205-light-mobile.webp">
-    <source media="(prefers-color-scheme: dark)" srcset="docs/readme/workspace-v205-dark.webp">
-    <img src="docs/readme/workspace-v205-light.webp" width="1440" alt="Real Predator VPN 2.0.5 desktop application shown inside a laptop and Android app shown inside a phone, with the display name anonymized to Predator.">
-  </picture>
+  <img src="docs/readme/workspace-v205-cinematic.png" width="1440" alt="Predator VPN desktop and mobile interfaces in a cinematic laptop and phone showcase.">
 </p>
 <a name="traffic-on-your-terms"></a>
 
