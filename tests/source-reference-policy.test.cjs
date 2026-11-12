@@ -9,7 +9,12 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {execFileSync}=require('node:child_process');
 const root=path.resolve(__dirname,'..');
-const banned=new RegExp(String.fromCharCode(97,114,109,97,110),'i');
+// Encode disallowed identifiers so the guard itself contains no public name.
+const blockedIdentifiers=[
+ String.fromCharCode(97,114,109,97,110),
+ String.fromCharCode(118,97,117,116,104),
+];
+const banned=new RegExp(blockedIdentifiers.join('|'),'i');
 const binaryExtensions=new Set(['.exe','.dll','.dylib','.so','.a','.o','.obj','.aar','.jar','.zip','.apk','.png','.jpg','.jpeg','.ico','.webp','.gif','.pdf','.woff','.woff2','.ttf','.otf','.gz','.bin','.mp4','.mp3','.AppImage']);
 const files=()=>execFileSync('git',['ls-files','--cached','--others','--exclude-standard','-z'],{cwd:root,maxBuffer:16*1024*1024}).toString('utf8').split('\0').filter(Boolean);
 
@@ -34,4 +39,11 @@ test('source, documentation and license text contain no disallowed third-party r
   if(banned.test(content.toString('utf8')))hits.push(file);
  }
  assert.deepEqual(hits,[]);
+});
+
+test('reachable commit messages, authors and committers contain no disallowed references',()=>{
+ const log=execFileSync('git',['log','--all','--format=%H%x00%an%x00%ae%x00%cn%x00%ce%x00%B'],{
+  cwd:root,encoding:'utf8',maxBuffer:32*1024*1024,
+ });
+ assert.equal(banned.test(log),false);
 });
