@@ -93,7 +93,8 @@ async function desktop(){
         const loc=document.querySelector('#choose-location');
         const rect=badge.getBoundingClientRect(),icon=ping.getBoundingClientRect();
         const css=getComputedStyle(badge);
-        records.push({theme,accentColor,ms,text:badge.textContent,color:css.color,display:css.display,
+        records.push({theme,accentColor,ms,text:badge.textContent,color:css.color,
+          background:css.backgroundColor,border:css.borderColor,display:css.display,
           visible:rect.width>=40&&rect.height>=12,overlap:rect.right>icon.left+1,
           className:badge.className,home:getComputedStyle(document.querySelector('#home')).display});
       }
@@ -107,12 +108,19 @@ async function desktop(){
     assert(p.className.includes(p.ms<150?'fast':p.ms<350?'moderate':'slow'));
     assert.notEqual(p.home,'none');
   }
-  for(const ms of [75,149,150,240,349,350,480])assert.equal(new Set(pingStates.filter(p=>p.ms===ms).map(p=>p.color)).size,1,
-    'Latency color must be semantic and independent of theme and accent');
-  for(const [ms,expectedColor] of [[75,'rgb(34, 197, 94)'],[149,'rgb(34, 197, 94)'],[150,'rgb(234, 179, 8)'],[240,'rgb(234, 179, 8)'],[349,'rgb(234, 179, 8)'],[350,'rgb(239, 68, 68)'],[480,'rgb(239, 68, 68)']])assert.equal(pingStates.find(p=>p.ms===ms).color,expectedColor,'Use standard green, amber and red for every ping bucket');
-  assert.equal(new Set([75,240,480].map(ms=>pingStates.find(p=>p.ms===ms).color)).size,3,
-    'Fast, moderate and slow latency values must have distinct semantic colors');
-  console.log('PASS selected-location ping badge: visible at 1024px and fixed fast/moderate/slow colors across light/dark and accents');
+  const expected={
+    dark:{fast:['rgb(34, 197, 94)','rgb(16, 36, 23)'],moderate:['rgb(234, 179, 8)','rgb(42, 37, 16)'],slow:['rgb(239, 68, 68)','rgb(43, 20, 20)']},
+    light:{fast:['rgb(23, 106, 67)','rgb(232, 247, 238)'],moderate:['rgb(133, 85, 12)','rgb(255, 245, 223)'],slow:['rgb(180, 54, 56)','rgb(255, 240, 240)']},
+  };
+  for(const theme of ['dark','light'])for(const ms of [75,149,150,240,349,350,480]){
+    const group=pingStates.filter(p=>p.theme===theme&&p.ms===ms);
+    assert.equal(new Set(group.map(p=>p.color+'|'+p.background)).size,1,
+      'Each ping bucket must be independent of the accent within a theme');
+    const tier=ms<150?'fast':ms<350?'moderate':'slow';
+    assert.deepEqual([group[0].color,group[0].background],expected[theme][tier],
+      'Latency badge must use theme-specific readable semantic colors');
+  }
+  console.log('PASS latency badges: semantic green/amber/red, distinct accessible dark/light backgrounds across 10 accents');
   assert.deepEqual(errors,[],'Renderer must not emit console errors');
   console.log('PASS desktop studio layout: structural modules, gutters, settings navigation, palette, switches and 1024px responsive state');
  }finally{w.destroy();}
