@@ -26,7 +26,10 @@ async function main(){
     if(crypto.createHash('sha256').update(b).digest('hex')!==expected)throw Error('Electron checksum mismatch');
     fs.writeFileSync(zip,b);
   }
-  execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',`Expand-Archive -LiteralPath '${zip.replace(/'/g,"''")}' -DestinationPath '${root.replace(/'/g,"''")}' -Force`],{windowsHide:true});
+  // bsdtar is available on Windows 10/11, including ARM64. Avoid the
+  // PowerShell Expand-Archive overload that fails on Windows ARM runners.
+  fs.mkdirSync(root,{recursive:true});
+  execFileSync('tar.exe',['-xf',zip,'-C',root],{windowsHide:true});
   if(machine(executable)!==t.machine)throw Error('Electron architecture mismatch');
   console.log(`Electron ${version} (${t.label}) prepared; official checksum verified.`);
 }

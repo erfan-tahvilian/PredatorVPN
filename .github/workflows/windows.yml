@@ -27,6 +27,9 @@ jobs:
     runs-on: ${{ matrix.runner }}
     env:
       FOX_TARGET_ARCH: ${{ matrix.arch }}
+      # Resolve Node's Electron import through the verified architecture-specific
+      # bundle instead of a competing on-demand Electron installation.
+      ELECTRON_OVERRIDE_DIST_PATH: ${{ github.workspace }}/.tools/electron/${{ matrix.arch }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -35,6 +38,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node scripts/prepare-electron.cjs
+      - name: Use verified Electron binary for tests and smoke checks
+        run: node -e "require('node:fs').writeFileSync('node_modules/electron/path.txt','electron.exe')"
       - run: npm run engine
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
