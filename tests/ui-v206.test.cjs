@@ -36,6 +36,15 @@ test('Green connected power button wins over accent and mobile CSS selectors',()
  const app=source('src/ui/app.js');
  assert(app.includes("$('connect').className='power-button '+s.connection"));
 });
+test('Windows engine and Electron extraction work with native Windows ARM64 archive support',()=>{
+ const archiveScripts=['scripts/prepare-electron.cjs','scripts/download-engine.cjs'];
+ for(const file of archiveScripts){
+  const code=source(file);
+  assert(code.includes("execFileSync('tar.exe'"),file+' must use native ZIP extraction');
+  assert(!code.includes("execFileSync('powershell.exe'"),file+' must not rely on incompatible ZIP overloads');
+ }
+});
+
 test('v2.0.6 public notes and signed-Android version match',()=>{
  const version=require('../package.json').version;
  assert.equal(version,'2.0.6');
