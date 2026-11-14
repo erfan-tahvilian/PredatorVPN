@@ -35,7 +35,7 @@ class Store {
   accountStore(id){const self=this;return {get auth(){return self.accounts.find(a=>a.id===id)?.auth||null;},setAuth(auth){self.setAccountAuth(id,auth);}};}
   selectAccount(id){return this.mutateAccounts(()=>{const a=this.accounts.find(a=>a.id===id);if(!a?.auth)throw Error('Sign in to this account again before using it.');this.activeAccountId=id;});}
   removeAccount(id){return this.mutateAccounts(()=>{if(!this.accounts.some(a=>a.id===id))throw Error('Account no longer exists.');this.accounts=this.accounts.filter(a=>a.id!==id);if(this.activeAccountId===id)this.activeAccountId=this.accounts.find(a=>a.auth)?.id||null;});}
-  updateAccount(id,changes){return this.mutateAccounts(()=>{const a=this.accounts.find(a=>a.id===id);if(!a)throw Error('Account was removed.');for(const key of ['quota','status','checkedAt'])if(Object.hasOwn(changes,key))a[key]=changes[key];});}
+  updateAccount(id,changes){return this.mutateAccounts(()=>{const a=this.accounts.find(a=>a.id===id);if(!a)throw Error('Account was removed.');for(const key of ['quota','status','checkedAt'])if(Object.prototype.hasOwnProperty.call(changes,key))a[key]=changes[key];});}
   setAccountPreferences(autoSwitch){if(typeof autoSwitch!=='boolean')throw Error('Invalid account preference.');return this.mutateAccounts(()=>{this.accountPreferences.autoSwitch=autoSwitch;});}
   publicAccounts(){return this.accounts.map(({id,email,status,quota,checkedAt,auth})=>({id,email,status:auth?status:'sign-in-required',quota,checkedAt:checkedAt||null,active:id===this.activeAccountId}));}
   setTraffic(value){const old=this.traffic;this.traffic=value;try{this.persist();}catch(e){this.traffic=old;throw e;}}

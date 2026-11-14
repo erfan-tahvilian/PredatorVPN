@@ -59,3 +59,22 @@ body .server-selector:hover{border-color:var(--accent-hairline)}
 body .settings-card:focus-within{border-color:var(--accent-hairline)}
 body .nav-count{font-variant-numeric:tabular-nums}
 @media(prefers-reduced-motion:reduce){body .power-button,body .orbit,body .metric,body .server-row{transition:none!important;animation:none!important}}
+
+
+/* Readable ping feedback in light mode without changing dark-mode colors. */
+body.light .latency.fast{color:#176a43;background:#e8f7ee;border-color:#b6dfc8}
+body.light .latency.moderate{color:#85550c;background:#fff5df;border-color:#ebd3a7}
+body.light .latency.slow{color:#b43638;background:#fff0f0;border-color:#ecc0c2}
+
+/* Successful connections are green regardless of accent, OS or theme. */
+body #home .power-button.connected{
+  background:linear-gradient(145deg,#62e6a1,#21ae6d)!important;
+  border-color:#38cb80!important;
+  color:#092d1c!important;
+  box-shadow:0 0 0 9px rgba(34,170,100,.14),0 0 46px rgba(34,187,113,.30),inset 0 2px 4px rgba(255,255,255,.24)!important;
+}
+body #home .power-button.connected svg,
+body #home .power-button.connected::after{color:#092d1c!important}
+body #home .power-button.connected:hover:not(:disabled){
+  box-shadow:0 0 0 10px rgba(34,170,100,.18),0 0 58px rgba(34,187,113,.39),inset 0 2px 4px rgba(255,255,255,.24)!important;
+}

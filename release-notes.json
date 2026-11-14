@@ -1,5 +1,5 @@
 {
-  "version": "2.0.5",
+  "version": "2.0.6",
   "items": [
     {
       "platforms": [
@@ -8,8 +8,8 @@
         "linux",
         "android"
       ],
-      "title": "Reliable, optional account recovery",
-      "description": "Improved account connectivity on restricted or unstable networks. Recovery through configured subscriptions is optional, and saved account settings are preserved."
+      "title": "Improved Android compatibility",
+      "description": "Resolved a sign-in-screen error affecting certain older Android WebView versions; sign-in stays within the app."
     },
     {
       "platforms": [
@@ -18,31 +18,8 @@
         "linux",
         "android"
       ],
-      "title": "Split Tunneling made simpler",
-      "description": "Turn Split Tunneling on or off without losing your chosen apps. When disabled, the normal device-wide VPN routing settings apply."
-    },
-    {
-      "platforms": [
-        "win32",
-        "darwin",
-        "linux"
-      ],
-      "title": "More reliable desktop connections",
-      "description": "Improved desktop sign-in, server checks and handling of slow or interrupted account-service connections."
-    },
-    {
-      "platforms": [
-        "linux"
-      ],
-      "title": "Improved Linux AppImage compatibility",
-      "description": "Refreshed the Linux AppImage for broader desktop compatibility and support for AppImageUpdate."
-    },
-    {
-      "platforms": [
-        "linux"
-      ],
-      "title": "Clearer Linux downloads",
-      "description": "Updated architecture-specific AppImage, DEB and RPM packages, with consistent download names."
+      "title": "Clearer latency indicators",
+      "description": "Ping badges now use readable light-theme backgrounds while preserving the fast, moderate and slow color meanings."
     },
     {
       "platforms": [
@@ -51,8 +28,8 @@
         "linux",
         "android"
       ],
-      "title": "Consistent v2.0.5 updates",
-      "description": "Updated installer packages, release integrity checks and documentation while preserving existing account, subscription and VPN features."
+      "title": "Green connected-state feedback",
+      "description": "The Connect button turns green after a successful VPN connection, regardless of theme or accent color."
     }
   ]
 }
