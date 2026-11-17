@@ -20,22 +20,14 @@ test('public documentation and interface avoid upstream brand promotion',()=>{
     assert.match(content,/assets\/logo\.png/,name);
   }
 });
-test('automated bootstrap list refresh never commits as github-actions bot',()=>{
-  const workflow=read('.github/workflows/bootstrap-refresh.yml');
-  assert.match(workflow,/git config user\.name "erfan-tahvilian"/);
-  assert.match(workflow,/git config user\.email "198095948\+erfan-tahvilian@users\.noreply\.github\.com"/);
-  assert.doesNotMatch(workflow,/git config user\.(?:name|email) [^\n]*github-actions\[bot\]/);
-});
-
-test('bootstrap mirror refresh runs hourly and preserves the last good list on errors',()=>{
-  const workflow=read('.github/workflows/bootstrap-refresh.yml');
-  assert(workflow.includes("cron: '17 * * * *'"));
-  assert(workflow.includes('group: predator-bootstrap-refresh'));
-  assert(workflow.includes('cancel-in-progress: false'));
-  assert(workflow.includes('secrets.PREDATOR_BOOTSTRAP_SUB_URL'));
-  assert(workflow.includes('docs/bootstrap/working-nodes.txt'));
-  assert(workflow.includes('if git diff --cached --quiet'));
-  assert(workflow.includes('if not nodes:'));
+test('unused in-repository bootstrap feed and hourly refresh are retired',()=>{
+  const root=path.join(__dirname,'..');
+  assert.equal(fs.existsSync(path.join(root,'.github/workflows/bootstrap-refresh.yml')),false);
+  assert.equal(fs.existsSync(path.join(root,'docs/bootstrap/working-nodes.txt')),false);
+  const settings=read('src/lib/settings.cjs');
+  assert.match(settings,/DEFAULT_BOOTSTRAP_URLS=\['https:\/\/raw\.githubusercontent\.com\/0xRadikal\/Free-v2ray-Configs\/main\/top100\.txt'\]/);
+  // Older subscription URLs remain recognized only for migration of saved settings.
+  assert.match(settings,/RETIRED_BOOTSTRAP_URLS/);
 });
 
 test('registration and provider-account outbound links are absent, transport identity remains intact',()=>{
