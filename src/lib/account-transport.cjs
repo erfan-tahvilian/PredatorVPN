@@ -2,7 +2,7 @@
 // Account API requests use isolated, in-memory Chromium sessions rather than
 // inheriting any proxy applied to the application window. An OS-level VPN route
 // is not bypassed by this setting; direct here means "no Chromium proxy".
-const TRANSIENT=/\b(?:ERR_CONNECTION_RESET|ERR_NETWORK_CHANGED|ERR_CONNECTION_CLOSED|ERR_TIMED_OUT|ETIMEDOUT|ECONNRESET|EPIPE|TimeoutError)\b|aborted due to timeout/i;
+const TRANSIENT=/\b(?:ERR_CONNECTION_RESET|ERR_NETWORK_CHANGED|ERR_CONNECTION_CLOSED|ERR_TIMED_OUT|ERR_NAME_NOT_RESOLVED|EAI_AGAIN|ENOTFOUND|ETIMEDOUT|ECONNRESET|EPIPE|TimeoutError)\b|aborted due to timeout/i;
 const APPROVED=new Set(['api.accounts.firefox.com','accounts.firefox.com','oauth.accounts.firefox.com','vpn.mozilla.org','firefox.settings.services.mozilla.com']);
 const FXA_COOKIE_URLS=[
   'https://api.accounts.firefox.com/',

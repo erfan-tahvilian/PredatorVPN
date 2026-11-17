@@ -10,8 +10,8 @@ const os=require('node:os');
 const {spawn}=require('node:child_process');
 const {URL}=require('node:url');
 
-const DEFAULT_SUB_URL='https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt';
-const DEFAULT_MIRROR_URLS=['https://cdn.jsdelivr.net/gh/erfan-tahvilian/PredatorVPN@main/docs/bootstrap/working-nodes.txt'];
+const DEFAULT_SUB_URL='https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt';
+const DEFAULT_MIRROR_URLS=[];
 const MAX_CANDIDATES=20;
 const CONNECT_TIMEOUT_MS=18000;
 const GUARDIAN_HOST='vpn.mozilla.org';

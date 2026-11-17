@@ -99,6 +99,11 @@ public final class FoxApp extends Application implements Host {
     @Override public String dnsAddress() {
         LinkProperties links = physicalLinks;
         if (links == null || links.getDnsServers().isEmpty()) return "";
+        // Prefer an IPv4 physical-network resolver where one is available:
+        // some carriers advertise an unreachable IPv6 DNS endpoint first.
+        for (java.net.InetAddress server : links.getDnsServers()) {
+            if (server instanceof java.net.Inet4Address) return server.getHostAddress();
+        }
         return links.getDnsServers().get(0).getHostAddress();
     }
     @Override public String certificates() { return certificates == null ? "" : certificates; }

@@ -45,13 +45,13 @@ test('Windows engine and Electron extraction work with native Windows ARM64 arch
  }
 });
 
-test('v2.0.6 public notes and signed-Android version match',()=>{
+test('v2.0.7 public notes and signed-Android version match',()=>{
  const version=require('../package.json').version;
- assert.equal(version,'2.0.6');
+ assert.equal(version,'2.0.7');
  assert.equal(require('../release-notes.json').version,version);
- assert(source('android/core/mobile/updates.go').includes('const appVersion = "2.0.6"'));
+ assert(source('android/core/mobile/updates.go').includes('const appVersion = "2.0.7"'));
  const release=source('RELEASE_NOTES.md');
  assert(release.includes('<!-- predatorvpn-downloads:start -->'));
- assert(release.includes('PredatorVPN-2.0.6-Android-arm64-v8a.apk'));
- assert(release.includes('PredatorVPN-2.0.6-Windows-x64.exe'));
+ assert(release.includes('PredatorVPN-2.0.7-Android-arm64-v8a.apk'));
+ assert(release.includes('PredatorVPN-2.0.7-Windows-x64.exe'));
 });

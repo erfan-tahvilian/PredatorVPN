@@ -298,3 +298,24 @@ test('Chromium timeout triggers idempotent fallback with a fresh non-aborted dea
  await assert.rejects(transport(service,{method:'POST',body:'{}',signal:expired.signal}),/interrupted/i);
  assert.equal(fallback,1,'A password or verification POST must never be resubmitted');
 });
+
+test('Guardian DNS lookup timeouts fall back to the isolated verified network session for read-only requests',async()=>{
+ const source='https://vpn.mozilla.org/api/v1/fpn/token';
+ let nodeAttempts=0,chromiumAttempts=0,systemAttempts=0;
+ const dns=Object.assign(new Error('getaddrinfo EAI_AGAIN vpn.mozilla.org'),{code:'EAI_AGAIN'});
+ const transport=createAccountTransport({
+  createSession:()=>({setProxy:async()=>{},fetch:async()=>{
+   chromiumAttempts++;return new Response('{"token":"fixture"}',{status:200});
+  }}),
+  systemFetch:async()=>{systemAttempts++;return new Response('{}');},
+  guardianDirectFetch:async()=>{nodeAttempts++;throw dns;},
+ });
+ const result=await transport(source,{method:'GET'});
+ assert.equal(result.status,200);
+ assert.equal(nodeAttempts,1);
+ assert.equal(chromiumAttempts,1);
+ assert.equal(systemAttempts,0);
+ assert(isTransient(dns));
+ assert(isTransient(Object.assign(Error('net::ERR_NAME_NOT_RESOLVED'),{code:'ERR_NAME_NOT_RESOLVED'})));
+ assert(!isTransient(Object.assign(Error('net::ERR_CERT_AUTHORITY_INVALID'),{code:'ERR_CERT_AUTHORITY_INVALID'})));
+});

@@ -1,17 +1,22 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Erfan Tahvilian
 const net = require('node:net');
-const DEFAULT_BOOTSTRAP_URLS=['https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt','https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt'];
-const DEFAULTS={transport:'auto',theme:'system',accentColor:'orange',locationSort:'ping-asc',splitMode:'exclude',splitTunnelingEnabled:true,accountRecoveryEnabled:false,proxyOnly:false,bind:'127.0.0.1',socksPort:1080,doh:'automatic',customDns:'',edge:'',exitCheck:true,excludedApps:[],upstream:{enabled:false,type:'socks5',host:'',port:1080,username:'',password:''},serverId:'REC',bootstrapSubUrl:'https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt',bootstrapSubUrls:[...DEFAULT_BOOTSTRAP_URLS],subscriptionsEnabled:false};
+const DEFAULT_BOOTSTRAP_URLS=['https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt'];
+const RETIRED_BOOTSTRAP_URLS=new Set(['https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt','https://cdn.jsdelivr.net/gh/erfan-tahvilian/PredatorVPN@main/docs/bootstrap/working-nodes.txt']);
+const DEFAULTS={transport:'auto',theme:'system',accentColor:'orange',locationSort:'ping-asc',splitMode:'exclude',splitTunnelingEnabled:true,accountRecoveryEnabled:false,proxyOnly:false,bind:'127.0.0.1',socksPort:1080,doh:'automatic',customDns:'',edge:'',exitCheck:true,excludedApps:[],upstream:{enabled:false,type:'socks5',host:'',port:1080,username:'',password:''},serverId:'REC',bootstrapSubUrl:'https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt',bootstrapSubUrls:[...DEFAULT_BOOTSTRAP_URLS],subscriptionsEnabled:false};
 function host(value) {return typeof value==='string' && value.length<=253 && (net.isIP(value)>0 || /^(?=.{1,253}$)[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/i.test(value));}
 function port(value) {return Number.isInteger(value)&&value>0&&value<=65535;}
 function validate(input, platform=process.platform) {
   const normalized={...input};
-  // Migrate legacy single-link vaults. New arrays remain authoritative, including [].
+  // Remove the deprecated in-repository feed from saved and new settings.
+  // Preserve intentionally empty lists and users' custom subscriptions.
   if(!Array.isArray(normalized.bootstrapSubUrls)){
-    const legacy=typeof normalized.bootstrapSubUrl==="string"?normalized.bootstrapSubUrl.trim():"";
-    const first=!legacy||legacy==="https://cdn.jsdelivr.net/gh/erfan-tahvilian/PredatorVPN@main/docs/bootstrap/working-nodes.txt"?DEFAULT_BOOTSTRAP_URLS[0]:legacy;
-    normalized.bootstrapSubUrls=[first,DEFAULT_BOOTSTRAP_URLS[1]];
+    const legacy=typeof normalized.bootstrapSubUrl==='string'?normalized.bootstrapSubUrl.trim():'';
+    normalized.bootstrapSubUrls=legacy&&!RETIRED_BOOTSTRAP_URLS.has(legacy)?[legacy]:[...DEFAULT_BOOTSTRAP_URLS];
+  }else{
+    const previous=normalized.bootstrapSubUrls;
+    const remaining=previous.filter(u=>typeof u!=='string'||!RETIRED_BOOTSTRAP_URLS.has(u.trim()));
+    normalized.bootstrapSubUrls=previous.length&&!remaining.length?[...DEFAULT_BOOTSTRAP_URLS]:remaining;
   }
   if(!Array.isArray(normalized.bootstrapSubUrls))throw Error("Invalid Bootstrap URL list.");
   const seen=new Set();

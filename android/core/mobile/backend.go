@@ -65,8 +65,38 @@ func copyObject(m object) object {
 	return out
 }
 func millis() int64 { return time.Now().UnixMilli() }
+const defaultBootstrapSubscription = "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt"
+const removedBootstrapSubscription = "https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt"
+const removedBootstrapMirror = "https://cdn.jsdelivr.net/gh/erfan-tahvilian/PredatorVPN@main/docs/bootstrap/working-nodes.txt"
+
+func migrateBootstrapSubscriptions(settings object) {
+  values,hasList:=settings["bootstrapSubUrls"].([]any)
+  if !hasList {
+    legacy:=strings.TrimSpace(str(settings,"bootstrapSubUrl"))
+    if legacy=="" || legacy==removedBootstrapSubscription || legacy==removedBootstrapMirror {
+      values=[]any{defaultBootstrapSubscription}
+    } else {
+      values=[]any{legacy}
+    }
+  }
+  selected:=make([]any,0,len(values))
+  seen:=map[string]bool{}
+  for _,value:=range values {
+    url,ok:=value.(string)
+    if !ok { selected=append(selected,value); continue }
+    url=strings.TrimSpace(url)
+    if url=="" || url==removedBootstrapSubscription || url==removedBootstrapMirror || seen[url] {continue}
+    seen[url]=true
+    selected=append(selected,url)
+  }
+  if len(values)>0 && len(selected)==0 {selected=[]any{defaultBootstrapSubscription}}
+  settings["bootstrapSubUrls"]=selected
+  settings["bootstrapSubUrl"]=""
+  if len(selected)>0 {if first,ok:=selected[0].(string);ok{settings["bootstrapSubUrl"]=first}}
+}
+
 func defaults() object {
-	return object{"transport": "auto", "theme": "system", "accentColor": "orange", "proxyOnly": false, "bind": "127.0.0.1", "socksPort": 1080, "doh": "automatic", "customDns": "", "edge": "", "exitCheck": true, "excludedApps": []any{}, "upstream": object{"enabled": false, "type": "socks5", "host": "", "port": 1080, "username": "", "password": ""}, "serverId": "REC", "subscriptionsEnabled":false, "accountRecoveryEnabled":false, "splitTunnelingEnabled":true, "bootstrapSubUrl": "https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt", "bootstrapSubUrls": []any{"https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt", "https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt"}}
+	return object{"transport": "auto", "theme": "system", "accentColor": "orange", "proxyOnly": false, "bind": "127.0.0.1", "socksPort": 1080, "doh": "automatic", "customDns": "", "edge": "", "exitCheck": true, "excludedApps": []any{}, "upstream": object{"enabled": false, "type": "socks5", "host": "", "port": 1080, "username": "", "password": ""}, "serverId": "REC", "subscriptionsEnabled":false, "accountRecoveryEnabled":false, "splitTunnelingEnabled":true, "bootstrapSubUrl": defaultBootstrapSubscription, "bootstrapSubUrls": []any{defaultBootstrapSubscription}}
 }
 
 type Backend struct {
@@ -109,13 +139,6 @@ func NewBackend(host Host, vault string) *Backend {
 	if json.Unmarshal([]byte(vault), &saved) == nil {
 		if s := obj(saved, "settings"); len(s) > 0 {
             if str(s, "accentColor") == "" { s["accentColor"] = "orange" }
-            if _,ok:=s["bootstrapSubUrls"];!ok{
-                first:=str(s,"bootstrapSubUrl")
-                if first=="" || first=="https://cdn.jsdelivr.net/gh/erfan-tahvilian/PredatorVPN@main/docs/bootstrap/working-nodes.txt"{
-                    first="https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/docs/bootstrap/working-nodes.txt"
-                }
-                s["bootstrapSubUrls"]=[]any{first,"https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt"}
-            }
             if _,ok:=s["subscriptionsEnabled"];!ok{s["subscriptionsEnabled"]=false}
             if validate(s) == nil { b.settings = s }
         }
@@ -154,7 +177,7 @@ func NewBackend(host Host, vault string) *Backend {
 	}}
 	b.dialer = &net.Dialer{Timeout: 15 * time.Second, KeepAlive: 30 * time.Second, Control: control, Resolver: resolver}
 	jar, _ := cookiejar.New(nil)
-	b.client = &http.Client{Timeout: 30 * time.Second, Jar: jar, Transport: &http.Transport{DialContext: b.dialer.DialContext, TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}, ForceAttemptHTTP2: true}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	b.client = &http.Client{Timeout: 30 * time.Second, Jar: jar, Transport: &http.Transport{DialContext: b.dialProvider, TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}, ForceAttemptHTTP2: true}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	return b
 }
 func (b *Backend) snapshotLocked() object {
@@ -208,6 +231,7 @@ func (b *Backend) save() error {
 }
 func (b *Backend) setAuth(auth object) error { return b.addAccount(auth) }
 func validate(s object) error {
+    migrateBootstrapSubscriptions(s)
 	if str(s, "transport") == "" {
 		s["transport"] = "auto"
 	}

@@ -1,35 +1,31 @@
 {
-  "version": "2.0.6",
+  "version": "2.0.7",
   "items": [
     {
       "platforms": [
-        "win32",
-        "darwin",
-        "linux",
         "android"
       ],
-      "title": "Improved Android compatibility",
-      "description": "Resolved a sign-in-screen error affecting certain older Android WebView versions; sign-in stays within the app."
+      "title": "Reliable DNS for account and VPN services",
+      "description": "Improved Android recovery when a network-provided DNS resolver times out. Encrypted DNS fallback keeps HTTPS certificate validation and is only used for approved service hosts."
     },
     {
       "platforms": [
         "win32",
         "darwin",
-        "linux",
-        "android"
+        "linux"
       ],
-      "title": "Clearer latency indicators",
-      "description": "Ping badges now use readable light-theme backgrounds while preserving the fast, moderate and slow color meanings."
+      "title": "Better service-DNS error handling",
+      "description": "Temporary DNS resolution errors now participate in safe, read-only transport recovery without resubmitting verification or sign-in requests."
     },
     {
       "platforms": [
+        "android",
         "win32",
         "darwin",
-        "linux",
-        "android"
+        "linux"
       ],
-      "title": "Green connected-state feedback",
-      "description": "The Connect button turns green after a successful VPN connection, regardless of theme or accent color."
+      "title": "One default subscription source",
+      "description": "The external Free-v2ray-Configs subscription is now the only built-in subscription URL. Previous in-repository subscription URLs are migrated out while user-added links remain available."
     }
   ]
 }

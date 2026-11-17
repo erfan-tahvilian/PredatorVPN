@@ -13,20 +13,24 @@ const RAW='https://raw.githubusercontent.com/erfan-tahvilian/PredatorVPN/main/do
 const OTHER='https://raw.githubusercontent.com/0xRadikal/Free-v2ray-Configs/main/top100.txt';
 const OLD='https://cdn.jsdelivr.net/gh/erfan-tahvilian/PredatorVPN@main/docs/bootstrap/working-nodes.txt';
 
-test('two subscriptions default; old settings migrate and unlimited custom lists preserve order',()=>{
- assert.deepEqual(DEFAULTS.bootstrapSubUrls,[RAW,OTHER]);
+test('only external subscription remains and retired in-repository URLs migrate away',()=>{
+ assert.deepEqual(DEFAULTS.bootstrapSubUrls,[OTHER]);
+ assert.equal(DEFAULTS.bootstrapSubUrl,OTHER);
+ assert.equal(DEFAULT_SUB_URL,OTHER);
  assert.equal(DEFAULTS.subscriptionsEnabled,false);
  assert.equal(validate({subscriptionsEnabled:true}).subscriptionsEnabled,true);
  assert.equal(validate({}).subscriptionsEnabled,false);
  assert.throws(()=>validate({subscriptionsEnabled:'true'}),/setting|Invalid/i);
- assert.equal(DEFAULT_SUB_URL,RAW);
- assert.deepEqual(validate({bootstrapSubUrl:OLD}).bootstrapSubUrls,[RAW,OTHER]);
- assert.deepEqual(validate({bootstrapSubUrl:''}).bootstrapSubUrls,[RAW,OTHER]);
- assert.deepEqual(validate({bootstrapSubUrl:'https://example.com/private-sub'}).bootstrapSubUrls,['https://example.com/private-sub',OTHER]);
+ assert.deepEqual(validate({bootstrapSubUrl:OLD}).bootstrapSubUrls,[OTHER]);
+ assert.deepEqual(validate({bootstrapSubUrl:RAW}).bootstrapSubUrls,[OTHER]);
+ assert.deepEqual(validate({bootstrapSubUrl:''}).bootstrapSubUrls,[OTHER]);
+ assert.deepEqual(validate({bootstrapSubUrl:'https://example.com/private-sub'}).bootstrapSubUrls,['https://example.com/private-sub']);
  const many=Array.from({length:101},(_,i)=>'https://example.org/s'+i);
  assert.deepEqual(validate({bootstrapSubUrls:many}).bootstrapSubUrls,many);
  assert.deepEqual(validate({bootstrapSubUrls:[]}).bootstrapSubUrls,[]);
- assert.deepEqual(validate({bootstrapSubUrls:[RAW,RAW,OTHER,'']}).bootstrapSubUrls,[RAW,OTHER]);
+ assert.deepEqual(validate({bootstrapSubUrls:[RAW,RAW,OTHER,'']}).bootstrapSubUrls,[OTHER]);
+ assert.deepEqual(validate({bootstrapSubUrls:[OLD]}).bootstrapSubUrls,[OTHER]);
+ assert.deepEqual(validate({bootstrapSubUrls:[RAW,OTHER,'https://example.com/custom']}).bootstrapSubUrls,[OTHER,'https://example.com/custom']);
  assert.throws(()=>validate({bootstrapSubUrls:['file:///etc/passwd']}),/http\(s\)/i);
 });
 
