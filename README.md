@@ -1,4 +1,4 @@
-<p align="center"><strong>English</strong> &nbsp; | &nbsp; <a href="README.fa.md">فارسی</a></p>
+<p align="center"><strong>English</strong> &nbsp; | &nbsp; <a href="README.fa.md">فارسی</a> &nbsp; | &nbsp; <a href="README.ja.md">日本語</a></p>
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/logo-light.png"><img src="assets/logo.png" width="152" alt="Predator VPN logo"></picture></p>
 
