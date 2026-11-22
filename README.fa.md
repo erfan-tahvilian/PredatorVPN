@@ -8,7 +8,7 @@
 - **یک منبع اشتراک پیش‌فرض:** فقط لینک Free-v2ray-Configs در برنامه باقی می‌ماند و لینک قدیمی داخلی از تنظیمات ذخیره‌شده حذف می‌شود.
 - **حفظ تنظیمات و سازگاری:** نسخه‌های قبلی و تنظیمات حساب، تم و Split Tunneling دست‌نخورده می‌مانند.
 
-<p align="center"><a href="README.md">English</a> &nbsp; | &nbsp; <strong>فارسی</strong></p>
+<p align="center"><a href="README.md">English</a> &nbsp; | &nbsp; <strong>فارسی</strong> &nbsp; | &nbsp; <a href="README.ja.md">日本語</a></p>
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/logo-light.png"><img src="assets/logo.png" width="152" alt="Predator VPN logo"></picture></p>
 

@@ -23,7 +23,7 @@ test('both READMEs show the exact user-approved cinematic image',()=>{
   assert.equal(bytes.subarray(0,8).toString('hex'),'89504e470d0a1a0a');
   assert.equal(bytes.readUInt32BE(16),1688);
   assert.equal(bytes.readUInt32BE(20),932);
-  for(const file of ['README.md','README.fa.md']){
+  for(const file of ['README.md','README.fa.md','README.ja.md']){
     const text=read(file),i=text.indexOf('<a name="the-workspace"></a>'),j=text.indexOf('<a name="traffic-on-your-terms"></a>',i);
     assert(i>=0&&j>i,'Workspace anchor missing '+file);
     const section=text.slice(i,j);

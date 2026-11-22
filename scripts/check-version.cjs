@@ -7,7 +7,7 @@ for(const item of notes.items){assert(typeof item.title==='string'&&item.title.t
 assert.equal(/const appVersion\s*=\s*"([^"]+)"/.exec(fs.readFileSync('android/core/mobile/updates.go','utf8'))?.[1],pkg.version);
 const [major,minor,patch]=pkg.version.split('.').map(Number);assert(major<2000&&minor<1000&&patch<1000,'Android version-code components are out of range');
 assert(major*1000000+minor*1000+patch>1);
-for(const name of ['README.md','README.fa.md']){
+for(const name of ['README.md','README.fa.md','README.ja.md']){
   const readme=fs.readFileSync(name,'utf8');
   assert(readme.includes('/releases/tag/v'+pkg.version),`${name} must point to the current release`);
   assert(readme.includes('/releases/download/v'+pkg.version+'/PredatorVPN-'+pkg.version+'-Windows-x64.exe'),`${name} must link current Windows release`);

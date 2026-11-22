@@ -6,11 +6,11 @@ const fs=require('node:fs');
 const path=require('node:path');
 const read=name=>fs.readFileSync(path.join(__dirname,'..',name),'utf8');
 test('public documentation and interface avoid upstream brand promotion',()=>{
-  for(const name of ['README.md','README.fa.md','RELEASE_NOTES.md','src/ui/index.html','src/ui/app.js','src/ui/accounts-ui.js','package.json']){
+  for(const name of ['README.md','README.fa.md','README.ja.md','RELEASE_NOTES.md','src/ui/index.html','src/ui/app.js','src/ui/accounts-ui.js','package.json']){
     const content=read(name);
     assert.doesNotMatch(content,/firefox|mozilla|فایرفاکس|موزیلا|accounts\.firefox\.com\/signup/i,name);
   }
-  for(const name of ['README.md','README.fa.md']){
+  for(const name of ['README.md','README.fa.md','README.ja.md']){
     const content=read(name);
     // Deprecated generic mockups must stay unreferenced; v2.0.5 now uses
     // real app screenshots framed in the four responsive workspace images.

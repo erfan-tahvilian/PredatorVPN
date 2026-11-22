@@ -8,7 +8,7 @@ const root=path.resolve(__dirname,'..');
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const mixedCase='Predator'+'Vpn';
 test('canonical repository case is PredatorVPN everywhere in release-bound files',()=>{
- const files=['AGENTS.md','README.md','README.fa.md','RELEASE_NOTES.md','package.json','src/lib/updates.cjs','android/core/mobile/updates.go','scripts/build-windows.cjs','.github/scripts/release-tools.cjs'];
+ const files=['AGENTS.md','README.md','README.fa.md','README.ja.md','RELEASE_NOTES.md','package.json','src/lib/updates.cjs','android/core/mobile/updates.go','scripts/build-windows.cjs','.github/scripts/release-tools.cjs'];
  for(const file of files)assert.doesNotMatch(read(file),new RegExp(mixedCase),file);
  assert.match(read('AGENTS.md'),/erfan-tahvilian\/PredatorVPN/);
  assert.match(read('src/lib/updates.cjs'),/erfan-tahvilian\/PredatorVPN/);
