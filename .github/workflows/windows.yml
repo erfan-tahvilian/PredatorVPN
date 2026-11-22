@@ -4,8 +4,10 @@ name: Windows build
 on:
   push:
     branches: [main]
-    paths: ['desktop/h3/**', 'src/**', 'assets/**', 'licenses/**', 'LICENSE', 'COPYRIGHT', 'package*.json', 'release-notes.json', 'scripts/**', '!scripts/*android*', '.github/workflows/windows.yml']
+    paths: ['desktop/h3/**', 'src/**', 'assets/**', 'licenses/**', 'LICENSE', 'COPYRIGHT', 'package*.json', 'release-notes.json', 'scripts/**', '!scripts/*android*', '.github/workflows/windows.yml', '!scripts/check-version.cjs', '!scripts/build-readme-workspace.py', '!scripts/capture-readme-v205.cjs', '!scripts/readme-preview-preload.cjs']
   pull_request:
+    branches: [main]
+    paths: ['desktop/h3/**', 'src/**', 'assets/**', 'licenses/**', 'LICENSE', 'COPYRIGHT', 'package*.json', 'release-notes.json', 'scripts/**', '!scripts/*android*', '.github/workflows/windows.yml', '!scripts/check-version.cjs', '!scripts/build-readme-workspace.py', '!scripts/capture-readme-v205.cjs', '!scripts/readme-preview-preload.cjs']
   workflow_dispatch:
 permissions:
   contents: read

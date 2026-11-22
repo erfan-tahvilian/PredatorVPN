@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Validate documentation and release links without rebuilding installers.
+name: Documentation checks
+on:
+  push:
+    branches: [main]
+    paths:
+      - '*.md'
+      - 'README*.md'
+      - 'RELEASE_NOTES.md'
+      - 'docs/**'
+      - 'scripts/check-version.cjs'
+      - 'scripts/build-readme-workspace.py'
+      - 'scripts/capture-readme-v205.cjs'
+      - 'scripts/readme-preview-preload.cjs'
+      - 'tests/branding.test.cjs'
+      - 'tests/readme-workspace.test.cjs'
+      - 'tests/brand-name-case.test.cjs'
+      - 'tests/ci-workflow-paths.test.cjs'
+      - '.github/workflows/docs-check.yml'
+      - '.github/workflows/windows.yml'
+      - '.github/workflows/linux.yml'
+      - '.github/workflows/macos.yml'
+      - '.github/workflows/android.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '*.md'
+      - 'README*.md'
+      - 'RELEASE_NOTES.md'
+      - 'docs/**'
+      - 'scripts/check-version.cjs'
+      - 'scripts/build-readme-workspace.py'
+      - 'scripts/capture-readme-v205.cjs'
+      - 'scripts/readme-preview-preload.cjs'
+      - 'tests/branding.test.cjs'
+      - 'tests/readme-workspace.test.cjs'
+      - 'tests/brand-name-case.test.cjs'
+      - 'tests/ci-workflow-paths.test.cjs'
+      - '.github/workflows/docs-check.yml'
+      - '.github/workflows/windows.yml'
+      - '.github/workflows/linux.yml'
+      - '.github/workflows/macos.yml'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: documentation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  documentation:
+    name: README and CI path validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify version metadata and translated download links
+        run: node scripts/check-version.cjs
+      - name: Test documentation and workflow path selection
+        run: |
+          node --test tests/branding.test.cjs tests/readme-workspace.test.cjs tests/brand-name-case.test.cjs tests/ci-workflow-paths.test.cjs

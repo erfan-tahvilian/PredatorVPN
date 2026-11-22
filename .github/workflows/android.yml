@@ -4,7 +4,10 @@ name: Android build
 on:
   push:
     branches: [main]
-    paths: ['package*.json', 'release-notes.json', 'scripts/check-version.cjs', 'android/**', 'src/ui/**', 'assets/**', 'licenses/**', 'LICENSE', 'COPYRIGHT', 'scripts/*android*', '.github/workflows/android.yml']
+    paths: ['package*.json', 'release-notes.json', 'android/**', 'src/ui/**', 'assets/**', 'licenses/**', 'LICENSE', 'COPYRIGHT', 'scripts/*android*', '.github/workflows/android.yml']
+  pull_request:
+    branches: [main]
+    paths: ['package*.json', 'release-notes.json', 'android/**', 'src/ui/**', 'assets/**', 'licenses/**', 'LICENSE', 'COPYRIGHT', 'scripts/*android*', '.github/workflows/android.yml']
   workflow_dispatch:
 permissions:
   contents: read
